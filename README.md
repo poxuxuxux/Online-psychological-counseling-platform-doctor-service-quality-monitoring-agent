@@ -18,6 +18,8 @@ uvicorn app.main:app --reload
 
 - [整体架构说明](docs/architecture/ARCHITECTURE.md)：系统分层、运行流程、扩展机制、数据边界、协作与实施计划。
 - [B2B 风控与服务质检后台架构融合提案](docs/architecture/B2B_ADMIN_CONSOLE_ARCHITECTURE.md)：前端后台、租户权限、风险案件、人工复核与落地顺序。
+- [B2B 质检风控后台 PRD](docs/product/PRD_B2B_QUALITY_CONTROL_CONSOLE.md)：用户角色、核心流程、功能需求和 MVP 验收标准。
+- [前端目录骨架说明](frontend/README.md)：Vue 3 后台前端的模块目录规划；当前仅有占位文件，尚未实现页面。
 - [系统模块图](docs/architecture/assets/01_system_architecture.svg)
 - [运行时流程图](docs/architecture/assets/02_runtime_workflow.svg)
 - [功能扩展图](docs/architecture/assets/03_extension_paths.svg)

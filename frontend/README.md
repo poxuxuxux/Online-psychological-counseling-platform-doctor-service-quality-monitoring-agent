@@ -1,0 +1,44 @@
+# 前端目录骨架
+
+本目录预留平台方 B2B 服务质量监测后台的 Vue 3 + TypeScript 前端工程位置。当前提交只建立目录和占位文件，**没有页面实现、依赖清单或可运行构建配置**。
+
+## 目录职责
+
+```text
+frontend/
+├── public/                         # 不经模块打包的静态资源
+├── src/
+│   ├── app/                        # 应用入口周边：路由、后台布局、路由守卫
+│   ├── api/                        # HTTP 客户端、接口封装、请求/响应契约
+│   ├── assets/                     # 前端构建管理的图标等资源
+│   ├── components/                 # 跨业务模块复用的基础组件、图表、对话展示和反馈组件
+│   ├── composables/                # 可复用的 Vue 组合式逻辑
+│   ├── modules/                    # 按业务域组织页面及模块内组件
+│   │   ├── auth/                   # 登录与身份状态
+│   │   ├── overview/               # 质检总览
+│   │   ├── quality-monitoring/     # 服务质量维度与趋势
+│   │   ├── risk-center/            # 风险案件队列
+│   │   ├── review-workbench/       # 人工复核工作台
+│   │   ├── evaluation-runs/        # 评价任务与运行详情
+│   │   ├── rubric-admin/           # 质检指标与版本
+│   │   ├── integrations/           # 数据源与导入配置
+│   │   ├── organization-users/     # 组织成员和角色
+│   │   └── audit-log/              # 审计事件
+│   ├── stores/                     # 跨页面共享状态
+│   ├── styles/                     # 全局样式与设计令牌
+│   ├── types/                      # 跨模块通用类型
+│   └── utils/                      # 无业务状态的通用工具
+└── tests/
+    ├── unit/                       # 组件和前端逻辑单元测试
+    └── e2e/                        # 关键后台流程端到端测试
+```
+
+每个业务模块内的 `pages/` 放路由页面，`components/` 放该模块私有组件；需要新增业务域时，优先在 `modules/` 下建立独立模块。
+
+## 后续初始化约定
+
+开始实现时再添加 `package.json`、Vite/TypeScript 配置、`index.html`、应用入口与环境变量示例，并明确团队采用的组件库、图表库、请求库和包管理器。开发环境由前端开发服务器把 `/api` 代理到现有 FastAPI 服务；生产环境通过同源网关转发 API。
+
+页面只展示和提交操作请求。租户隔离、权限判断、质检结论和风险状态的最终校验由后端负责。会话内容在页面中按权限展示脱敏数据和可追溯证据。
+
+产品范围和验收标准见 [B2B 质检风控后台 PRD](../docs/product/PRD_B2B_QUALITY_CONTROL_CONSOLE.md)。
