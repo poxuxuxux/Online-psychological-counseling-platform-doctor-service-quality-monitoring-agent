@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1390" viewBox="0 0 1700 1390">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#52647a"/></marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#2864b4"/></marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#3d8b5b"/></marker>
+    <style>
+      text{font-family:'Microsoft YaHei','Noto Sans CJK SC',Arial,sans-serif;fill:#172b4d}
+      .title{font-size:30px;font-weight:700}.subtitle{font-size:15px;fill:#53657b}
+      .head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#53657b}
+      .mono{font-family:Consolas,'Courier New',monospace;font-size:12px;fill:#273c59}
+      .box{fill:#fff;stroke:#a9b9cb;stroke-width:1.5;rx:12}.blue{fill:#eef5ff;stroke:#6b9fe0}
+      .purple{fill:#f5f0ff;stroke:#a28ade}.green{fill:#eef9f2;stroke:#70b58a}
+      .orange{fill:#fff5e8;stroke:#dda756}.yellow{fill:#fff9e9;stroke:#d5a83f}
+      .gray{fill:#f3f6f9;stroke:#a9b9cb}.red{fill:#fff0ef;stroke:#dc8984}
+      .panel{fill:#fff;stroke:#cbd6e2;stroke-width:1.5;rx:16}
+      .line{fill:none;stroke:#52647a;stroke-width:2;marker-end:url(#arrow)}
+      .bline{fill:none;stroke:#2864b4;stroke-width:2.1;marker-end:url(#blueArrow)}
+      .gline{fill:none;stroke:#3d8b5b;stroke-width:2;marker-end:url(#greenArrow)}
+      .dash{fill:none;stroke:#9a7a2e;stroke-width:1.5;stroke-dasharray:7 5}
+    </style>
+  </defs>
+  <rect width="1700" height="1390" fill="#f7f9fc"/>
+  <text x="60" y="58" class="title">图 5｜借鉴 Learn Claude Code：一个 Agent Loop，工具 / Skills / Hooks 挂接其上</text>
+  <text x="60" y="86" class="subtitle">参考的是教学仓库展示的 Harness 模式，不是照搬编程 Agent 的工具；心理服务评价只开放受限、可审计的领域工具。</text>
+
+  <!-- task orchestration -->
+  <rect x="60" y="120" width="1580" height="152" class="panel"/>
+  <rect x="88" y="153" width="290" height="88" class="box blue"/>
+  <text x="110" y="187" class="head">FastAPI Evaluation Use Case</text>
+  <text x="110" y="216" class="small">创建任务、载入会话、生成评价计划</text>
+  <rect x="465" y="153" width="330" height="88" class="box purple"/>
+  <text x="487" y="187" class="head">PolicyRouter + AgentRegistry</text>
+  <text x="487" y="216" class="small">确定要跑的 Agent、指标 Skills 和权限范围</text>
+  <rect x="885" y="153" width="315" height="88" class="box green"/>
+  <text x="907" y="187" class="head">并行启动 AgentRunner[]</text>
+  <text x="907" y="216" class="small">每个 Agent 独立上下文、工具白名单和轮数预算</text>
+  <rect x="1290" y="153" width="310" height="88" class="box orange"/>
+  <text x="1312" y="187" class="head">EvidenceVerifier → Arbitrator</text>
+  <text x="1312" y="216" class="small">收敛各 Agent 结构化结果</text>
+  <path d="M378 197 H455" class="line"/><path d="M795 197 H875" class="line"/><path d="M1200 197 H1280" class="line"/>
+
+  <!-- inner agent loop -->
+  <rect x="60" y="310" width="1040" height="650" class="panel" stroke="#6b9fe0"/>
+  <text x="88" y="350" class="head">单个 AgentRunner：循环稳定，模型可按需调用已注册工具</text>
+  <rect x="95" y="382" width="300" height="116" class="box blue"/>
+  <text x="117" y="416" class="head">1. PromptAssembler</text>
+  <text x="117" y="446" class="body">固定角色 + 工具目录 + Skill 目录</text>
+  <text x="117" y="475" class="small">注入本次会话与授权后的 MemoryRef</text>
+  <rect x="460" y="382" width="255" height="116" class="box purple"/>
+  <text x="482" y="416" class="head">2. LLM Provider</text>
+  <text x="482" y="446" class="body">输入 messages + tools schemas</text>
+  <text x="482" y="475" class="small">模型厂商由 Provider Adapter 隔离</text>
+  <rect x="780" y="382" width="260" height="116" class="box orange"/>
+  <text x="802" y="416" class="head">3. 检查响应</text>
+  <text x="802" y="446" class="body">是否包含 tool_use block？</text>
+  <text x="802" y="475" class="small">按实际 tool_use 判断，不依赖文字猜测</text>
+  <path d="M395 440 H450" class="line"/><path d="M715 440 H770" class="line"/>
+
+  <rect x="95" y="555" width="285" height="142" class="box yellow"/>
+  <text x="117" y="589" class="head">4a. 有工具调用</text>
+  <text x="117" y="619" class="body">PreToolUse Hook</text>
+  <text x="117" y="647" class="body">权限 / schema / Agent allowlist</text>
+  <text x="117" y="679" class="small">拒绝也作为 ToolResult 返回给模型</text>
+  <rect x="445" y="555" width="300" height="142" class="box green"/>
+  <text x="467" y="589" class="head">ToolDispatcher</text>
+  <text x="467" y="619" class="body">name → ToolRegistry → Handler</text>
+  <text x="467" y="647" class="body">校验参数，执行有界领域操作</text>
+  <text x="467" y="679" class="small">不存在 / 超权 / 超时 → 结构化错误结果</text>
+  <rect x="810" y="555" width="230" height="142" class="box blue"/>
+  <text x="832" y="589" class="head">ToolResult</text>
+  <text x="832" y="619" class="body">PostToolUse Hook</text>
+  <text x="832" y="647" class="body">追加回 messages[]</text>
+  <text x="832" y="679" class="small">回到 Agent Loop 继续推理</text>
+  <path d="M910 498 V540 H237 V545" class="bline"/>
+  <path d="M380 626 H435" class="line"/><path d="M745 626 H800" class="line"/>
+  <path d="M925 555 V520 H587 V508" class="gline"/>
+
+  <rect x="115" y="762" width="250" height="112" class="box red"/>
+  <text x="137" y="796" class="head">4b. 无工具调用</text>
+  <text x="137" y="826" class="body">解析结构化 AgentResult</text>
+  <text x="137" y="854" class="small">缺字段 / 证据格式错 → 有界修复</text>
+  <path d="M910 498 V735 H240 V752" class="line"/>
+  <rect x="430" y="762" width="610" height="112" class="box gray"/>
+  <text x="452" y="796" class="head">AgentResult（带版本和证据分型）</text>
+  <text x="452" y="826" class="mono">skill_id/version · scores[] · ConversationEvidenceRef[] · KnowledgeRef[] · limitations</text>
+  <text x="452" y="854" class="small">会话证据支持行为评分；知识引用解释标准；MemoryRef 只作背景</text>
+  <path d="M365 818 H420" class="line"/>
+  <text x="95" y="920" class="small">单次 Agent 最多工具轮数、重试次数和 token 预算均有限制；失败隔离到对应指标，不无限循环或静默伪造分数。</text>
+
+  <!-- registry and skill lifecycle -->
+  <rect x="1140" y="310" width="500" height="650" class="panel" stroke="#a28ade"/>
+  <text x="1168" y="350" class="head">注册表与 Skill 按需加载</text>
+  <rect x="1170" y="382" width="440" height="146" class="box purple"/>
+  <text x="1192" y="416" class="head">ToolRegistry + TOOL_HANDLERS</text>
+  <text x="1192" y="446" class="mono">register(name, schema, handler, policy)</text>
+  <text x="1192" y="475" class="body">name → handler 显式映射；启动时校验重名</text>
+  <text x="1192" y="505" class="small">按 Agent 给工具白名单，工具能力最小化</text>
+  <rect x="1170" y="554" width="440" height="184" class="box green"/>
+  <text x="1192" y="588" class="head">SkillRegistry：启动时扫描 packages/</text>
+  <text x="1192" y="618" class="body">先把 ID / description / version 目录注入 Prompt</text>
+  <text x="1192" y="646" class="body">load_skill(skill_id) → 返回完整 Skill 内容</text>
+  <text x="1192" y="676" class="body">仅允许加载本任务 SkillSelector 批准的 ID</text>
+  <text x="1192" y="710" class="small">Skill 包定义可独立评分的指标及锚点</text>
+  <rect x="1170" y="764" width="440" height="150" class="box blue"/>
+  <text x="1192" y="798" class="head">首期受控领域工具</text>
+  <text x="1192" y="828" class="mono">load_skill · search_knowledge</text>
+  <text x="1192" y="856" class="body">会话 / 患者记忆由 ContextBuilder 按权限预取</text>
+  <text x="1192" y="886" class="small">不开放 shell、任意文件写入等编程工具</text>
+
+  <!-- hooks and takeaways -->
+  <rect x="60" y="1000" width="1580" height="132" class="box yellow"/>
+  <text x="88" y="1040" class="head">Hooks：挂在稳定循环边界，不塞进工具业务逻辑</text>
+  <text x="88" y="1072" class="body">BeforeAgent / AfterAgent　｜　PreToolUse（授权、审计、敏感信息策略）　｜　PostToolUse（来源与结果记录）　｜　OnToolError（分类、降级、有界重试）　｜　BeforePersist</text>
+  <text x="88" y="1102" class="small">Hook 可阻断或记录；核心 Use Case 仍负责最终状态、失败处理和是否人工复核。</text>
+
+  <rect x="60" y="1160" width="1580" height="170" class="panel"/>
+  <text x="88" y="1200" class="head">对我们的系统：照搬“机制位置”，不要照搬“编程 Agent 的能力”</text>
+  <text x="88" y="1234" class="body">照搬：Agent Loop + ToolRegistry/Handler + SkillCatalog/load_skill + Hooks + Prompt 分段组装 + 有界错误恢复。</text>
+  <text x="88" y="1265" class="body">替换：bash/read/write → load_skill/search_knowledge 等窄领域工具；权限对象改为 patient scope、Agent allowlist、知识库范围。</text>
+  <text x="88" y="1296" class="small">暂缓：任务 DAG、团队邮箱、worktree、cron、通用 MCP 插件市场。这些是课程后续机制，不是本周跑通评价闭环的前置条件。</text>
+</svg>

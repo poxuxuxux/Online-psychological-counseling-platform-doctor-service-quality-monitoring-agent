@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1460" viewBox="0 0 1700 1460">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#52647a"/></marker>
+    <marker id="arrowAccent" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#2864b4"/></marker>
+    <style>
+      text{font-family:'Microsoft YaHei','Noto Sans CJK SC',Arial,sans-serif;fill:#172b4d}
+      .title{font-size:30px;font-weight:700}.subtitle{font-size:15px;fill:#53657b}
+      .head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#53657b}
+      .mono{font-family:Consolas,'Courier New',monospace;font-size:12px;fill:#273c59}
+      .box{fill:#fff;stroke:#a9b9cb;stroke-width:1.5;rx:12}
+      .blue{fill:#eef5ff;stroke:#6b9fe0}.purple{fill:#f5f0ff;stroke:#a28ade}
+      .green{fill:#eef9f2;stroke:#70b58a}.orange{fill:#fff5e8;stroke:#dda756}
+      .yellow{fill:#fff9e9;stroke:#d5a83f}.gray{fill:#f3f6f9;stroke:#a9b9cb}
+      .line{fill:none;stroke:#52647a;stroke-width:2;marker-end:url(#arrow)}
+      .accent{fill:none;stroke:#2864b4;stroke-width:2.2;marker-end:url(#arrowAccent)}
+      .dash{fill:none;stroke:#8798aa;stroke-width:1.5;stroke-dasharray:7 5}
+    </style>
+  </defs>
+  <rect width="1700" height="1260" fill="#f7f9fc"/>
+  <text x="60" y="58" class="title">图 3｜扩展机制：新能力进入所属层，主流程消费统一契约</text>
+  <text x="60" y="86" class="subtitle">扩展不是旁路插件堆叠：每类变化都有明确的扩展接口、注册位置、运行时入口和持久化边界。</text>
+
+  <!-- stable backbone -->
+  <rect x="60" y="130" width="1580" height="200" class="box blue"/>
+  <text x="88" y="166" class="head">稳定的系统骨架（一般功能新增不改这一条主链）</text>
+  <rect x="90" y="199" width="220" height="82" class="box gray"/>
+  <text x="111" y="231" class="head">API / Use Case</text><text x="111" y="258" class="small">启动评价任务</text>
+  <rect x="370" y="199" width="260" height="82" class="box purple"/>
+  <text x="391" y="231" class="head">PolicyRouter</text><text x="391" y="258" class="small">产生 EvaluationPlan</text>
+  <rect x="690" y="199" width="275" height="82" class="box green"/>
+  <text x="711" y="231" class="head">AgentRegistry</text><text x="711" y="258" class="small">加载并并行执行 Agent</text>
+  <rect x="1025" y="199" width="250" height="82" class="box orange"/>
+  <text x="1046" y="231" class="head">Verifier + Arbitrator</text><text x="1046" y="258" class="small">统一核验和处理分歧</text>
+  <rect x="1335" y="199" width="270" height="82" class="box blue"/>
+  <text x="1356" y="231" class="head">Report + Repository</text><text x="1356" y="258" class="small">统一输出和持久化</text>
+  <path d="M310 240 H360" class="line"/><path d="M630 240 H680" class="line"/><path d="M965 240 H1015" class="line"/><path d="M1275 240 H1325" class="line"/>
+  <text x="91" y="309" class="small">稳定接口：Session / Message → AgentInput → AgentResult → EvidenceRef → EvaluationReport.v1</text>
+
+  <!-- extension lanes -->
+  <text x="60" y="385" class="head">常见新增需求 → 扩展位置 → 接入方式 → 哪些模块无需改动</text>
+  <line x1="60" y1="402" x2="1640" y2="402" stroke="#cdd8e4"/>
+
+  <!-- row 1 -->
+  <rect x="60" y="425" width="280" height="135" class="box purple"/>
+  <text x="82" y="460" class="head">新增一个评价维度</text>
+  <text x="82" y="491" class="body">例如：边界管理 / 解释清晰度</text>
+  <text x="82" y="527" class="small">通常先从标准配置扩展</text>
+  <rect x="390" y="425" width="320" height="135" class="box"/>
+  <text x="412" y="460" class="head">Evaluation Skill packages</text>
+  <text x="412" y="491" class="body">每项可评分指标一个 Skill，含锚点/NA/证据</text>
+  <text x="412" y="521" class="mono">skill_id + skill_version</text>
+  <rect x="760" y="425" width="380" height="135" class="box green"/>
+  <text x="782" y="460" class="head">Router + AgentResult</text>
+  <text x="782" y="491" class="body">分配给现有 Agent，或按职责新建</text>
+  <text x="782" y="521" class="small">输出仍用统一 metric_id / evidence_refs</text>
+  <rect x="1190" y="425" width="450" height="135" class="box gray"/>
+  <text x="1212" y="460" class="head">不改的部分</text>
+  <text x="1212" y="491" class="body">Verifier、Arbitrator、Report 消费通用结果</text>
+  <text x="1212" y="521" class="small">版本快照使新旧 Skill 可并存和对照</text>
+  <path d="M340 492 H380" class="accent"/><path d="M710 492 H750" class="accent"/><path d="M1140 492 H1180" class="accent"/>
+
+  <!-- row 2 -->
+  <rect x="60" y="585" width="280" height="135" class="box green"/>
+  <text x="82" y="620" class="head">新增一个专业 Agent</text>
+  <text x="82" y="651" class="body">例如：危机响应 / 过程质量</text>
+  <text x="82" y="687" class="small">新增能力，不改其他 Agent</text>
+  <rect x="390" y="585" width="320" height="135" class="box"/>
+  <text x="412" y="620" class="head">Agent 契约</text>
+  <text x="412" y="651" class="mono">AgentInput → AgentResult</text>
+  <text x="412" y="681" class="small">声明 name / version / capabilities</text>
+  <rect x="760" y="585" width="380" height="135" class="box green"/>
+  <text x="782" y="620" class="head">AgentRegistry + PolicyRouter</text>
+  <text x="782" y="651" class="body">注册实现；配置启用条件、超时和并发</text>
+  <text x="782" y="681" class="small">同一执行器运行新旧 Agent</text>
+  <rect x="1190" y="585" width="450" height="135" class="box gray"/>
+  <text x="1212" y="620" class="head">不改的部分</text>
+  <text x="1212" y="651" class="body">证据核验、冲突处理和报告装配逻辑</text>
+  <text x="1212" y="681" class="small">新增 Agent 必须遵守相同证据及安全策略</text>
+  <path d="M340 652 H380" class="accent"/><path d="M710 652 H750" class="accent"/><path d="M1140 652 H1180" class="accent"/>
+
+  <!-- row 3 -->
+  <rect x="60" y="745" width="280" height="135" class="box blue"/>
+  <text x="82" y="780" class="head">新增数据来源 / 格式</text>
+  <text x="82" y="811" class="body">例如：新平台导出 / Excel 变体</text>
+  <text x="82" y="847" class="small">不让 Agent 直接读源文件</text>
+  <rect x="390" y="745" width="320" height="135" class="box"/>
+  <text x="412" y="780" class="head">Importer 插件</text>
+  <text x="412" y="811" class="mono">SessionImporter.parse(source)</text>
+  <text x="412" y="841" class="small">产出规范 Session / Message</text>
+  <rect x="760" y="745" width="380" height="135" class="box blue"/>
+  <text x="782" y="780" class="head">ImporterRegistry + Hooks</text>
+  <text x="782" y="811" class="body">按格式选择解析器；导入后校验、脱敏</text>
+  <text x="782" y="841" class="small">保留 SourceRef，支持追溯原始行</text>
+  <rect x="1190" y="745" width="450" height="135" class="box gray"/>
+  <text x="1212" y="780" class="head">不改的部分</text>
+  <text x="1212" y="811" class="body">Router、Agents 和报告继续读取规范对象</text>
+  <text x="1212" y="841" class="small">适配器吸收源数据差异，避免污染领域逻辑</text>
+  <path d="M340 812 H380" class="accent"/><path d="M710 812 H750" class="accent"/><path d="M1140 812 H1180" class="accent"/>
+
+  <!-- row 4 -->
+  <rect x="60" y="905" width="280" height="135" class="box yellow"/>
+  <text x="82" y="940" class="head">加一个横切规则</text>
+  <text x="82" y="971" class="body">例如：脱敏、审计、敏感词拦截</text>
+  <text x="82" y="1007" class="small">挂到事件，不塞进 Agent 代码</text>
+  <rect x="390" y="905" width="320" height="135" class="box"/>
+  <text x="412" y="940" class="head">Hook Handler</text>
+  <text x="412" y="971" class="mono">Hook(event, context) → decision</text>
+  <text x="412" y="1001" class="small">明确事件、输入、返回和失败策略</text>
+  <rect x="760" y="905" width="380" height="135" class="box yellow"/>
+  <text x="782" y="940" class="head">HookDispatcher 生命周期</text>
+  <text x="782" y="971" class="body">BeforeRoute / BeforeAgent / BeforePersist</text>
+  <text x="782" y="1001" class="small">可并行观察、可阻断或给出修正建议</text>
+  <rect x="1190" y="905" width="450" height="135" class="box gray"/>
+  <text x="1212" y="940" class="head">不改的部分</text>
+  <text x="1212" y="971" class="body">Hook 按事件订阅；业务流程不硬编码具体规则</text>
+  <text x="1212" y="1001" class="small">限制副作用；关键安全判断仍由核心策略兜底</text>
+  <path d="M340 972 H380" class="accent"/><path d="M710 972 H750" class="accent"/><path d="M1140 972 H1180" class="accent"/>
+
+  <!-- row 5 -->
+  <rect x="60" y="1065" width="280" height="135" class="box orange"/>
+  <text x="82" y="1100" class="head">换模型 / 新增输出</text>
+  <text x="82" y="1131" class="body">更换供应商；加 PDF 或统计面板</text>
+  <text x="82" y="1167" class="small">分别在模型与呈现边界扩展</text>
+  <rect x="390" y="1065" width="320" height="135" class="box"/>
+  <text x="412" y="1100" class="head">Provider / Export Adapter</text>
+  <text x="412" y="1131" class="mono">LLMProvider / ReportExporter</text>
+  <text x="412" y="1161" class="small">不在核心用例里调用厂商 SDK</text>
+  <rect x="760" y="1065" width="380" height="135" class="box orange"/>
+  <text x="782" y="1100" class="head">ModelRegistry / Report API</text>
+  <text x="782" y="1131" class="body">配置选择 Provider；Exporter 读取报告契约</text>
+  <text x="782" y="1161" class="small">展示和导出不反向影响评价计算</text>
+  <rect x="1190" y="1065" width="450" height="135" class="box gray"/>
+  <text x="1212" y="1100" class="head">需要时才改的部分</text>
+  <text x="1212" y="1131" class="body">新业务状态或存储字段 → 加兼容迁移</text>
+  <text x="1212" y="1161" class="small">避免为展示需求改评价领域模型</text>
+  <path d="M340 1132 H380" class="accent"/><path d="M710 1132 H750" class="accent"/><path d="M1140 1132 H1180" class="accent"/>
+
+  <!-- row 6: knowledge retrieval -->
+  <rect x="60" y="1225" width="280" height="135" class="box purple"/>
+  <text x="82" y="1260" class="head">加入知识库做 RAG</text>
+  <text x="82" y="1291" class="body">例如：量表、服务规范、指南</text>
+  <text x="82" y="1327" class="small">与患者记忆分开治理</text>
+  <rect x="390" y="1225" width="320" height="135" class="box"/>
+  <text x="412" y="1260" class="head">KnowledgeIngestor</text>
+  <text x="412" y="1291" class="body">解析、清洗、切块、元数据、版本</text>
+  <text x="412" y="1321" class="mono">source_id / doc_version / chunk_id</text>
+  <rect x="760" y="1225" width="380" height="135" class="box purple"/>
+  <text x="782" y="1260" class="head">KnowledgeRegistry + Retriever</text>
+  <text x="782" y="1291" class="body">权限过滤 → 检索/重排 → 引用片段</text>
+  <text x="782" y="1321" class="small">返回 KnowledgeRef，不只返回无来源文本</text>
+  <rect x="1190" y="1225" width="450" height="135" class="box gray"/>
+  <text x="1212" y="1260" class="head">证据边界与主流程</text>
+  <text x="1212" y="1291" class="body">知识解释评价标准；对话引用证明医生行为</text>
+  <text x="1212" y="1321" class="small">评分锚点取自 Skill；RAG 提供可追溯的专业依据</text>
+  <path d="M340 1292 H380" class="accent"/><path d="M710 1292 H750" class="accent"/><path d="M1140 1292 H1180" class="accent"/>
+
+  <text x="60" y="1410" class="small">设计边界：新增单一职责通常是“新增模块 + 注册/配置 + 契约测试”；若改变核心语义或数据契约，仍需做兼容迁移，而不是承诺永不修改主干。</text>
+</svg>

@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1540" viewBox="0 0 1700 1540">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#52647a"/></marker>
+    <marker id="blueArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#2864b4"/></marker>
+    <marker id="greenArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#3d8b5b"/></marker>
+    <style>
+      text{font-family:'Microsoft YaHei','Noto Sans CJK SC',Arial,sans-serif;fill:#172b4d}
+      .title{font-size:30px;font-weight:700}.subtitle{font-size:15px;fill:#53657b}
+      .head{font-size:17px;font-weight:700}.body{font-size:14px}.small{font-size:12px;fill:#53657b}
+      .mono{font-family:Consolas,'Courier New',monospace;font-size:12px;fill:#273c59}
+      .panel{fill:#fff;stroke-width:2;rx:18}.box{fill:#fff;stroke:#a9b9cb;stroke-width:1.5;rx:12}
+      .blue{fill:#eef5ff;stroke:#6b9fe0}.purple{fill:#f5f0ff;stroke:#a28ade}
+      .green{fill:#eef9f2;stroke:#70b58a}.orange{fill:#fff5e8;stroke:#dda756}
+      .yellow{fill:#fff9e9;stroke:#d5a83f}.red{fill:#fff0ef;stroke:#dc8984}
+      .gray{fill:#f3f6f9;stroke:#a9b9cb}.hook{fill:#fff9e9;stroke:#d5a83f;stroke-width:1.4;rx:9}
+      .line{fill:none;stroke:#52647a;stroke-width:2;marker-end:url(#arrow)}
+      .bline{fill:none;stroke:#2864b4;stroke-width:2.2;marker-end:url(#blueArrow)}
+      .gline{fill:none;stroke:#3d8b5b;stroke-width:2.2;marker-end:url(#greenArrow)}
+      .dash{fill:none;stroke:#9a7a2e;stroke-width:1.5;stroke-dasharray:7 5}
+    </style>
+  </defs>
+  <rect width="1700" height="1540" fill="#f7f9fc"/>
+  <text x="60" y="58" class="title">图 4｜患者记忆与共享知识库 RAG：分开存、分开取、分开举证</text>
+  <text x="60" y="86" class="subtitle">两种“上下文”解决不同问题：患者记忆提供纵向个体背景；知识库提供版本化评价标准与专业资料；当前对话仍是行为评分的首要证据。</text>
+
+  <!-- shared knowledge base lane -->
+  <rect x="50" y="120" width="1600" height="585" class="panel" stroke="#6b9fe0"/>
+  <text x="78" y="160" class="head">A. 共享 / 受控知识库（RAG）——面向所有授权评价任务</text>
+  <rect x="78" y="185" width="1544" height="44" class="hook"/>
+  <text x="96" y="213" class="body">Ingestion Hooks：BeforeIngest（来源/权限/格式校验）　|　AfterIngest（版本登记、索引状态、审计）　|　发布前人工审核可配置</text>
+
+  <rect x="78" y="255" width="270" height="126" class="box blue"/>
+  <text x="98" y="289" class="head">1. 知识来源</text>
+  <text x="98" y="319" class="body">专业框架原文、服务规范、指南</text>
+  <text x="98" y="347" class="body">研究框架、平台政策</text>
+  <text x="98" y="368" class="small">记录来源、授权和适用范围</text>
+  <rect x="390" y="255" width="270" height="126" class="box blue"/>
+  <text x="410" y="289" class="head">2. 文档解析与审核</text>
+  <text x="410" y="319" class="body">PDF / DOCX / HTML 等解析</text>
+  <text x="410" y="347" class="body">去重、清洗、人工确认</text>
+  <text x="410" y="368" class="small">未审核文档不进入生产检索</text>
+  <rect x="702" y="255" width="270" height="126" class="box blue"/>
+  <text x="722" y="289" class="head">3. Chunk + 元数据</text>
+  <text x="722" y="319" class="body">按标题/段落语义切块</text>
+  <text x="722" y="347" class="body">版本、日期、主题、权限标签</text>
+  <text x="722" y="368" class="mono">source_id / chunk_id / scope</text>
+  <rect x="1014" y="255" width="270" height="126" class="box blue"/>
+  <text x="1034" y="289" class="head">4. 建索引</text>
+  <text x="1034" y="319" class="body">Embedding + 关键词索引</text>
+  <text x="1034" y="347" class="body">索引版本与模型版本绑定</text>
+  <text x="1034" y="368" class="small">首期可用轻量本地索引</text>
+  <rect x="1326" y="255" width="296" height="126" class="box blue"/>
+  <text x="1346" y="289" class="head">5. Versioned KnowledgeBase</text>
+  <text x="1346" y="319" class="body">草稿 → 审核 → 发布 → 回滚</text>
+  <text x="1346" y="347" class="body">旧版本可追溯，不覆盖历史</text>
+  <text x="1346" y="368" class="small">权限、来源、有效期可筛选</text>
+  <path d="M348 318 H380" class="bline"/><path d="M660 318 H692" class="bline"/><path d="M972 318 H1004" class="bline"/><path d="M1284 318 H1316" class="bline"/>
+
+  <rect x="78" y="414" width="285" height="145" class="box purple"/>
+  <text x="98" y="448" class="head">任务提出检索请求</text>
+  <text x="98" y="478" class="body">由 Agent / metric / 咨询情境</text>
+  <text x="98" y="506" class="body">生成受限查询意图</text>
+  <text x="98" y="539" class="small">不把原始患者信息送入无关查询</text>
+  <rect x="410" y="414" width="315" height="145" class="box purple"/>
+  <text x="430" y="448" class="head">KnowledgeRouter</text>
+  <text x="430" y="478" class="body">按角色、指标、咨询类型选范围</text>
+  <text x="430" y="506" class="body">先做权限、版本、有效期过滤</text>
+  <text x="430" y="539" class="small">查询策略由配置扩展</text>
+  <rect x="772" y="414" width="340" height="145" class="box purple"/>
+  <text x="792" y="448" class="head">HybridRetriever + Reranker</text>
+  <text x="792" y="478" class="body">关键词/向量召回 → 去重重排</text>
+  <text x="792" y="506" class="body">限定 Top-K、最小相关度和 token</text>
+  <text x="792" y="539" class="small">无可信命中时允许“无知识结果”</text>
+  <rect x="1159" y="414" width="463" height="145" class="box green"/>
+  <text x="1179" y="448" class="head">KnowledgeContext + KnowledgeRef[]</text>
+  <text x="1179" y="478" class="body">片段文本 + source_id + doc_version + 页/段定位</text>
+  <text x="1179" y="506" class="body">包含命中理由、适用范围与索引版本</text>
+  <text x="1179" y="539" class="small">注入匹配 Agent；最终报告可回链来源</text>
+  <path d="M363 486 H400" class="bline"/><path d="M725 486 H762" class="bline"/><path d="M1112 486 H1149" class="bline"/>
+  <rect x="78" y="590" width="1544" height="76" class="gray box"/>
+  <text x="98" y="620" class="head">RAG Hooks：BeforeRetrieval（权限/过滤器/查询范围） → AfterRetrieval（命中/版本/引用完整性/审计）</text>
+  <text x="98" y="647" class="small">已发布 Skill 是评分锚点的唯一标准；RAG 补充可追溯专业依据，不覆盖 Skill，也不能证明本次医生行为。</text>
+
+  <!-- private patient memory lane -->
+  <rect x="50" y="730" width="1600" height="470" class="panel" stroke="#70b58a"/>
+  <text x="78" y="770" class="head">B. 患者私有记忆——跨会话个体化背景，按患者身份与授权严格隔离</text>
+  <rect x="78" y="795" width="1544" height="44" class="hook"/>
+  <text x="96" y="823" class="body">Memory Hooks：BeforeMemoryRead（身份/权限/同意）　|　BeforeMemoryWrite（最小化/敏感信息/保留策略）　|　AfterMemoryWrite（版本与审计）</text>
+
+  <rect x="78" y="865" width="330" height="126" class="box green"/>
+  <text x="98" y="899" class="head">写入：经核验的评价结果</text>
+  <text x="98" y="929" class="body">Summary / 人工确认后的信息</text>
+  <text x="98" y="957" class="body">只生成候选，不复制整段原对话</text>
+  <text x="98" y="978" class="small">原始对话、报告、记忆分开保存</text>
+  <rect x="452" y="865" width="330" height="126" class="box green"/>
+  <text x="472" y="899" class="head">MemoryCandidateBuilder</text>
+  <text x="472" y="929" class="body">结构化偏好 / 已确认目标 / 进展</text>
+  <text x="472" y="957" class="body">附 source_ref、时间、置信度</text>
+  <text x="472" y="978" class="small">避免推断诊断或未证实事实</text>
+  <rect x="826" y="865" width="330" height="126" class="box orange"/>
+  <text x="846" y="899" class="head">Policy + Consent Gate</text>
+  <text x="846" y="929" class="body">同意、权限、敏感度、TTL、删除</text>
+  <text x="846" y="957" class="body">可人工审核；拒绝则不保存</text>
+  <text x="846" y="978" class="small">冲突/低置信度 → 暂不写入</text>
+  <rect x="1200" y="865" width="422" height="126" class="box green"/>
+  <text x="1220" y="899" class="head">PatientScoped MemoryStore</text>
+  <text x="1220" y="929" class="body">patient_key + memory_type + content</text>
+  <text x="1220" y="957" class="body">source_ref + created_at + expires_at</text>
+  <text x="1220" y="978" class="small">租户/患者级隔离；支持纠正与清除</text>
+  <path d="M408 928 H442" class="gline"/><path d="M782 928 H816" class="gline"/><path d="M1156 928 H1190" class="gline"/>
+
+  <rect x="78" y="1020" width="470" height="126" class="box purple"/>
+  <text x="98" y="1054" class="head">下一次任务：身份映射与授权</text>
+  <text x="98" y="1084" class="body">可信 patient_id / patient_key → 检查权限和同意</text>
+  <text x="98" y="1112" class="body">仅按时间、主题和相关性取最少必要记忆</text>
+  <text x="98" y="1133" class="small">不可用身份信息猜测跨会话关联</text>
+  <rect x="620" y="1020" width="410" height="126" class="box purple"/>
+  <text x="640" y="1054" class="head">MemoryService.retrieve()</text>
+  <text x="640" y="1084" class="body">返回带时间与来源的 MemoryRef[]</text>
+  <text x="640" y="1112" class="body">过期/撤回/无权限 → 不返回</text>
+  <text x="640" y="1133" class="small">缺少历史时退化为当前会话评价</text>
+  <rect x="1102" y="1020" width="520" height="126" class="box blue"/>
+  <text x="1122" y="1054" class="head">ContextBuilder → AgentInput</text>
+  <text x="1122" y="1084" class="body">记忆作为背景提示，不能充当本次行为证据</text>
+  <text x="1122" y="1112" class="body">每条 MemoryRef 保留可追溯来源和时间</text>
+  <text x="1122" y="1133" class="small">新会话的直接观察优先于陈旧记忆</text>
+  <path d="M1410 991 V1005 H825 V1010" class="gline"/><path d="M548 1082 H610" class="gline"/><path d="M1030 1082 H1092" class="gline"/>
+
+  <!-- distinct evidence types -->
+  <rect x="50" y="1225" width="1600" height="265" class="panel" stroke="#a28ade"/>
+  <text x="78" y="1265" class="head">C. 三类输入在 Agent 侧汇合，但证据职责不混用</text>
+  <rect x="78" y="1290" width="440" height="112" class="box blue"/>
+  <text x="100" y="1324" class="head">当前会话 + ConversationEvidenceRef</text>
+  <text x="100" y="1354" class="body">message_id / turn_id / 原文定位</text>
+  <text x="100" y="1382" class="small">唯一直接证明本次医生行为的材料</text>
+  <rect x="630" y="1290" width="440" height="112" class="box green"/>
+  <text x="652" y="1324" class="head">患者记忆 + MemoryRef</text>
+  <text x="652" y="1354" class="body">patient scope / source_ref / 时间 / 置信度</text>
+  <text x="652" y="1382" class="small">辅助理解个体背景，不证明本次行为</text>
+  <rect x="1182" y="1290" width="440" height="112" class="box purple"/>
+  <text x="1204" y="1324" class="head">知识库 + KnowledgeRef</text>
+  <text x="1204" y="1354" class="body">source_id / doc_version / chunk_id / 定位</text>
+  <text x="1204" y="1382" class="small">解释 Skill 背后的专业来源，不覆盖已发布 Skill</text>
+  <text x="78" y="1446" class="body">AgentResult 分别返回 ConversationEvidenceRef[]、MemoryRef[]、KnowledgeRef[]；EvidenceVerifier 按类型校验，Arbitrator / Report 保留来源与版本链。</text>
+  <text x="78" y="1473" class="small">数据约束提醒：当前样例没有 patient_id。必须先建立经授权的匿名患者映射，才能启用跨会话记忆；禁止依据文本相似度自动拼接患者身份。</text>
+</svg>
