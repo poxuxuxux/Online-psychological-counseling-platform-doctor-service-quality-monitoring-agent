@@ -14,7 +14,7 @@ from tests.factories import make_message, make_session
 def make_result(quote: str, message_ids=None, media_ranges=None) -> AgentResult:
     """构造带单条证据的 Agent 结果。"""
     return AgentResult(
-        agent_id="empathy",
+        agent_id="empathy_relationship",
         status="completed",
         findings=[
             Finding(

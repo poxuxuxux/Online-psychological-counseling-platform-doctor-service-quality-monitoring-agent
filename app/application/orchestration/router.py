@@ -22,7 +22,7 @@ class PolicyRouter:
         if not session.messages:
             return RoutePlan(agent_ids=(), skill_ids=(), reasons=("empty_session",))
         return RoutePlan(
-            agent_ids=("professional", "process", "empathy"),
+            agent_ids=("professional_service", "process_response", "empathy_relationship"),
             skill_ids=(),
             reasons=("default_mvp_route",),
         )

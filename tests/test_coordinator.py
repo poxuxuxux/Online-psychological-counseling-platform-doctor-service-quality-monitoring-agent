@@ -35,9 +35,9 @@ def make_agent_input() -> AgentInput:
 
 async def test_agent_exception_becomes_failed_result():
     registry = AgentRegistry()
-    registry.register(StubAgent("professional", error=RuntimeError("model down")))
+    registry.register(StubAgent("professional_service", error=RuntimeError("model down")))
     coordinator = EvaluationCoordinator(registry)
-    results = await coordinator.run(["professional"], make_agent_input())
+    results = await coordinator.run(["professional_service"], make_agent_input())
     assert results[0].status == "failed"
     assert "model down" in results[0].error
 
@@ -51,21 +51,21 @@ async def test_unknown_agent_id_becomes_failed_result():
 
 async def test_slow_agent_times_out():
     registry = AgentRegistry()
-    registry.register(StubAgent("empathy", delay=0.5))
+    registry.register(StubAgent("empathy_relationship", delay=0.5))
     coordinator = EvaluationCoordinator(
         registry, budget=EvaluationBudget(agent_timeout_seconds=0.05, max_concurrency=2)
     )
-    results = await coordinator.run(["empathy"], make_agent_input())
+    results = await coordinator.run(["empathy_relationship"], make_agent_input())
     assert results[0].status == "failed"
     assert results[0].error == "timed_out"
 
 
 async def test_single_failure_does_not_block_others():
     registry = AgentRegistry()
-    registry.register(StubAgent("professional", error=RuntimeError("boom")))
-    registry.register(StubAgent("empathy"))
+    registry.register(StubAgent("professional_service", error=RuntimeError("boom")))
+    registry.register(StubAgent("empathy_relationship"))
     coordinator = EvaluationCoordinator(registry)
-    results = await coordinator.run(["professional", "empathy"], make_agent_input())
+    results = await coordinator.run(["professional_service", "empathy_relationship"], make_agent_input())
     by_id = {result.agent_id: result for result in results}
-    assert by_id["professional"].status == "failed"
-    assert by_id["empathy"].status == "completed"
+    assert by_id["professional_service"].status == "failed"
+    assert by_id["empathy_relationship"].status == "completed"

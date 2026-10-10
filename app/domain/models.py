@@ -1,4 +1,4 @@
-"""功能：定义多模态会话、预处理报告、历史上下文、风险候选、证据和报告等跨模块契约。"""
+"""功能：定义多模态会话、预处理报告、历史上下文、风险候选、质量画像、仲裁与报告等跨模块契约。"""
 
 from datetime import datetime
 from typing import Literal
@@ -225,8 +225,68 @@ class AgentResult(BaseModel):
     error: str | None = None
 
 
+class MetricScore(BaseModel):
+    """单指标评分汇总输入；指标 ID 与权重以版本化 Skill 发布的指标体系为准。"""
+
+    metric_id: str
+    dimension_id: str
+    score: float | None = Field(default=None, ge=0, le=5)
+    weight: float = Field(default=1.0, gt=0)
+    applicability: Literal["applicable", "not_applicable", "insufficient_context"] = "applicable"
+    agent_id: str | None = None
+
+
+class DimensionProfile(BaseModel):
+    """一个维度的画像：加权维度分与覆盖率；覆盖率不达标时 score 为空。"""
+
+    dimension_id: str
+    name: str
+    score: float | None = Field(default=None, ge=0, le=5)
+    coverage: float = Field(default=0.0, ge=0, le=1)
+    metric_scores: list[MetricScore] = Field(default_factory=list)
+
+
+class QualityProfile(BaseModel):
+    """6 维质量画像与总评分；全部由确定性汇总器计算，LLM 不得改写。"""
+
+    dimensions: list[DimensionProfile] = Field(default_factory=list)
+    overall_score: float | None = Field(default=None, ge=0, le=5)
+    overall_coverage: float = Field(default=0.0, ge=0, le=1)
+    coverage_gate_passed: bool = False
+
+
+class ConflictCase(BaseModel):
+    """确定性冲突检测的输出；语义复核与裁决交给分歧仲裁 Agent。"""
+
+    conflict_id: str
+    kind: Literal["cross_dimension", "score_revision", "verification_dispute", "rule_mismatch"]
+    metric_ids: list[str] = Field(default_factory=list)
+    description: str
+
+
+class ArbitrationDecision(BaseModel):
+    """仲裁 Agent 对单个冲突的裁决；不重写分数，只选择保留结论或转人工。"""
+
+    conflict_id: str
+    status: Literal["resolved", "unresolved", "not_needed"]
+    adopted: Literal["initial", "re_evaluated", "verification", "manual_review"] | None = None
+    rationale: str = ""
+    re_evaluation_metric_ids: list[str] = Field(default_factory=list)
+    requires_manual_review: bool = False
+
+
+class ImprovementSuggestion(BaseModel):
+    """总结 Agent 生成的改进意见；基于评分锚点，不构成临床督导结论。"""
+
+    target_id: str
+    level: Literal["metric", "dimension", "overall"]
+    suggestion: str
+    based_on: Literal["score_anchor", "risk_case", "coverage_gap"] = "score_anchor"
+    related_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
+
+
 class EvaluationReport(BaseModel):
-    """评价报告数据结构；限制项携带预处理与证据核验问题。"""
+    """评价报告数据结构；限制项携带预处理与证据核验问题，画像与改进意见随报告保留。"""
 
     evaluation_id: str
     session_id: str
@@ -234,3 +294,9 @@ class EvaluationReport(BaseModel):
     agent_results: list[AgentResult] = Field(default_factory=list)
     summary: str = ""
     limitations: list[str] = Field(default_factory=list)
+    quality_profile: QualityProfile | None = None
+    improvements: list[ImprovementSuggestion] = Field(default_factory=list)
+    review_required: bool = False
+    review_reasons: list[str] = Field(default_factory=list)
+    summary_status: Literal["completed", "partial", "failed", "not_configured", "skipped"] | None = None
+    arbitration_status: Literal["not_needed", "resolved", "unresolved", "not_configured"] | None = None

@@ -27,7 +27,7 @@ async def test_hook_error_does_not_block_other_hooks():
 
 
 class MinimalAgent:
-    agent_id = "empathy"
+    agent_id = "empathy_relationship"
 
     async def evaluate(self, agent_input):
         raise NotImplementedError
@@ -62,7 +62,7 @@ def test_tool_registry_rejects_duplicates():
     async def handler(arguments):
         return None
 
-    spec = ToolSpec(name="load_skill", description="加载技能", allowed_agents=frozenset({"empathy"}))
+    spec = ToolSpec(name="load_skill", description="加载技能", allowed_agents=frozenset({"empathy_relationship"}))
     registry.register(spec, handler)
     with pytest.raises(ValueError):
         registry.register(spec, handler)
