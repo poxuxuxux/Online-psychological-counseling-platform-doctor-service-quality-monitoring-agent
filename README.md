@@ -17,6 +17,7 @@ uvicorn app.main:app --reload
 ## 文档与架构图
 
 - [整体架构说明](docs/architecture/ARCHITECTURE.md)：系统分层、运行流程、扩展机制、数据边界、协作与实施计划。
+- [B2B 风控与服务质检后台架构融合提案](docs/architecture/B2B_ADMIN_CONSOLE_ARCHITECTURE.md)：前端后台、租户权限、风险案件、人工复核与落地顺序。
 - [系统模块图](docs/architecture/assets/01_system_architecture.svg)
 - [运行时流程图](docs/architecture/assets/02_runtime_workflow.svg)
 - [功能扩展图](docs/architecture/assets/03_extension_paths.svg)
