@@ -1,0 +1,13 @@
+# 功能：提供 Skill 的合成示例，帮助团队评审证据引用和输出格式。
+# 注意：示例只用于开发讨论，不构成已审核的临床或服务质量评分锚点。
+- case_id: synthetic_example_001
+  conversation:
+    - message_id: m1
+      role: patient
+      content: 最近我总觉得很焦虑。
+    - message_id: m2
+      role: doctor
+      content: 听起来这段时间的焦虑让你很难受，可以和我说说它通常什么时候出现吗？
+  expected_observation: 医生回应了患者表达的情绪，并邀请其补充情境。
+  score: null
+  review_status: illustrative_only
