@@ -1,4 +1,4 @@
-"""功能：把 Agent 结果、核验问题和仲裁状态组织成统一报告对象。"""
+"""功能：把 Agent 结果、核验问题和预处理限制组织成统一报告对象。"""
 
 from app.domain.models import AgentResult, EvaluationReport
 
@@ -12,10 +12,11 @@ class ReportBuilder:
         session_id: str,
         results: list[AgentResult],
         verification_issues: list[str] | None = None,
+        preprocessing_notes: list[str] | None = None,
     ) -> EvaluationReport:
-        """根据执行状态形成报告，并显式暴露尚未解决的证据问题。"""
+        """根据执行状态形成报告，并显式暴露证据与预处理限制。"""
         completed = [result for result in results if result.status == "completed"]
-        status = "completed" if len(completed) == len(results) else "partial"
+        status = "completed" if completed and len(completed) == len(results) else "partial"
         if not results or all(result.status == "failed" for result in results):
             status = "failed"
         return EvaluationReport(
@@ -24,5 +25,5 @@ class ReportBuilder:
             status=status,
             agent_results=results,
             summary="Evaluation output requires evidence review before operational use.",
-            limitations=verification_issues or [],
+            limitations=list(verification_issues or []) + list(preprocessing_notes or []),
         )
