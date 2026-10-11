@@ -79,7 +79,7 @@ class RedactionSummary(BaseModel):
 
     ruleset_version: str
     masked_item_count: int = Field(ge=0)
-    categories: list[str] = Field(default_factory=list)
+    rule_ids: list[str] = Field(default_factory=list)
 
 
 class TranscriptSummary(BaseModel):

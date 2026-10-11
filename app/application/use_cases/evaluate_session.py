@@ -33,6 +33,7 @@ class EvaluateSessionUseCase:
     async def execute(self, session: ConversationSession) -> EvaluationReport:
         """执行完整评价；任一环节不满足条件都保留状态和原因，不伪造结果。"""
         evaluation_id = f"eval-{uuid.uuid4()}"
+        run_id = f"run-{uuid.uuid4()}"
 
         preprocessed = await self._pipeline.run(session)
         if preprocessed.report.verdict == "not_evaluable":
@@ -62,7 +63,9 @@ class EvaluateSessionUseCase:
                 verification_issues=[str(error)],
             )
 
-        results = await self._coordinator.run(list(plan.agent_ids), agent_input)
+        results = await self._coordinator.run(
+            list(plan.agent_ids), agent_input, run_id=run_id, evaluation_id=evaluation_id
+        )
         verification_issues: list[str] = []
         for result in results:
             verification_issues.extend(self._evidence_verifier.verify(result, preprocessed.session))

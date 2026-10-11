@@ -21,6 +21,7 @@ from app.evaluation.evidence_verifier import EvidenceVerifier
 from app.evaluation.report_builder import ReportBuilder
 from app.infrastructure.media.storage import LocalMediaStorage
 from app.infrastructure.media.transcriber import UnconfiguredTranscriber
+from app.infrastructure.repositories.ledger import InMemorySharedLedger
 from app.infrastructure.repositories.sessions import InMemorySessionRepository
 from app.infrastructure.security.redactor import (
     InMemoryRedactionMapRepository,
@@ -37,6 +38,7 @@ class RuntimeContainer:
     session_repository: InMemorySessionRepository
     redaction_map_repository: InMemoryRedactionMapRepository
     media_storage: LocalMediaStorage
+    shared_ledger: InMemorySharedLedger
     agent_registry: AgentRegistry
     tool_registry: ToolRegistry
     hook_registry: HookRegistry
@@ -71,18 +73,21 @@ def build_container(settings: Settings | None = None) -> RuntimeContainer:
     agent_registry = AgentRegistry()
     router = PolicyRouter()
     context_builder = ContextBuilder()
+    shared_ledger = InMemorySharedLedger()
     coordinator = EvaluationCoordinator(
         registry=agent_registry,
         budget=EvaluationBudget(
             agent_timeout_seconds=settings.agent_timeout_seconds,
             max_concurrency=settings.max_agent_concurrency,
         ),
+        ledger=shared_ledger,
     )
     return RuntimeContainer(
         settings=settings,
         session_repository=InMemorySessionRepository(),
         redaction_map_repository=redaction_map_repository,
         media_storage=media_storage,
+        shared_ledger=shared_ledger,
         agent_registry=agent_registry,
         tool_registry=ToolRegistry(),
         hook_registry=HookRegistry(),

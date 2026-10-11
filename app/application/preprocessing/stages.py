@@ -148,7 +148,7 @@ class DesensitizationStage(PreprocessingStage):
         summary = RedactionSummary(
             ruleset_version=self._redactor.ruleset_version,
             masked_item_count=len(records),
-            categories=sorted({record.rule_id for record in records}),
+            rule_ids=sorted({record.rule_id for record in records}),
         )
         return StageOutcome(
             session=session.model_copy(update={"messages": messages}),
