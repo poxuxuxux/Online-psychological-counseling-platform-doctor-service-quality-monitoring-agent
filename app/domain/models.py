@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -206,7 +207,11 @@ class AgentInput(BaseModel):
 class Finding(BaseModel):
     """一个指标的评价结果；不适用、上下文不足或证据无效时 score 应为空。"""
 
+    finding_id: str = Field(default_factory=lambda: f"finding-{uuid4()}")
     metric_id: str
+    metric_version: str | None = None
+    attempt: int = Field(default=0, ge=0, le=1)
+    supersedes_finding_id: str | None = None
     applicability: Literal["applicable", "not_applicable", "insufficient_context"] = "applicable"
     score: float | None = Field(default=None, ge=0, le=5)
     rationale: str
@@ -223,6 +228,51 @@ class AgentResult(BaseModel):
     status: Literal["completed", "partial", "failed"]
     findings: list[Finding] = Field(default_factory=list)
     error: str | None = None
+
+
+class FactClaim(BaseModel):
+    """从 Finding 中拆出的最小可核验事实；复杂条件保留在 statement 与 qualifiers。"""
+
+    claim_id: str = Field(default_factory=lambda: f"claim-{uuid4()}")
+    finding_id: str
+    claim_type: Literal["observed_behavior", "absence", "applicability", "score_basis"]
+    statement: str
+    subject_role: SpeakerRole | None = None
+    behavior: str | None = None
+    object_text: str | None = None
+    time_scope: str | None = None
+    negated: bool = False
+    qualifiers: list[str] = Field(default_factory=list)
+
+
+class ClaimVerification(BaseModel):
+    """一条事实主张的核验结论；证据不足与明确反证分开表达。"""
+
+    claim_id: str
+    status: Literal["supported", "contradicted", "insufficient_evidence"]
+    supporting_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
+    contradicting_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class EvidenceVerificationResult(BaseModel):
+    """统一核验结果：原文定位、事实核验、适用性与评分锚点分别记录。"""
+
+    verification_id: str = Field(default_factory=lambda: f"verification-{uuid4()}")
+    finding_id: str
+    verifier_agent_id: str = "evidence_verification"
+    reference_status: Literal[
+        "valid", "missing", "quote_mismatch", "source_mismatch", "uncertain"
+    ]
+    claims: list[FactClaim] = Field(default_factory=list)
+    claim_results: list[ClaimVerification] = Field(default_factory=list)
+    reference_conflict: bool = False
+    applicability_status: Literal["matched", "mismatched", "uncertain"] = "uncertain"
+    rubric_status: Literal["matched", "mismatched", "uncertain"] = "uncertain"
+    support_status: Literal["supported", "partial", "unsupported", "uncertain"]
+    issues: list[str] = Field(default_factory=list)
+    revision_request: str | None = None
+    verifier_version: str | None = None
 
 
 class MetricScore(BaseModel):
@@ -292,6 +342,7 @@ class EvaluationReport(BaseModel):
     session_id: str
     status: Literal["completed", "partial", "failed"]
     agent_results: list[AgentResult] = Field(default_factory=list)
+    verification_results: list[EvidenceVerificationResult] = Field(default_factory=list)
     summary: str = ""
     limitations: list[str] = Field(default_factory=list)
     quality_profile: QualityProfile | None = None

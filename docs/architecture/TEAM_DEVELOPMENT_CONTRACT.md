@@ -181,17 +181,22 @@ LLMProvider.complete(LLMRequest) -> LLMResponse
 当前 `Finding` 没有稳定 finding ID，核验只返回字符串列表；仲裁输入不包含结构化核验意见及明确的初评/复评关系；总结接口只返回改进意见，无法返回文档要求的报告叙述。需要统一以下对象：
 
 ```text
-Finding: finding_id, metric_id, metric_version, attempt, ...
-VerificationResult: finding_id, reference_status, rubric_status, support_status, reasons
+Finding: finding_id, metric_id, metric_version, attempt, supersedes_finding_id, ...
+FactClaim: claim_id, finding_id, claim_type, statement, subject_role,
+  behavior, object_text, time_scope, negated, qualifiers
+ClaimVerification: claim_id, supported | contradicted | insufficient_evidence, evidence, counter_evidence, rationale
+EvidenceVerificationResult: finding_id, reference_status, claims, claim_results,
+  reference_conflict, applicability_status, rubric_status, support_status,
+  issues, revision_request, verifier_version
 ArbitrationContext: conflicts, original_findings, revised_findings, verification_results, rules
 SummaryResult: narrative, score_explanation, improvements, limitations, status
 ScoreAggregator.aggregate(validated_metrics, rubric_snapshot) -> QualityProfile
 ReviewGate.evaluate(ReviewContext) -> ReviewGateDecision
 ```
 
-这些均为待实现接口。`ReviewContext` 用具名类型承载风险、核验、冲突、覆盖率和执行状态，不以无类型 `list` 和任意 `None` 传递。评分器输入应包含完整预期指标集合及各项状态，否则遗漏指标可能从覆盖率分母中消失。
+`FactClaim`、`ClaimVerification`、`EvidenceVerificationResult` 及 Finding 的版本关系已加入领域模型，其余仍为待实现接口。`ReviewContext` 用具名类型承载风险、核验、冲突、覆盖率和执行状态，不以无类型 `list` 和任意 `None` 传递。评分器输入应包含完整预期指标集合及各项状态，否则遗漏指标可能从覆盖率分母中消失。
 
-原始初评、复评和核验结果分别保留；最终采纳结果通过引用表达。分数上限、权重、适用条件来自版本化配置，避免后续改量表时同时修改多个 Pydantic 模型中的硬编码范围。
+原始初评、核验质疑、评价 Agent 回复、修订版和仲裁结果分别保留；最终采纳结果通过引用表达。证据核验 Agent 不与评价 Agent 各打一个分，编排器只允许一次有明确问题的质疑—修正；接受修正则再次核验，仍有分歧才仲裁。分数上限、权重、适用条件来自版本化配置，避免后续改量表时同时修改多个 Pydantic 模型中的硬编码范围。
 
 ### 5.6 Hook 与核心策略的区分
 

@@ -50,10 +50,19 @@ class AgentMessage(BaseModel):
     message_id: str
     run_id: str
     agent_id: str
-    kind: Literal["finding", "verification", "arbitration", "summary"]
+    kind: Literal[
+        "finding",
+        "verification",
+        "revision_request",
+        "revision_response",
+        "arbitration",
+        "summary",
+    ]
     result_ref: str
     digest: str = ""
     component_version: str | None = None
+    correlation_id: str | None = None
+    supersedes_message_id: str | None = None
 
 
 class SharedLedger(Protocol):
