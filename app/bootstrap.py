@@ -22,6 +22,7 @@ from app.evaluation.evidence_verifier import EvidenceVerifier
 from app.evaluation.report_builder import ReportBuilder
 from app.infrastructure.media.storage import LocalMediaStorage
 from app.infrastructure.media.transcriber import UnconfiguredTranscriber
+from app.infrastructure.repositories.evaluations import PostgresEvaluationStore
 from app.infrastructure.repositories.ledger import InMemorySharedLedger
 from app.infrastructure.repositories.sessions import InMemorySessionRepository
 from app.infrastructure.security.redactor import (
@@ -37,6 +38,7 @@ class RuntimeContainer:
 
     settings: Settings
     session_repository: InMemorySessionRepository
+    evaluation_store: PostgresEvaluationStore
     redaction_map_repository: InMemoryRedactionMapRepository
     media_storage: LocalMediaStorage
     shared_ledger: InMemorySharedLedger
@@ -88,6 +90,7 @@ def build_container(settings: Settings | None = None) -> RuntimeContainer:
     return RuntimeContainer(
         settings=settings,
         session_repository=InMemorySessionRepository(),
+        evaluation_store=PostgresEvaluationStore(settings.database_url),
         redaction_map_repository=redaction_map_repository,
         media_storage=media_storage,
         shared_ledger=shared_ledger,

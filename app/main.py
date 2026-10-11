@@ -18,6 +18,7 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     """启动时构建组合根；路由通过 app.state.container 获取依赖。"""
     app.state.container = build_container(settings)
+    await app.state.container.evaluation_store.initialize()
     yield
 
 

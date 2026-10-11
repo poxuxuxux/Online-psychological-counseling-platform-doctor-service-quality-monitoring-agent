@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.domain.models import ConversationSession, EvaluationReport, Message
 
@@ -49,6 +49,27 @@ async def get_demo_session() -> ConversationSession:
 @router.post("/evaluations", response_model=EvaluationReport)
 async def evaluate_session(session: ConversationSession, request: Request) -> EvaluationReport:
     """保存本次会话并执行预处理、三 Agent 评价和证据定位。"""
+    if session.source_id != "synthetic-demo":
+        raise HTTPException(
+            status_code=400,
+            detail="当前公开演示仅接收仓库内置的合成数据。",
+        )
     container = request.app.state.container
     await container.session_repository.save(session)
-    return await container.evaluate_session.execute(session)
+    await container.evaluation_store.save_session(session)
+    report = await container.evaluate_session.execute(session)
+    await container.evaluation_store.save_report(report)
+    return report
+
+
+@router.get("/evaluations/recent")
+async def recent_evaluations(
+    request: Request,
+    limit: int = Query(default=10, ge=1, le=50),
+) -> dict:
+    """读取 PostgreSQL 中最近的演示报告摘要。"""
+    container = request.app.state.container
+    return {
+        "database_configured": container.evaluation_store.configured,
+        "items": await container.evaluation_store.recent_reports(limit),
+    }
