@@ -1,9 +1,11 @@
 """功能：创建 FastAPI 应用，装配 API 路由并在生命周期内构建依赖容器。"""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.bootstrap import build_container
@@ -22,8 +24,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.include_router(api_router)
 
+web_dir = Path(__file__).parent / "web"
+app.mount("/assets", StaticFiles(directory=web_dir / "assets"), name="assets")
+
 
 @app.get("/", include_in_schema=False)
-async def root() -> RedirectResponse:
-    """将服务根地址引导到可交互的 API 文档。"""
-    return RedirectResponse(url="/docs")
+async def root() -> FileResponse:
+    """返回比赛最小闭环演示页面。"""
+    return FileResponse(web_dir / "index.html")

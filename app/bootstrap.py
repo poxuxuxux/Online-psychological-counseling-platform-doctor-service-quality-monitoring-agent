@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.agents.demo import build_demo_agents
 from app.agents.registry import AgentRegistry
 from app.application.context.builder import ContextBuilder
 from app.application.hooks.registry import HookRegistry
@@ -71,6 +72,8 @@ def build_container(settings: Settings | None = None) -> RuntimeContainer:
         )
     )
     agent_registry = AgentRegistry()
+    for agent in build_demo_agents():
+        agent_registry.register(agent)
     router = PolicyRouter()
     context_builder = ContextBuilder()
     shared_ledger = InMemorySharedLedger()

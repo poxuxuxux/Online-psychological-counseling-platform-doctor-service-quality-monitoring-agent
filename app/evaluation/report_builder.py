@@ -24,6 +24,11 @@ class ReportBuilder:
             session_id=session_id,
             status=status,
             agent_results=results,
-            summary="Evaluation output requires evidence review before operational use.",
+            summary=(
+                "演示评价已完成。系统从专业服务、过程响应、共情关系三个职责视角生成了"
+                "可定位原文的质检结果；结论仍需人工复核。"
+                if completed
+                else "当前会话未能完成评价，请根据限制项检查输入和运行配置。"
+            ),
             limitations=list(verification_issues or []) + list(preprocessing_notes or []),
         )

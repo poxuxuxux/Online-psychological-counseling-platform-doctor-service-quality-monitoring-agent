@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="在线心理咨询服务质量评估演示系统">
+  <title>心衡 · 服务质量评估</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="心衡首页">
+        <span class="brand-mark">心</span>
+        <span><strong>心衡</strong><small>质量评估平台</small></span>
+      </a>
+      <nav aria-label="主导航">
+        <a class="nav-item active" href="#workspace"><span>⌁</span>评估工作台</a>
+        <a class="nav-item" href="#report"><span>◇</span>质检报告</a>
+        <a class="nav-item" href="#conversation"><span>≡</span>会话证据</a>
+        <a class="nav-item" href="/docs"><span>↗</span>接口文档</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="pulse"></span>
+        <div><strong>演示环境在线</strong><small>合成数据 · 无真实患者信息</small></div>
+      </div>
+    </aside>
+
+    <main id="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">QUALITY ASSURANCE CONSOLE</p>
+          <h1>在线心理咨询服务质量评估</h1>
+        </div>
+        <div class="top-actions">
+          <span class="environment">演示环境</span>
+          <span class="avatar">质检</span>
+        </div>
+      </header>
+
+      <section class="hero card">
+        <div class="hero-copy">
+          <span class="badge">最小闭环演示</span>
+          <h2>从一轮咨询到一份可追溯报告</h2>
+          <p>系统将依次完成文本预处理、三类 Agent 并行评价和证据定位。当前使用合成会话与确定性规则，便于稳定展示完整流程。</p>
+          <div class="hero-meta">
+            <span>订单轮次 <b id="session-id">加载中…</b></span>
+            <span>指标版本 <b>demo-0.1</b></span>
+          </div>
+        </div>
+        <button id="run-button" class="primary-button" type="button" disabled>
+          <span class="button-icon">▶</span><span class="button-label">开始质量评估</span>
+        </button>
+      </section>
+
+      <section class="stats" aria-label="任务统计">
+        <article class="stat card"><span>本次会话</span><strong id="message-count">—</strong><small>条脱敏消息</small></article>
+        <article class="stat card"><span>评价 Agent</span><strong>3</strong><small>职责相互隔离</small></article>
+        <article class="stat card"><span>已完成指标</span><strong id="metric-count">0</strong><small>含适用性判断</small></article>
+        <article class="stat card accent"><span>综合表现</span><strong id="overall-score">待评估</strong><small id="score-note">满分 5.0</small></article>
+      </section>
+
+      <section class="workflow card" aria-label="评价流程">
+        <div class="section-heading">
+          <div><p class="eyebrow">RUN PIPELINE</p><h2>评价流程</h2></div>
+          <span id="run-status" class="status neutral">等待开始</span>
+        </div>
+        <div class="steps">
+          <div class="step" data-step="1"><i>1</i><div><strong>数据预处理</strong><small>规范化与脱敏检查</small></div></div>
+          <span class="connector"></span>
+          <div class="step" data-step="2"><i>2</i><div><strong>Agent 评价</strong><small>三类职责并行执行</small></div></div>
+          <span class="connector"></span>
+          <div class="step" data-step="3"><i>3</i><div><strong>证据核验</strong><small>定位原始消息</small></div></div>
+          <span class="connector"></span>
+          <div class="step" data-step="4"><i>4</i><div><strong>生成报告</strong><small>结论进入人工复核</small></div></div>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section id="conversation" class="card panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">SYNTHETIC SESSION</p><h2>咨询记录</h2></div>
+            <span class="badge soft">已脱敏 · 合成数据</span>
+          </div>
+          <div id="conversation-list" class="conversation-list" aria-live="polite">
+            <div class="skeleton"></div><div class="skeleton short"></div>
+          </div>
+        </section>
+
+        <section id="report" class="card panel report-panel">
+          <div class="section-heading">
+            <div><p class="eyebrow">EVALUATION REPORT</p><h2>质量评估报告</h2></div>
+            <span id="report-badge" class="status neutral">尚未生成</span>
+          </div>
+          <div id="empty-report" class="empty-state">
+            <div class="empty-icon">◎</div>
+            <h3>报告将在这里生成</h3>
+            <p>点击“开始质量评估”，体验从咨询记录到证据化结论的完整流程。</p>
+          </div>
+          <div id="report-content" class="report-content" hidden>
+            <div class="summary-box"><span>评估摘要</span><p id="report-summary"></p></div>
+            <div id="dimension-list" class="dimension-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <footer>
+        <p>本系统用于服务质量辅助评估。演示结果不构成临床诊断、医疗建议或自动处罚依据，正式结论需由授权人员复核。</p>
+        <a href="/docs">查看 API 文档 ↗</a>
+      </footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
