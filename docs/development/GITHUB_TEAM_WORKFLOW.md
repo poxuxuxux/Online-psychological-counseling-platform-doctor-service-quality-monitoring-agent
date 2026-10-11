@@ -248,76 +248,103 @@ GitHub 的冲突处理说明见 [Resolving a merge conflict using the command li
 
 增加字段时优先保持兼容。删除字段、改变含义或枚举值时，必须在 Issue 写迁移方式；已保存的报告和指标配置需要保留版本号。
 
-## 7. 模块所有权与交叉评审
+## 7. 模块、分支与交叉评审规则
 
-“负责”表示第一责任人和默认评审人，不表示其他人禁止修改。跨模块改动要在 PR 中 @ 对应负责人。
+“负责”表示第一责任人和默认评审人，不表示其他人禁止修改。跨模块改动要在 PR 中 @ 对应负责人。三人版采用“集成部署 + 前端 + 后端”分工；集成负责人不等于替代后端或前端，而是负责把两边的代码接成一条可演示流程。
 
-| 区域 | 默认负责人 | 修改规则 |
-|---|---|---|
-| `app/domain/`、API DTO、契约 fixture | 集成负责人 | 先过 contract Issue；至少一名消费者评审 |
-| `app/bootstrap.py` | 集成负责人 | 各模块提供注册函数，集中合入 |
-| `app/application/`、`app/api/` | 后端负责人 | Agent/前端变更接口时需参与评审 |
-| `app/agents/`、`app/evaluation/`、`app/skills/`、`app/tools/` | Agent 负责人 | 不直接读 Excel 或写数据库 |
-| `app/infrastructure/importers/`、`repositories/` | 数据/后端负责人 | 实现领域端口，不向上泄漏库类型 |
-| `app/infrastructure/llm/` | Agent 负责人 | 供应商 SDK 不进入领域和 API DTO |
-| `frontend/` | 前端负责人 | 从 API/fixture 取指标，不复制评分逻辑 |
-| `.github/`、发布和最终集成 | 集成负责人 | 全员可提 PR，集成负责人确认规则 |
+| 区域 | 默认负责人 | 可以直接修改 | 未经协商不能修改 |
+|---|---|---|---|
+| `frontend/` | 前端成员 | 页面、组件、样式、API client、前端测试 | 后端模型、数据库、`.github/` |
+| `app/` 后端实现 | 后端成员 | API、导入、切分、Agent、评价、仓储和后端测试 | `frontend/` 页面和 Railway 发布设置 |
+| `app/domain/`、API DTO、契约 fixture | 集成负责人牵头 | 契约 PR、兼容导出、联调 fixture | 在没有 contract Issue 和消费者评审时改字段 |
+| `app/bootstrap.py`、集成测试 | 集成负责人 | 装配、路由注册、Fake 端到端流程 | 直接重写前端或 Agent 具体实现 |
+| `.github/`、`Dockerfile`、`railway.toml`、发布文档 | 集成负责人 | CI、容器和部署配置 | 前端/后端成员在功能 PR 中顺手改部署配置 |
+| `data/`、`.env`、模型密钥 | 无人提交 | 只使用合成 fixture 和环境变量 | 患者数据、密钥、数据库文件和本地日志 |
+
+分支规则：
+
+- `main` 只接受 PR，三人都不能直接 push；
+- `release/railway-demo` 只给 Railway 部署，默认只有集成负责人更新；
+- `feat/frontend-*` 只能承载前端工作；
+- `feat/backend-*` 只能承载后端和 Agent 工作；
+- `chore/contract-*` 只修改公共契约和契约测试；
+- Railway 不连接任何 `feat/*` 分支。
+
+如果 GitHub 套餐不能限制 `release/railway-demo` 的写权限，就用团队约定限制：只有集成负责人 push；其他人发现线上问题，提交 PR 到 `main`，不能直接修改发布分支。
 
 `README.md`、架构图和共享配置容易冲突。功能 PR 只更新与该功能直接相关的段落；大范围文档整理单独开 PR。
 
-## 8. 三人版分工
+## 8. 三人版分工：集成部署、前端、后端
 
-### A：数据、应用后端与集成
+### A：集成部署与完整流程负责人
 
-负责：
-
-- Excel 来源导入、字段保真和稳定来源引用；
-- 订单/咨询轮次切分、预处理、服务事件和历史上下文；
-- 仓储端口与持久化适配器；
-- 任务生命周期、业务 API、错误 DTO；
-- `bootstrap.py`、CI、最终集成和版本发布。
-
-主要目录：`app/application/`、`app/api/`、`app/infrastructure/importers/`、`app/infrastructure/repositories/`、`app/bootstrap.py`。
-
-交付给 B：标准 `ConversationSession`、`ServiceContext`、`HistoryContext` 和 `AgentTask`。交付给 C：版本化 API、OpenAPI 和合成 fixture。
-
-### B：Agent 与评价引擎
+A 的目标是先把一条最小流程跑通，再持续把队友的功能接入线上演示版本。
 
 负责：
 
-- `LLMProvider`、共享 `AgentRunner` 和结构化输出校验；
-- 三个专职 Agent 的定义和各自不同的提示词/Skill；
-- D1–D6 共 18 项指标目录及 8/6/4 的任务归属；
-- 风险扫描结果、证据核验、一次定向复评、仲裁、评分、门控和总结；
-- Fake Provider 与不依赖真实密钥的评价链路测试。
+- `release/railway-demo` 分支和 Railway 服务；
+- Dockerfile、Railway 环境变量、CI、健康检查和部署文档；
+- `bootstrap.py`、路由注册、合成端到端 fixture 和集成测试；
+- 把前端和后端合并到同一条“导入/选择案例 → 创建任务 → 查看报告”的流程；
+- 线上日志、回滚、演示数据重置和比赛版本冻结。
 
-主要目录：`app/agents/`、`app/evaluation/`、`app/skills/`、`app/tools/`、`app/infrastructure/llm/`。
+主要目录：`.github/`、`Dockerfile`、`railway.toml`、`app/bootstrap.py`、`tests/integration/`、部署文档。
 
-B 不读取 Excel，不写数据库，不为三个 Agent 各复制一套 Runner。三个 Agent 接收不同 `AgentTask` 和不同 `AgentDefinition`，通过同一运行框架执行。
+A 不负责替队友实现全部页面或全部 Agent。A 可以修改公共契约，但必须开 Issue、写迁移说明并让前端和后端都评审。
 
-### C：前端、产品交互与端到端场景
+### B：前端负责人
 
 负责：
 
 - Vue 3 + TypeScript 工程和 API client；
 - 任务列表/详情、会话证据定位、六维报告、风险中心和复核工作台；
 - 加载、空数据、失败、部分完成、待复核等状态；
-- 合成演示场景、前后端联调和比赛演示脚本；
-- 页面级测试与构建检查。
+- 页面级测试、构建检查和演示交互。
 
-主要目录：`frontend/`，并参与 API DTO 和 fixture 评审。
+主要目录：`frontend/`。
 
-C 从 API 返回的指标目录渲染 18 项指标，不在页面再次维护 D1–D6 归属、权重或评分公式。
+B 可以读取 API fixture，但不能修改后端评分逻辑、数据库模型或 Railway 配置。需要新增字段时，先开 contract Issue，由 A 组织 B/C 评审。
+
+### C：后端与 Agent 负责人
+
+负责：
+
+- Excel 导入、轮次切分、预处理、上下文和仓储；
+- API、任务生命周期和错误 DTO；
+- `LLMProvider`、共享 `AgentRunner` 和结构化输出校验；
+- 三个专职 Agent、不同提示词/Skill、18 项指标及 8/6/4 归属；
+- 证据核验、定向复评、仲裁、评分、门控和总结；
+- Fake Provider、后端单元测试和契约测试。
+
+主要目录：`app/api/`、`app/application/`、`app/agents/`、`app/evaluation/`、`app/skills/`、`app/tools/`、`app/infrastructure/`。
+
+C 不修改 `frontend/` 页面，不把 Excel 列名直接暴露给前端，也不为三个 Agent 复制三套 Runner。
 
 ### 三人评审关系
 
 | PR 作者 | 默认评审人 | 第二意见的触发条件 |
 |---|---|---|
-| A | B | API 页面行为变化时加 C |
-| B | A | 报告展示/交互变化时加 C |
-| C | A | 指标含义或 Agent 状态变化时加 B |
+| A | B、C | 改公共契约、数据库或页面 API 时必须两人都看 |
+| B | A | 改 API DTO、任务状态或指标展示字段时加 C |
+| C | A | 改 API DTO、指标含义或报告字段时加 B |
 
-A 是集成负责人，但不能在没有 B/C 评审的情况下自行改变他们消费的契约。
+A 是发布负责人，但不能在没有 B/C 评审的情况下自行改变他们消费的契约。
+
+### 集成分支的更新流程
+
+1. B/C 在各自功能分支完成工作；
+2. PR 合入 `main`，CI 通过；
+3. A 在本地同步 `main` 到 `release/railway-demo`；
+4. A 在 Railway 中观察部署日志和 `/health`；
+5. A 运行完整演示流程，发现问题后回到对应功能 Issue；
+6. 比赛前冻结 `release/railway-demo`，不再接受普通功能更新。
+
+```powershell
+git fetch origin
+git switch release/railway-demo
+git merge origin/main
+git push origin release/railway-demo
+```
 
 ## 9. 两人版分工
 
@@ -358,17 +385,17 @@ M0 由全员评审。完成前只做可隔离的调研或原型，不在各分�
 
 ### M1：最小可贯通骨架
 
-- A：合成来源导入 → 两个咨询轮次 → 内存仓储 → 创建/查询任务 API；
-- B：Fake Runner → 三个不同 AgentTask → 固定结果 → 核验/汇总/报告；
-- C：使用固定 fixture 完成任务列表、报告详情、证据定位和复核提交。
+- A：Docker/部署 smoke test → 合成来源导入 → 创建/查询任务 API → Railway 演示环境；
+- B：使用固定 fixture 完成任务列表、报告详情、证据定位和复核提交；
+- C：Fake Runner → 三个不同 AgentTask → 固定结果 → 核验/汇总/报告。
 
 验收：不使用真实模型和患者数据，也能从合成输入跑出可查看、可复核的报告。
 
 ### M2：真实数据适配与 Agent 实现
 
-- A：实现 Excel 适配器、可版本化切分策略、系统通知过滤、历史检索；
-- B：实现 Provider/Runner、18 项 Skill、三个专职 Agent 和结构化核验；
-- C：接真实 API，完善进度、失败、部分结果和指标目录驱动展示。
+- A：接入前后端、维护 Railway 演示分支、完成集成测试和线上回滚；
+- B：接真实 API，完善进度、失败、部分结果和指标目录驱动展示；
+- C：实现 Excel 适配器、可版本化切分策略、Provider/Runner、18 项 Skill、三个专职 Agent 和结构化核验。
 
 验收：脱敏后的本地样例可以完成单轮次评价；三个 Agent 收到各自任务和提示词；D6 始终分配，风险 Hook 只补充线索。
 
