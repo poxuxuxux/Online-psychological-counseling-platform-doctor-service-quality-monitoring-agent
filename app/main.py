@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from app.api.v1.router import api_router
 from app.bootstrap import build_container
@@ -20,3 +21,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.include_router(api_router)
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    """将服务根地址引导到可交互的 API 文档。"""
+    return RedirectResponse(url="/docs")
