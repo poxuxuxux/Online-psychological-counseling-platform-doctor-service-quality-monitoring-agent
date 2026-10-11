@@ -221,27 +221,27 @@ API 响应单独定义 DTO，前端不直接依赖内部 `AgentInput` 或未来�
 
 ## 6. 建议三人分工
 
-下面是职责建议，可按成员专长调整；不是要求每人分别维护一套独立 Agent 框架。具体的 GitHub 初始化、分支与 PR 流程、两人版分工、评审关系和分阶段 Issue 清单见 [GitHub 团队协作与开发分工手册](../development/GITHUB_TEAM_WORKFLOW.md)。
+下面的方案按当前目标调整为“一个人跑通完整流程、一个人负责前端、一个人负责后端”。具体的 GitHub 初始化、分支与 PR 流程、能改什么/不能改什么、评审关系和分阶段 Issue 清单见 [GitHub 团队协作与开发分工手册](../development/GITHUB_TEAM_WORKFLOW.md)。
 
-### A：数据与应用后端
+### A：集成部署与完整流程
 
-负责数据导入、咨询轮次切分、预处理、服务事件/历史检索、仓储、任务生命周期、API 及组合根集成。向 B 提供统一的可评价轮次与上下文，向 C 提供版本化 API。A 同时担任集成负责人。
+先跑通最小链路，再把 B、C 的功能持续接入演示版本。负责 `release/railway-demo`、Dockerfile、Railway 环境变量、CI、健康检查、`bootstrap.py`、合成端到端 fixture、集成测试、日志、回滚和比赛版本冻结。
 
-主要目录：`application/`、`infrastructure/importers/`、`infrastructure/repositories/`、`api/`、`bootstrap.py`。
+主要目录：`.github/`、部署文件、`bootstrap.py`、`tests/integration/` 和集成文档。A 可以牵头修改公共契约，但必须开 contract Issue，并让前端和后端都评审。
 
-### B：Agent 与评价引擎
+### B：前端
 
-负责共享 Provider/Runner、三个专职 Agent、管理/核验/仲裁/总结实现、指标 Skill、确定性评分和门控。输入输出遵守公共契约，不直接读取 Excel、不写数据库、不调整 API 页面字段。
+负责 Vue 3 + TypeScript、API client、任务列表/详情、会话证据定位、六维报告、复核工作台、加载/失败/部分完成状态、页面测试和构建检查。
 
-主要目录：`agents/`、`skills/`、`evaluation/`、`tools/`、`infrastructure/llm/`。
+主要目录：`frontend/`。B 不修改后端评分逻辑、数据库模型或 Railway 配置；需要新字段时先通过公共契约流程。
 
-### C：前端与联调场景
+### C：后端与 Agent
 
-负责前端工程、任务页、报告与证据定位、复核工作台，以及基于 API fixture 的交互。按 DTO 展示指标列表，不将 18 项指标和分数计算重复写死在页面里。
+负责 Excel 导入、咨询轮次切分、预处理、上下文、仓储、API、任务生命周期、Provider/Runner、三个专职 Agent、18 项指标、证据核验、复评、仲裁、评分、门控和总结。
 
-主要目录：`frontend/`；参与 API 契约与合成联调样例评审。
+主要目录：`api/`、`application/`、`agents/`、`evaluation/`、`skills/`、`tools/`、`infrastructure/`。C 不修改前端页面，不直接向前端暴露 Excel 列名，不为三个 Agent 各自复制 Runner。
 
-如果三人实际均负责后端，也应先共同完成 Runner/Provider，之后再按三个专职 Agent 的实现与 Skill 包分工，不能每人重写自己的模型调用、核验、评分或数据库逻辑。
+三人先共同确定 Runner、AgentTask、报告 DTO 和 API 错误格式；之后 A 负责接线，B 负责展示，C 负责实现。不能在三个分支中各自定义同名契约。
 
 ### 公共文件协作规则
 
