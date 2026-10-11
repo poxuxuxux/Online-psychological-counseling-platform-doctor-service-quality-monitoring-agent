@@ -223,11 +223,15 @@ API 响应单独定义 DTO，前端不直接依赖内部 `AgentInput` 或未来�
 
 下面的方案按当前目标调整为“一个人跑通完整流程、一个人负责前端、一个人负责后端”。具体的 GitHub 初始化、分支与 PR 流程、能改什么/不能改什么、评审关系和分阶段 Issue 清单见 [GitHub 团队协作与开发分工手册](../development/GITHUB_TEAM_WORKFLOW.md)。
 
-### A：集成部署与完整流程
+### A：集成、数据与后端平台
 
-先跑通最小链路，再把 B、C 的功能持续接入演示版本。负责 `release/railway-demo`、Dockerfile、Railway 环境变量、CI、健康检查、`bootstrap.py`、合成端到端 fixture、集成测试、日志、回滚和比赛版本冻结。
+最小线上链路已经跑通。A 下一阶段负责当前 Railway 部署分支、Dockerfile、环境变量、CI、
+PostgreSQL 迁移与仓储、Excel 导入、咨询轮次切分、任务/报告 API、`bootstrap.py`、端到端测试、
+日志、回滚和比赛版本冻结。当前 `app/web/` 是部署验收页，待 B 的 Vue 前端接管后移除。
 
-主要目录：`.github/`、部署文件、`bootstrap.py`、`tests/integration/` 和集成文档。A 可以牵头修改公共契约，但必须开 contract Issue，并让前端和后端都评审。
+主要目录：`.github/`、部署文件、`app/api/`、`app/application/segmentation/`、
+`app/infrastructure/importers/`、`app/infrastructure/repositories/`、`bootstrap.py`、
+`tests/integration/` 和集成文档。A 可以牵头修改公共契约，但必须让前端和评价引擎负责人评审。
 
 ### B：前端
 
@@ -235,11 +239,14 @@ API 响应单独定义 DTO，前端不直接依赖内部 `AgentInput` 或未来�
 
 主要目录：`frontend/`。B 不修改后端评分逻辑、数据库模型或 Railway 配置；需要新字段时先通过公共契约流程。
 
-### C：后端与 Agent
+### C：Agent 与评价引擎
 
-负责 Excel 导入、咨询轮次切分、预处理、上下文、仓储、API、任务生命周期、Provider/Runner、三个专职 Agent、18 项指标、证据核验、复评、仲裁、评分、门控和总结。
+负责评价上下文、Provider/Runner、三个专职 Agent、18 项指标、证据核验、复评、仲裁、评分、
+门控和总结。数据导入、切分、数据库、业务 API 与发布由 A 负责，C 通过稳定的
+`ConversationSession`、`AgentTask` 和报告契约接入。
 
-主要目录：`api/`、`application/`、`agents/`、`evaluation/`、`skills/`、`tools/`、`infrastructure/`。C 不修改前端页面，不直接向前端暴露 Excel 列名，不为三个 Agent 各自复制 Runner。
+主要目录：`agents/`、`evaluation/`、`skills/`、`tools/`、`infrastructure/llm/` 和评价编排模块。
+C 不修改前端页面、数据库表或部署配置，不为三个 Agent 各自复制 Runner。
 
 三人先共同确定 Runner、AgentTask、报告 DTO 和 API 错误格式；之后 A 负责接线，B 负责展示，C 负责实现。不能在三个分支中各自定义同名契约。
 
