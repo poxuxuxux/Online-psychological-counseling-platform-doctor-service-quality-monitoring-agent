@@ -40,5 +40,5 @@ for (const match of styles) {
   const css = embedImages(await readFile(resolve(dist, '.' + match[1]), 'utf8'))
   html = html.replace(match[0], () => '<style>' + css + '</style>')
 }
-await writeFile(resolve(frontend, '../frontend-preview.html'), html)
+await writeFile(resolve(frontend, '../frontend-preview.html'), html.replace(/\r\n?/g, '\n'))
 console.log('Created self-contained offline frontend-preview.html')

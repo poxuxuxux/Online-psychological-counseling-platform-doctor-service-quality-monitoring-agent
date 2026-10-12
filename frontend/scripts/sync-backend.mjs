@@ -13,5 +13,5 @@ if (!assets.length || !html.includes('/assets/')) throw new Error('Build first; 
 // Copy assets before switching the HTML entry point. Never delete existing teammate assets.
 await mkdir(resolve(target, 'assets'), { recursive: true })
 await cp(resolve(source, 'assets'), resolve(target, 'assets'), { recursive: true })
-await writeFile(resolve(target, 'index.html'), html)
+await writeFile(resolve(target, 'index.html'), html.replace(/\r\n?/g, '\n'))
 console.log(`Frontend build synced to ${target}`)
