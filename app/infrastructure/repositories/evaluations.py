@@ -129,6 +129,38 @@ class PostgresEvaluationStore:
             for row in rows
         ]
 
+    async def overview_records(self, start, end) -> list[dict[str, Any]]:
+        """Read latest report per round, then filter; no consultation text leaves this API."""
+        if not self.configured:
+            return []
+        async with await self._connect() as connection:
+            cursor = await connection.execute(
+                """
+                SELECT r.evaluation_id, r.session_id, r.report_data, r.created_at, s.source_id
+                FROM (
+                    SELECT DISTINCT ON (session_id)
+                           evaluation_id, session_id, report_data, created_at
+                    FROM evaluation_reports
+                    ORDER BY session_id, created_at DESC, evaluation_id DESC
+                ) r
+                JOIN consultation_sessions s ON s.session_id = r.session_id
+                WHERE r.created_at >= %s AND r.created_at < %s
+                ORDER BY r.created_at DESC, r.evaluation_id DESC
+                """,
+                (start, end),
+            )
+            rows = await cursor.fetchall()
+        return [
+            {
+                "evaluation_id": r[0],
+                "session_id": r[1],
+                "report_data": r[2],
+                "created_at": r[3],
+                "source_id": r[4],
+            }
+            for r in rows
+        ]
+
     async def _connect(self):
         """延迟导入驱动，使未配置数据库的本地测试仍可独立运行。"""
         from psycopg import AsyncConnection

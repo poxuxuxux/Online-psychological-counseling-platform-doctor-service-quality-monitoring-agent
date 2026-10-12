@@ -1,10 +1,11 @@
 """功能：提供比赛演示会话与单轮评价接口。"""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.domain.models import ConversationSession, EvaluationReport, Message
+from app.evaluation.analytics import build_overview, statistics_period
 
 router = APIRouter(prefix="/api/v1")
 
@@ -16,7 +17,10 @@ def build_demo_session() -> ConversationSession:
         ("patient", "医生您好，我最近两周晚上很难入睡，白天上班也很疲惫。"),
         ("doctor", "听起来这段时间的失眠让你很辛苦。我想先了解一下，通常几点入睡，夜里会醒几次？"),
         ("patient", "大约凌晨一点才能睡，夜里会醒两三次，第二天很难集中注意力。"),
-        ("doctor", "谢谢你说得这么具体。我们可以先记录一周的睡眠情况，下次根据记录一起讨论调整方案。"),
+        (
+            "doctor",
+            "谢谢你说得这么具体。我们可以先记录一周的睡眠情况，下次根据记录一起讨论调整方案。",
+        ),
         ("patient", "好的，我愿意试试。"),
         ("doctor", "如果这几天症状明显加重，或已经影响到基本生活，请及时联系专业医疗机构。"),
     )
@@ -73,3 +77,18 @@ async def recent_evaluations(
         "database_configured": container.evaluation_store.configured,
         "items": await container.evaluation_store.recent_reports(limit),
     }
+
+
+@router.get("/evaluations/overview")
+async def evaluation_overview(request: Request, days: int = Query(default=30, ge=1, le=90)) -> dict:
+    """Aggregate stored reports without returning identities, evidence or conversation text."""
+    store = request.app.state.container.evaluation_store
+    now = datetime.now(UTC)
+    if not store.configured:
+        return build_overview([], days, now, available=False)
+    start, end = statistics_period(days, now)
+    try:
+        records = await store.overview_records(start, end)
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="统计数据暂时不可用，请稍后重试。") from error
+    return build_overview(records, days, now)

@@ -45,7 +45,7 @@ flowchart LR
 ```text
 .
 ├── app/                    # FastAPI、Agent 编排、评价规则与基础设施适配
-├── frontend/               # Vue 3 后台前端目录骨架
+├── frontend/               # Vue 3 + TypeScript 质检工作台源码
 ├── data/                   # 合成演示数据与本地数据目录
 └── docs/
     ├── architecture/       # Agent 与系统架构设计
@@ -88,7 +88,7 @@ python -m pytest
 
 测试覆盖预处理管道的阶段编排与可评价性判定、脱敏失败阻断、评价协调器的超时与失败隔离、证据引用的归一化匹配，以及注册表与账本等骨架行为，共 35 个测试；尚未覆盖三人接口约定中的完整模块连接。
 
-`/health` 只检查 FastAPI 进程是否响应，不代表数据库、模型服务或完整评价工作流已经连通。前端目录目前仅含架构说明和目录占位文件，还没有独立安装与启动命令。
+`/health` 只检查 FastAPI 进程是否响应，不代表数据库、模型服务或完整评价工作流已经连通。本分支前端已实现 Vue 3 + TypeScript 工作台，运行与构建命令见 [前端说明](frontend/README.md)。
 
 当前代码骨架已包含：FastAPI 入口与组合根装配、多模态会话数据契约（文本/语音/视频消息、ASR 转写元数据、媒体时间区间）、四阶段预处理管道（规范化 → 转写 → 脱敏 → 预检，含可评价性判定与安全阻断）、带超时与并发预算的多 Agent 协调器、共享通信池运行账本（append-only 事件/任务单/结论消息，按 run_id 隔离）、管理与情境识别 Agent 的协议占位（只产出候选路由，指派权在确定性校验）、错误隔离的 Hook 注册表、确定性证据核验工具（引文归一化匹配、媒体区间校验）、分歧仲裁 Agent 与总结 Agent 的协议占位、画像/冲突/仲裁/改进意见数据契约、评分汇总器与复核门控接口、内存仓储和 35 个契约测试。尚未实现：真实 LLM Provider 与 AgentRunner、三个正式评价 Agent 的完整执行、证据核验子 Agent、管理/分歧仲裁/总结 Agent 的完整执行、评分汇总与门控规则、复诊历史检索、风险监测 Hook 规则、持久化和后台 API。产品文档描述目标闭环，不代表上述模块都已可运行。
 
@@ -106,7 +106,7 @@ python -m pytest
 - [B2B 后台架构融合提案](docs/architecture/B2B_ADMIN_CONSOLE_ARCHITECTURE.md)：后台如何融入现有项目结构，以及单操作员 MVP 的边界。
 - [后台产品 PRD](docs/product/PRD_B2B_QUALITY_CONTROL_CONSOLE.md)：产品目标、用户、流程、页面、功能需求和验收标准。
 - [后端 Agent 功能说明](docs/product/BACKEND_AGENT_FUNCTIONAL_SPEC.md)：后端完整业务能力、评价器职责、证据、风险复核和接口。
-- [前端目录骨架说明](frontend/README.md)：Vue 3 前端模块划分和后续工程初始化约定。
+- [前端目录骨架说明](frontend/README.md)：前端运行、构建、可信展示策略与后端联调边界。
 
 ## 数据与安全
 
