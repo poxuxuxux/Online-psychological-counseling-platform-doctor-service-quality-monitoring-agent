@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { request } from '../client/http'
+import { ConsultationListSchema, ConsultationDetailSchema } from '../contracts/consultations'
 import {
   SessionSchema,
   ReportSchema,
@@ -9,6 +10,13 @@ import {
 } from '../contracts/evaluation'
 
 export const api = {
+  consultations: (offset = 0, query = '') =>
+    request(
+      `/api/v1/consultations?limit=5&offset=${offset}&query=${encodeURIComponent(query)}`,
+      ConsultationListSchema,
+    ),
+  consultation: (id: string) =>
+    request(`/api/v1/consultations/${encodeURIComponent(id)}`, ConsultationDetailSchema),
   demo: () => request('/api/v1/demo/session', SessionSchema),
   evaluate: (session: Session) =>
     request(

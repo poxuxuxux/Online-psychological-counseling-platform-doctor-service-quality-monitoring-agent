@@ -3,6 +3,14 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Icon from './components/base/Icon.vue'
 import StatusBadge from './components/base/StatusBadge.vue'
 import ConversationPanel from './components/conversation/ConversationPanel.vue'
+import ConsultationList from './components/conversation/ConsultationList.vue'
+import {
+  comparePriority,
+  priorityLevels,
+  priorityNames,
+  reviewPriority,
+  type PriorityLevel,
+} from './utils/reviewPriority'
 import FindingDetail from './components/feedback/FindingDetail.vue'
 import OverviewPage from './pages/OverviewPage.vue'
 import { useConsole } from './composables/useConsole'
@@ -30,6 +38,15 @@ const {
   run,
   checkService,
   refreshRecent,
+  consultations,
+  totalConsultations,
+  listOffset,
+  listQuery,
+  listing,
+  listError,
+  listSource,
+  selectConsultation,
+  refreshConsultations,
 } = useConsole()
 const nav = [
   { id: 'overview', name: '数据总览', icon: 'pulse' },
@@ -76,8 +93,21 @@ const visibleRows = computed(() =>
   ),
 )
 const queue = computed(() =>
-  pending.value.filter((r) =>
-    `${r.finding.metric_id} ${metricName(r.finding.metric_id)}`.includes(query.value),
+  pending.value
+    .filter(
+      (r) =>
+        (priorityFilter.value === 'all' || reviewPriority(r).level === priorityFilter.value) &&
+        `${r.finding.metric_id} ${metricName(r.finding.metric_id)}`.includes(query.value),
+    )
+    .sort(comparePriority),
+)
+const priorityFilter = ref<PriorityLevel | 'all'>('all')
+const priorityCounts = computed(() =>
+  Object.fromEntries(
+    priorityLevels.map((level) => [
+      level,
+      pending.value.filter((row) => reviewPriority(row).level === level).length,
+    ]),
   ),
 )
 const history = computed(
@@ -156,6 +186,11 @@ async function switchMode() {
   highlightedIds.value = []
   selectedId.value = ''
 }
+async function openConsultation(id: string) {
+  selectedId.value = ''
+  highlightedIds.value = []
+  await selectConsultation(id)
+}
 function exportReport() {
   if (!report.value) return
   downloadJson(
@@ -193,13 +228,23 @@ watch(page, (value) => {
     pending.value.length &&
     !pending.value.some((r) => r.finding.finding_id === selectedId.value)
   )
-    selectedId.value = pending.value[0]!.finding.finding_id
+    selectedId.value = [...pending.value].sort(comparePriority)[0]!.finding.finding_id
+})
+watch(queue, (value) => {
+  if (page.value === 'review')
+    selectedId.value =
+      value.find((r) => r.finding.finding_id === selectedId.value)?.finding.finding_id ||
+      value[0]?.finding.finding_id ||
+      ''
 })
 watch(
   () => report.value?.evaluation_id,
   () => {
     exportConsent.value = false
     highlightedIds.value = []
+    selectedId.value = ''
+    draftDecision.value = ''
+    draftReason.value = ''
   },
 )
 onMounted(() => {
@@ -341,7 +386,7 @@ onUnmounted(() => {
           </div>
           <div v-if="page === 'workspace'" class="heading-actions">
             <button class="button secondary" :disabled="loading || running" @click="loadSession">
-              <Icon name="refresh" :size="17" />{{ loading ? '加载中…' : '重新加载示例' }}</button
+              <Icon name="refresh" :size="17" />{{ loading ? '加载中…' : '重新加载列表' }}</button
             ><button
               class="button primary"
               :disabled="!session || loading || running"
@@ -369,8 +414,22 @@ onUnmounted(() => {
           @navigate="navigate"
         />
         <template v-else-if="page === 'workspace'">
+          <ConsultationList
+            :items="consultations"
+            :total="totalConsultations"
+            :offset="listOffset"
+            :query="listQuery"
+            :selected-id="session?.session_id"
+            :loading="listing"
+            :selecting="loading"
+            :disabled="running"
+            :error="listError"
+            :source="listSource"
+            @select="openConsultation"
+            @refresh="refreshConsultations"
+          />
           <div v-if="errors.session" class="alert danger" role="alert">
-            <strong>示例加载失败</strong>
+            <strong>咨询记录加载失败</strong>
             <p>{{ errors.session }}</p>
             <button class="text-button" @click="loadSession">重新加载</button
             ><button class="text-button" :disabled="running || loading" @click="switchMode">
@@ -398,7 +457,13 @@ onUnmounted(() => {
             </div>
             <div class="session-property">
               <span>来源</span
-              ><strong>{{ mode === 'preview' ? '离线合成样例' : '后端合成示例' }}</strong>
+              ><strong>{{
+                mode === 'preview'
+                  ? '离线合成样例'
+                  : listSource === 'database'
+                    ? '数据库记录'
+                    : '后端合成示例'
+              }}</strong>
             </div>
           </section>
           <section class="run-track" aria-label="评价处理状态">
@@ -406,7 +471,7 @@ onUnmounted(() => {
               <span>1</span>
               <div>
                 <strong>会话准备</strong
-                ><small>{{ session ? '已加载合成记录' : '等待加载' }}</small>
+                ><small>{{ session ? '咨询记录已加载' : '等待选择咨询' }}</small>
               </div>
             </div>
             <Icon name="chevron" :size="16" />
@@ -719,13 +784,48 @@ onUnmounted(() => {
             <button class="button primary" @click="navigate('workspace')">前往评估工作台</button>
           </div>
           <template v-else
-            ><div class="review-toolbar">
+            ><section class="priority-summary" aria-label="核查优先级筛选">
+              <button
+                :class="['priority-count', { active: priorityFilter === 'all' }]"
+                @click="priorityFilter = 'all'"
+                :aria-pressed="priorityFilter === 'all'"
+              >
+                <span>全部待核查</span><strong>{{ pending.length }}</strong
+                ><small>按优先级排序</small>
+              </button>
+              <button
+                v-for="level in priorityLevels"
+                :key="level"
+                :class="[
+                  'priority-count',
+                  `priority-${level}`,
+                  { active: priorityFilter === level },
+                ]"
+                @click="priorityFilter = level"
+                :aria-pressed="priorityFilter === level"
+              >
+                <span>{{ priorityNames[level] }}优先级</span
+                ><strong>{{ priorityCounts[level] }}</strong
+                ><small>{{
+                  level === 'high'
+                    ? '优先专业核查'
+                    : level === 'medium'
+                      ? '补查证据与依据'
+                      : '常规核验'
+                }}</small>
+              </button>
+            </section>
+            <p class="priority-caption">
+              核查优先级用于安排审核顺序，不代表患者临床危急程度。高：风险响应 /
+              转介指标或材料冲突；中：证据、执行或评分依据不足；低：常规待核验。
+            </p>
+            <div class="review-toolbar">
               <label class="search-field"
                 ><Icon name="search" :size="17" /><input
                   v-model="query"
                   aria-label="搜索待复核指标"
                   placeholder="搜索待复核指标" /></label
-              ><span>{{ pending.length }} 项待核查</span
+              ><span>{{ queue.length }} / {{ pending.length }} 项待核查</span
               ><button
                 class="button secondary"
                 :disabled="!actionableDrafts.length"
@@ -749,8 +849,13 @@ onUnmounted(() => {
                     'queue-item',
                     { selected: selected?.finding.finding_id === r.finding.finding_id },
                   ]"
+                  :data-priority="reviewPriority(r).level"
+                  :aria-pressed="selected?.finding.finding_id === r.finding.finding_id"
                   @click="select(r.finding.finding_id)"
                 >
+                  <span :class="['priority-badge', `priority-${reviewPriority(r).level}`]"
+                    >{{ priorityNames[reviewPriority(r).level] }}优先级</span
+                  >
                   <span class="metric-code">{{ r.finding.metric_id }}</span
                   ><strong>{{ metricName(r.finding.metric_id) }}</strong
                   ><StatusBadge :tone="r.verdict.tone">{{ r.verdict.text }}</StatusBadge>
@@ -758,8 +863,24 @@ onUnmounted(() => {
                 <p v-if="!queue.length" class="empty-note padded">当前筛选没有待核查项目。</p>
               </section>
               <section class="surface review-detail">
+                <div
+                  v-if="
+                    selected &&
+                    queue.some((r) => r.finding.finding_id === selected.finding.finding_id)
+                  "
+                  :class="['priority-detail', `priority-${reviewPriority(selected).level}`]"
+                >
+                  <Icon name="clock" :size="22" />
+                  <div>
+                    <strong>核查优先级：{{ priorityNames[reviewPriority(selected).level] }}</strong>
+                    <p>{{ reviewPriority(selected).reason }}</p>
+                  </div>
+                </div>
                 <FindingDetail
-                  v-if="selected"
+                  v-if="
+                    selected &&
+                    queue.some((r) => r.finding.finding_id === selected.finding.finding_id)
+                  "
                   :row="selected"
                   :report="report"
                   :session="session"
@@ -770,7 +891,17 @@ onUnmounted(() => {
                     }
                   "
                 />
-                <form v-if="selected" class="review-form" @submit.prevent="saveDraft">
+                <p v-if="!queue.length" class="empty-note padded">
+                  当前条件下没有待核查项目，请调整筛选。
+                </p>
+                <form
+                  v-if="
+                    selected &&
+                    queue.some((r) => r.finding.finding_id === selected.finding.finding_id)
+                  "
+                  class="review-form"
+                  @submit.prevent="saveDraft"
+                >
                   <h3>复核意见草稿</h3>
                   <label for="decision">处理意见</label
                   ><select id="decision" v-model="draftDecision" required>

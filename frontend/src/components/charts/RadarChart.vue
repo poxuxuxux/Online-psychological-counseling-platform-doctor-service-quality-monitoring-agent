@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, ref } from 'vue'
 import type { Overview } from '../../api/contracts/overview'
 const props = defineProps<{ dimensions: Overview['dimensions'] }>()
-const fillId = `radar-${useId()}`
 const active = ref<string | null>(null)
 const point = (i: number, value: number, radius = 100) => {
   const angle = -Math.PI / 2 + (i * Math.PI) / 3
@@ -27,12 +26,6 @@ const selected = computed(() => props.dimensions.find((d) => d.dimension_id === 
       role="img"
       aria-label="六个维度平均分雷达图，满分100分，详细数值见下方表格"
     >
-      <defs>
-        <radialGradient :id="fillId">
-          <stop offset="0%" stop-color="#70d4c3" stop-opacity=".1" />
-          <stop offset="100%" stop-color="#119b88" stop-opacity=".3" />
-        </radialGradient>
-      </defs>
       <polygon
         v-for="v in [100, 80, 60, 40, 20]"
         :key="v"
@@ -53,12 +46,7 @@ const selected = computed(() => props.dimensions.find((d) => d.dimension_id === 
       <text v-for="v in [20, 40, 60, 80, 100]" :key="v" x="186" :y="148 - v + 4" class="chart-tick">
         {{ v }}
       </text>
-      <polygon
-        v-if="complete"
-        :points="outline"
-        class="radar-fill"
-        :style="{ fill: `url(#${fillId})` }"
-      />
+      <polygon v-if="complete" :points="outline" class="radar-fill" fill="#087f7318" />
       <g v-for="(d, i) in dimensions" :key="d.dimension_id">
         <circle
           v-if="d.average !== null"
