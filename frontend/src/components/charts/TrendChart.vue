@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, ref } from 'vue'
 import type { Overview } from '../../api/contracts/overview'
 const props = defineProps<{ trend: Overview['trend'] }>()
-const fillId = `trend-${useId()}`
 const active = ref<number | null>(null)
 const x = (i: number) =>
   props.trend.length === 1 ? 370 : 48 + (i * 640) / (props.trend.length - 1)
@@ -39,24 +38,13 @@ const selected = computed(() => (active.value === null ? null : props.trend[acti
       role="img"
       aria-label="每日平均总分折线图，满分100分，85分优质线与60分风险边界线，空白日期没有有效评分"
     >
-      <defs>
-        <linearGradient :id="fillId" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#13aa94" stop-opacity=".24" />
-          <stop offset="100%" stop-color="#13aa94" stop-opacity="0" />
-        </linearGradient>
-      </defs>
       <g v-for="v in [0, 20, 40, 60, 80, 100]" :key="v">
         <line x1="48" x2="688" :y1="y(v)" :y2="y(v)" class="chart-grid" />
         <text x="34" :y="y(v) + 4" text-anchor="end" class="chart-tick">{{ v }}</text>
       </g>
       <line x1="48" x2="688" :y1="y(85)" :y2="y(85)" class="threshold quality" />
       <line x1="48" x2="688" :y1="y(60)" :y2="y(60)" class="threshold risk" />
-      <polygon
-        v-for="(fill, i) in fills"
-        :key="`fill-${i}`"
-        :points="fill"
-        :fill="`url(#${fillId})`"
-      />
+      <polygon v-for="(fill, i) in fills" :key="`fill-${i}`" :points="fill" fill="#087f730c" />
       <polyline v-for="(segment, i) in segments" :key="i" :points="segment" class="trend-line" />
       <template v-for="(p, i) in trend" :key="p.date">
         <circle

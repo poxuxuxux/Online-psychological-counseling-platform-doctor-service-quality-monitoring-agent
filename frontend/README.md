@@ -56,14 +56,14 @@ pnpm build:backend
 
 ## 现有接口
 
-| 方法 | 地址 | 用途 |
-| --- | --- | --- |
-| GET | /api/v1/demo/session | 加载合成会话 |
-| POST | /api/v1/evaluations | 发送 ConversationSession，取得 EvaluationReport |
-| GET | /api/v1/evaluations/recent?limit=20 | 最近摘要 |
-| GET | /api/v1/evaluations/overview?days=30 | 去重后的质量统计，days=1～90 |
-| GET | /health | 应用存活 |
-| GET | /ready | 数据库准备状态 |
+| 方法 | 地址                                 | 用途                                            |
+| ---- | ------------------------------------ | ----------------------------------------------- |
+| GET  | /api/v1/demo/session                 | 加载合成会话                                    |
+| POST | /api/v1/evaluations                  | 发送 ConversationSession，取得 EvaluationReport |
+| GET  | /api/v1/evaluations/recent?limit=20  | 最近摘要                                        |
+| GET  | /api/v1/evaluations/overview?days=30 | 去重后的质量统计，days=1～90                    |
+| GET  | /health                              | 应用存活                                        |
+| GET  | /ready                               | 数据库准备状态                                  |
 
 最近摘要接口没有旧报告全文，页面不会伪造“打开历史全文”。当前后端只允许 source_id=synthetic-demo 的演示请求；本前端不提供真实数据上传、假登录或假提交复核。
 
@@ -74,10 +74,23 @@ pnpm build:backend
 ```json
 {
   "discussions": [
-    {"finding_id":"finding-xxx","role":"verifier","text":"引文可以证明建议发生，尚不能证明建议可执行。","message_ids":["m02"],"timestamp":null}
+    {
+      "finding_id": "finding-xxx",
+      "role": "verifier",
+      "text": "引文可以证明建议发生，尚不能证明建议可执行。",
+      "message_ids": ["m02"],
+      "timestamp": null
+    }
   ],
   "arbitration_decisions": [
-    {"conflict_id":"conflict-xxx","metric_ids":["D5.4"],"status":"unresolved","adopted":"manual_review","rationale":"评分锚点仍无法确认。","requires_manual_review":true}
+    {
+      "conflict_id": "conflict-xxx",
+      "metric_ids": ["D5.4"],
+      "status": "unresolved",
+      "adopted": "manual_review",
+      "rationale": "评分锚点仍无法确认。",
+      "requires_manual_review": true
+    }
   ]
 }
 ```
@@ -105,7 +118,6 @@ tests/unit/        可信显示与接口异常测试
 scripts/           安全复制部署产物
 ```
 
-
 ## 数据总览与统计规则
 
 导航中的“数据总览”展示四个汇总卡片、六维雷达图、维度平均分表、日均总分折线图、分档比例以及每日数值表。支持最近 7 / 30 / 90 天，手机上图表可以横向滚动查看，数值表保留可访问的数据替代。
@@ -129,7 +141,6 @@ scripts/           安全复制部署产物
 - 真实浏览器的本地页面访问仍受当前连接 / URL 策略限制，没有完成截图或浏览器视觉验收；上述 DOM 检查不能替代真实浏览器验收。请本人双击仓库根目录 frontend-preview.html 查看离线样例，并在正式联调时检查桌面 / 手机布局。
 - 改动保存在本地 feat/quality-console 分支，尚未提交、推送或重新部署；GitHub 和现有 Railway 链接不会随本地编辑自动更新。
 
-
 ## 视觉改版（2026-10-12）
 
 改版采用松绿 / 薄雾白的视觉体系：浅色导航、连续统计带、平均分圆环、六维画像、带数据范围填充的趋势图、有效对话分档环形图、维度均值进度条，以及更易阅读的原文与证据面板。默认打开数据总览，所有工作台与复核直达锚点保留。
@@ -142,7 +153,6 @@ scripts/           安全复制部署产物
 
 本轮仅保存本地文件，未上传 GitHub、发布到 Railway 或修改已有后端逻辑。
 
-
 ## 2026-10-12 参考图视觉更新
 
 采用玉石绿、冰蓝灰底、白色悬浮导航与咨询室主视觉，独立统计卡片使用薄荷绿、琥珀、珊瑚、紫罗兰辅助色；雷达和折线仍呈现原有有效统计。侧栏工作指南仅说明机制，不冒充真实执行进度。首次加载的大图为本地生成素材（原始 PNG 约 2.2 MB），不使用第三方图片或外部字体。`src/styles/reference.css` 是本次样式层；`design-notes.md` 记录布局依据和完整图片生成提示词。
@@ -150,3 +160,15 @@ scripts/           安全复制部署产物
 图中的按钮可进入工作台、指标和人工复核。离线预览导出会内嵌生产构建中的图片，双击根目录 `frontend-preview.html` 可查看；此文件里的数据均有合成样例标识。
 
 本次验证：TypeScript 检查通过，63 项单元测试通过，生产构建成功，16 项编译后离线交互检查通过（DOM 测试，包括图片内嵌、主视觉入口、指标/复核导航和原文定位）。受当前浏览器权限与本地连接限制，未完成真实浏览器截图验收，移动端视觉仍需在设备上确认。后端、评分与接口未在此次视觉更新中修改。
+
+## 2026-10-13：咨询 ID 列表与核查优先级
+
+评估工作台新增可查询、翻页和点选的咨询 ID 列表；读取对应咨询与已保存的最新报告。离线预览提供 3 个合成咨询。人工复核页新增高 / 中 / 低优先级、数量筛选、排序与分级理由；原有核验状态与评分门槛保留。
+
+接口和规则说明见 `../docs/consultation-browser-integration.md`。目前公开查询只开放合成数据；真实记录需接入平台权限。优先级是审核先后顺序，不是患者临床分级。
+
+## 2026-10-13 视觉修订
+
+本地视觉改为阅读优先的青绿工作台：固定侧栏、细线分区、连续统计带，面板圆角 6px、按钮和输入 4px，对话与证据正文 16px。保留 #087F73 主色，移除面板浮动阴影、装饰叶片、彩色图标底块和图表渐变。列表、核查优先级、评分门槛和接口行为保持原有逻辑。小屏表格与趋势图在自身区域滚动，避免缩小文字。
+
+设计依据与实施前自审见 `design-notes.md`。离线预览及后端静态入口需用构建脚本重新生成；本地更新不等于 GitHub 或线上部署已更新。

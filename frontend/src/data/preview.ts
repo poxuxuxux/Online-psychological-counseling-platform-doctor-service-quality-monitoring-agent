@@ -1,7 +1,7 @@
 import { SessionSchema, ReportSchema, type Report } from '../api/contracts/evaluation'
 
 // Entirely synthetic UX fixtures. These values are not model results or validated clinical anchors.
-export function previewSession() {
+export function previewSession(index = 0) {
   const rows = [
     ['patient', '医生您好，我最近两周晚上很难入睡，白天上班也很疲惫。'],
     ['doctor', '听起来这段时间的失眠让你很辛苦。我想先了解一下，通常几点入睡，夜里会醒几次？'],
@@ -11,20 +11,25 @@ export function previewSession() {
     ['doctor', '如果这几天症状明显加重，或已经影响到基本生活，请及时联系专业医疗机构。'],
   ]
   return SessionSchema.parse({
-    session_id: 'preview-synthetic-001',
+    session_id: `preview-synthetic-${String(index + 1).padStart(3, '0')}`,
     source_id: 'offline-preview',
     consultation_round: 'initial',
     messages: rows.map(([role, content], i) => ({
-      message_id: `preview-m${i + 1}`,
+      message_id: index ? `preview-${index + 1}-m${i + 1}` : `preview-m${i + 1}`,
       role,
-      content,
+      content:
+        index && i === 0
+          ? [
+              '医生您好，我这三周入睡比较困难，白天总感觉疲惫。',
+              '医生您好，最近加班后晚上很难入睡，白天工作也很疲惫。',
+            ][index - 1] || content
+          : content,
       sequence: i,
-      timestamp: `2026-10-11T14:${String(i * 2).padStart(2, '0')}:00`,
+      timestamp: `2026-10-${String(11 + index).padStart(2, '0')}T14:${String(i * 2).padStart(2, '0')}:00`,
     })),
   })
 }
-export function previewReport(): Report {
-  const session = previewSession()
+export function previewReport(session = previewSession()): Report {
   const evidence = (i: number) => [
     {
       message_ids: [session.messages[i]!.message_id],
@@ -200,25 +205,25 @@ export function previewReport(): Report {
         finding_id: 'preview-f6-original',
         role: 'evaluator',
         text: '我认为医生回应了焦虑与失眠带来的辛苦，初评为 4.5 分。',
-        message_ids: ['preview-m2'],
+        message_ids: [session.messages[1]!.message_id],
       },
       {
         finding_id: 'preview-f6-original',
         role: 'verifier',
         text: '原文没有明确表达“焦虑”。请删除该主张，保留能回溯到原话的辛苦感受回应，并重新核对评分依据。',
-        message_ids: ['preview-m1', 'preview-m2'],
+        message_ids: [session.messages[0]!.message_id, session.messages[1]!.message_id],
       },
       {
         finding_id: 'preview-f6',
         role: 'evaluator',
         text: '接受定向质疑，删除焦虑主张，保留已发生的回应。修订分数只用于交互样例，正式锚点仍待审定。',
-        message_ids: ['preview-m2'],
+        message_ids: [session.messages[1]!.message_id],
       },
       {
         finding_id: 'preview-f6',
         role: 'verifier',
         text: '修订后的事实主张可获支持；评分锚点仍无法判断，保留待复核状态。',
-        message_ids: ['preview-m2'],
+        message_ids: [session.messages[1]!.message_id],
       },
     ],
     arbitration_decisions: [

@@ -92,3 +92,33 @@ async def evaluation_overview(request: Request, days: int = Query(default=30, ge
     except Exception as error:
         raise HTTPException(status_code=503, detail="统计数据暂时不可用，请稍后重试。") from error
     return build_overview(records, days, now)
+
+
+@router.get("/consultations")
+async def list_consultations(
+    request: Request,
+    limit: int = Query(default=5, ge=1, le=50),
+    offset: int = Query(default=0, ge=0, le=100000),
+    query: str = Query(default="", max_length=120),
+) -> dict:
+    """分页读取数据库中的合成咨询 ID，未评价的咨询也进入列表。"""
+    try:
+        return await request.app.state.container.evaluation_store.list_consultations(
+            limit, offset, query.strip()
+        )
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="咨询列表暂时不可用，请稍后重试。") from error
+
+
+@router.get("/consultations/{session_id}")
+async def consultation_detail(request: Request, session_id: str) -> dict:
+    """读取指定合成咨询及其最新报告；真实数据接入须沿用平台访问控制。"""
+    if not session_id or len(session_id) > 200:
+        raise HTTPException(status_code=422, detail="咨询 ID 格式不正确。")
+    try:
+        detail = await request.app.state.container.evaluation_store.consultation_detail(session_id)
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="咨询记录暂时不可用，请稍后重试。") from error
+    if detail is None:
+        raise HTTPException(status_code=404, detail="咨询记录不存在或不在当前演示范围。")
+    return detail

@@ -161,6 +161,73 @@ class PostgresEvaluationStore:
             for r in rows
         ]
 
+    async def list_consultations(self, limit: int, offset: int, query: str) -> dict[str, Any]:
+        """Public demo reads only synthetic rows; real consultations need platform access control."""
+        if not self.configured:
+            return {"database_configured": False, "total": 0, "items": []}
+        async with await self._connect() as connection:
+            count_cursor = await connection.execute(
+                """SELECT COUNT(*) FROM consultation_sessions
+                   WHERE source_id = 'synthetic-demo' AND POSITION(%s IN session_id) > 0""",
+                (query,),
+            )
+            total = (await count_cursor.fetchone())[0]
+            cursor = await connection.execute(
+                """
+                SELECT s.session_id, s.session_data, s.updated_at, r.status
+                FROM consultation_sessions s
+                LEFT JOIN LATERAL (
+                    SELECT status FROM evaluation_reports
+                    WHERE session_id = s.session_id
+                    ORDER BY created_at DESC, evaluation_id DESC LIMIT 1
+                ) r ON TRUE
+                WHERE s.source_id = 'synthetic-demo' AND POSITION(%s IN s.session_id) > 0
+                ORDER BY s.updated_at DESC, s.session_id DESC
+                LIMIT %s OFFSET %s
+                """,
+                (query, limit, offset),
+            )
+            rows = await cursor.fetchall()
+        items = []
+        for row in rows:
+            session = ConversationSession.model_validate(row[1])
+            if session.session_id != row[0] or session.source_id != "synthetic-demo":
+                raise ValueError("Stored session metadata mismatch")
+            items.append({"session_id": row[0], "consultation_round": session.consultation_round,
+                          "message_count": len(session.messages), "updated_at": row[2].isoformat(),
+                          "evaluation_status": row[3]})
+        return {"database_configured": True, "total": total, "items": items}
+
+    async def consultation_detail(self, session_id: str) -> dict[str, Any] | None:
+        """Load the session and latest report together, including sessions not yet evaluated."""
+        if not self.configured:
+            return None
+        async with await self._connect() as connection:
+            cursor = await connection.execute(
+                """
+                SELECT s.session_data, r.report_data
+                FROM consultation_sessions s
+                LEFT JOIN LATERAL (
+                    SELECT report_data FROM evaluation_reports
+                    WHERE session_id = s.session_id
+                    ORDER BY created_at DESC, evaluation_id DESC LIMIT 1
+                ) r ON TRUE
+                WHERE s.session_id = %s AND s.source_id = 'synthetic-demo'
+                """,
+                (session_id,),
+            )
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        session = ConversationSession.model_validate(row[0])
+        if session.session_id != session_id or session.source_id != "synthetic-demo":
+            raise ValueError("Stored session metadata mismatch")
+        report = EvaluationReport.model_validate(row[1]) if row[1] is not None else None
+        if report is not None and report.session_id != session_id:
+            raise ValueError("Stored report/session mismatch")
+        # Preserve optional presentation fields stored by future backend versions.
+        return {"session": session.model_dump(mode="json"), "report": row[1]}
+
     async def _connect(self):
         """延迟导入驱动，使未配置数据库的本地测试仍可独立运行。"""
         from psycopg import AsyncConnection
