@@ -1,0 +1,232 @@
+{
+  "$defs": {
+    "ApplicabilityRules": {
+      "additionalProperties": false,
+      "properties": {
+        "applicable_when": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Applicable When",
+          "type": "array"
+        },
+        "not_applicable_when": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Not Applicable When",
+          "type": "array"
+        },
+        "insufficient_context_when": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Insufficient Context When",
+          "type": "array"
+        }
+      },
+      "required": [
+        "applicable_when",
+        "not_applicable_when",
+        "insufficient_context_when"
+      ],
+      "title": "ApplicabilityRules",
+      "type": "object"
+    },
+    "EvidenceRules": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_sources": {
+          "items": {
+            "enum": [
+              "current_dialogue",
+              "current_intake",
+              "service_events",
+              "tool_facts"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Allowed Sources",
+          "type": "array"
+        },
+        "required_checks": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Required Checks",
+          "type": "array"
+        },
+        "forbidden_uses": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Forbidden Uses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "allowed_sources",
+        "required_checks",
+        "forbidden_uses"
+      ],
+      "title": "EvidenceRules",
+      "type": "object"
+    },
+    "ManualReviewRule": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "condition": {
+          "minLength": 1,
+          "title": "Condition",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "condition"
+      ],
+      "title": "ManualReviewRule",
+      "type": "object"
+    },
+    "ScoreAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "score": {
+          "maximum": 5,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "criteria": {
+          "minLength": 1,
+          "title": "Criteria",
+          "type": "string"
+        }
+      },
+      "required": [
+        "score",
+        "criteria"
+      ],
+      "title": "ScoreAnchor",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "metric_id": {
+      "pattern": "^D[1-6]\\.[1-5]$",
+      "title": "Metric Id",
+      "type": "string"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]+)?$",
+      "title": "Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "published"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "owner": {
+      "enum": [
+        "professional_service",
+        "process_response",
+        "empathy_relationship"
+      ],
+      "title": "Owner",
+      "type": "string"
+    },
+    "definition": {
+      "minLength": 1,
+      "title": "Definition",
+      "type": "string"
+    },
+    "applicability": {
+      "$ref": "#/$defs/ApplicabilityRules"
+    },
+    "evidence": {
+      "$ref": "#/$defs/EvidenceRules"
+    },
+    "score_values": {
+      "items": {
+        "type": "integer"
+      },
+      "maxItems": 6,
+      "minItems": 5,
+      "title": "Score Values",
+      "type": "array"
+    },
+    "anchors": {
+      "items": {
+        "$ref": "#/$defs/ScoreAnchor"
+      },
+      "title": "Anchors",
+      "type": "array"
+    },
+    "manual_review": {
+      "items": {
+        "$ref": "#/$defs/ManualReviewRule"
+      },
+      "minItems": 1,
+      "title": "Manual Review",
+      "type": "array"
+    },
+    "required_tools": {
+      "items": {
+        "enum": [
+          "evidence_locator",
+          "time_calculator"
+        ],
+        "type": "string"
+      },
+      "title": "Required Tools",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "metric_id",
+    "name",
+    "version",
+    "status",
+    "owner",
+    "definition",
+    "applicability",
+    "evidence",
+    "score_values",
+    "anchors",
+    "manual_review"
+  ],
+  "title": "MetricSkillSpec",
+  "type": "object"
+}

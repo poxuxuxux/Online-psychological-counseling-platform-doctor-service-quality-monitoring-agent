@@ -1,4 +1,4 @@
-"""功能：总结 Agent 协议与占位实现；汇总评价结果，生成 6 维画像叙述、总评分说明与改进意见。"""
+"""早期演示兼容协议；新结构化链路的实际结果Agent位于 app.agents.result_summary。"""
 
 from dataclasses import dataclass
 from typing import Protocol

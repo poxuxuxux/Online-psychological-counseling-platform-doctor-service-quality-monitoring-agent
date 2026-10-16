@@ -1,0 +1,122 @@
+examples:
+- case_id: D2_2_measured
+  input:
+    session_id: D2_2_measured
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_2_measured-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 下次需要带哪些材料？
+      timestamp: '2026-01-01T10:00:00+08:00'
+    - message_id: D2_2_measured-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 带已有的相关资料，以及你希望讨论的问题。
+      timestamp: '2026-01-01T10:04:00+08:00'
+    computed_measurements:
+      tool: synthetic_time_calculator
+      pairs:
+      - question_message_ids:
+        - D2_2_measured-m1
+        reply_message_id: D2_2_measured-m2
+        duration_seconds: 240
+        question_time: '2026-01-01T10:00:00+08:00'
+        reply_time: '2026-01-01T10:04:00+08:00'
+      unanswered_count: 0
+      measurement_version: synthetic-wall-clock-v1
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - timing_policy_pending
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_2_not_applicable
+  input:
+    session_id: D2_2_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_2_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 好的，谢谢。
+    - message_id: D2_2_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 不客气。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - timing_policy_pending
+    - time_facts_missing
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_2_pair_unknown
+  input:
+    session_id: D2_2_pair_unknown
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_2_pair_unknown-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 下次需要带哪些材料？
+    - message_id: D2_2_pair_unknown-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 带已有的相关资料，以及你希望讨论的问题。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    - timing_policy_pending
+    - time_facts_missing
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_2_ongoing
+  input:
+    session_id: D2_2_ongoing
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D2_2_ongoing-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 下次需要带什么？
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    - timing_policy_pending
+    - time_facts_missing
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。

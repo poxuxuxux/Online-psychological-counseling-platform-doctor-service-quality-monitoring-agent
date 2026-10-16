@@ -1,0 +1,154 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "time_calculator",
+      "description": "设计草案：从后端绑定的当前订单和消息快照计算D2.1或D2.2时间间隔，不接收模型生成的时间戳，不给分。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "metric_id": {
+            "type": "string",
+            "enum": [
+              "D2.1",
+              "D2.2"
+            ]
+          },
+          "question_message_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true
+          },
+          "reply_message_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "metric_id"
+        ],
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "metric_id": {
+                "const": "D2.1"
+              }
+            },
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "question_message_ids"
+                  ]
+                },
+                {
+                  "required": [
+                    "reply_message_id"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "metric_id": {
+                "const": "D2.2"
+              }
+            },
+            "required": [
+              "question_message_ids",
+              "reply_message_id"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "history_retrieval",
+      "description": "设计草案：仅在后端确认复诊、可信患者关联及授权后检索既往相关消息；返回日期和来源，不返回历史分数。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "top_k": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8,
+            "default": 3
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "evidence_locator",
+      "description": "设计草案：在当前咨询冻结快照中定位候选引用；角色、时间与来源由后端返回，不判定语义是否支持结论。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "message_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "quote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 4000
+                },
+                "start_offset": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "message_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

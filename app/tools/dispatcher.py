@@ -1,5 +1,6 @@
 """功能：执行工具调用前检查工具注册和 Agent 白名单，然后分发给 Handler。"""
 
+import asyncio
 from typing import Any
 
 from app.tools.registry import ToolRegistry
@@ -21,4 +22,6 @@ class ToolDispatcher:
         spec, handler = self._registry.get(tool_name)
         if agent_id not in spec.allowed_agents:
             raise PermissionError(f"Agent {agent_id} cannot call tool {tool_name}")
-        return await handler(arguments)
+        if spec.request_model:
+            arguments = spec.request_model.model_validate(arguments).model_dump(mode="json")
+        return await asyncio.wait_for(handler(arguments), timeout=spec.timeout_seconds)

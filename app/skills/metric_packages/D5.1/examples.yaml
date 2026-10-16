@@ -1,0 +1,111 @@
+examples:
+- case_id: D5_1_adequate
+  input:
+    session_id: D5_1_adequate
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D5_1_adequate-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想制定接下来咨询的计划。工作和家里的事都困扰我，但今天更想先谈工作。
+    - message_id: D5_1_adequate-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 今天先聚焦你更在意的工作问题，可以吗？家里的问题我们再商量后续安排。
+    - message_id: D5_1_adequate-m3
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 可以，今天就先讨论工作。
+    - message_id: D5_1_adequate-m4
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 好的，今天聚焦工作带来的困扰，其他问题后续再一起安排。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D5_1_poor
+  input:
+    session_id: D5_1_poor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D5_1_poor-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想制定接下来咨询的计划。工作和家里的事都困扰我，但今天更想先谈工作。
+    - message_id: D5_1_poor-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 不用说工作，今天只按我的安排谈家庭。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D5_1_not_applicable
+  input:
+    session_id: D5_1_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D5_1_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 今天的预约时间是什么时候？
+    - message_id: D5_1_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 请在订单详情查看已确认时间。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D5_1_incomplete
+  input:
+    session_id: D5_1_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D5_1_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想制定接下来咨询的计划。工作和家里的事都困扰我，但今天更想先谈工作。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。

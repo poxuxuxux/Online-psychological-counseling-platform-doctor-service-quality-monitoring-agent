@@ -1,0 +1,304 @@
+.consultation-browser {
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.consultation-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 28px 16px;
+}
+.consultation-list-heading h2 {
+  margin: 0 0 7px;
+  font-size: 20px;
+}
+.consultation-list-heading p {
+  margin: 0;
+  color: #596963;
+  font-size: 14px;
+}
+.consultation-list-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 28px 18px;
+}
+.consultation-list-tools .search-field {
+  max-width: 340px;
+  flex: 1;
+}
+.consultation-count {
+  margin-left: auto;
+  font-size: 14px;
+  color: #596963;
+  white-space: nowrap;
+}
+.consultation-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+.consultation-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+  text-align: left;
+}
+.consultation-table th {
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #596963;
+  background: #f6f8f7;
+  border-block: 1px solid #dce4e0;
+  white-space: nowrap;
+}
+.consultation-table td {
+  padding: 16px 18px;
+  border-bottom: 1px solid #dce4e0;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.consultation-table th:first-child,
+.consultation-table td:first-child {
+  padding-left: 28px;
+}
+.consultation-table tr.active td {
+  background: #edf5f1;
+}
+.consultation-table tr.active td:first-child {
+  box-shadow: inset 4px 0 #087f73;
+}
+.consultation-id {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 0;
+  color: #065e56;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  min-height: 40px;
+}
+.consultation-id:hover {
+  text-decoration: underline;
+}
+.consultation-list-footer {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+}
+.consultation-list-footer small {
+  font-size: 14px;
+  color: #596963;
+  line-height: 1.6;
+}
+.consultation-list-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.priority-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid #dce4e0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.priority-count {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 19px 22px;
+  border: 0;
+  border-right: 1px solid #dce4e0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: #fff;
+  text-align: left;
+  color: #20373e;
+}
+.priority-count span {
+  align-self: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.priority-count strong {
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+.priority-count small {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  color: #596963;
+}
+.priority-count.active {
+  border-bottom-color: currentColor;
+  background: #f4f7f5;
+}
+.priority-count:focus-visible {
+  outline: 3px solid #087f73;
+  outline-offset: -4px;
+}
+.priority-high {
+  --priority-color: #b52b41;
+  --priority-bg: #fff0f2;
+  --priority-line: #f0c1c9;
+}
+.priority-medium {
+  --priority-color: #9b5a00;
+  --priority-bg: #fff6e7;
+  --priority-line: #eed3a9;
+}
+.priority-low {
+  --priority-color: #087f73;
+  --priority-bg: #edf5f1;
+  --priority-line: #bde4dc;
+}
+.priority-count.priority-high,
+.priority-count.priority-medium,
+.priority-count.priority-low {
+  color: var(--priority-color);
+  background: #fff;
+}
+.priority-count:last-child {
+  border-right: 0;
+}
+.priority-count:hover:not(:disabled) {
+  background: #f4f7f5;
+}
+.priority-count.active {
+  background: #f4f7f5;
+}
+.priority-caption {
+  margin: 0 0 22px;
+  max-width: 90ch;
+  font-size: 14px;
+  color: #596963;
+  line-height: 1.8;
+}
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--priority-line);
+  border-radius: 3px;
+  color: var(--priority-color);
+  background: var(--priority-bg);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.priority-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.review-queue .queue-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 18px 20px;
+}
+.review-queue .queue-item > .priority-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.review-queue .queue-item > strong {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.review-queue .queue-item > .status-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.review-queue .queue-item[data-priority='high'] {
+  border-left-color: #b52b41;
+}
+.review-queue .queue-item[data-priority='medium'] {
+  border-left-color: #c48221;
+}
+.review-queue .queue-item[data-priority='low'] {
+  border-left-color: #42a594;
+}
+.review-queue .queue-item.selected {
+  background: #edf5f1;
+  box-shadow: none;
+}
+.priority-detail {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 24px 26px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--priority-line);
+  border-radius: 0;
+  border-left: 3px solid var(--priority-color);
+  background: #fff;
+  color: var(--priority-color);
+}
+.priority-detail > svg {
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.priority-detail strong {
+  font-size: 16px;
+}
+.priority-detail p {
+  margin: 7px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+@media (max-width: 760px) {
+  .consultation-list-heading {
+    align-items: flex-start;
+    padding: 20px 18px 14px;
+    flex-wrap: wrap;
+  }
+  .consultation-list-tools {
+    padding: 0 18px 16px;
+    flex-wrap: wrap;
+  }
+  .consultation-list-tools .search-field {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .consultation-list-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 14px 18px;
+  }
+  .priority-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+  }
+  .priority-count:nth-child(even) {
+    border-right: 0;
+  }
+  .priority-count:nth-child(-n + 2) {
+    box-shadow: inset 0 -1px #dce4e0;
+  }
+  .priority-count {
+    padding: 16px;
+  }
+  .priority-detail {
+    margin: 18px 18px 0;
+    padding: 14px;
+  }
+}
+@media print {
+  .consultation-list-tools,
+  .consultation-list-footer > div {
+    display: none;
+  }
+}

@@ -1,0 +1,62 @@
+schema_version: '1.0'
+metric_id: D3.2
+name: 病史与治疗信息核对
+version: 0.3.0-draft
+status: draft
+owner: professional_service
+definition: 讨论依赖病史、药物或既往治疗经历时，医生是否核对了相关信息。
+applicability:
+  applicable_when:
+  - 当前问题或建议依赖病史、药物或既往治疗信息，需核对必要信息的准确性与时效。
+  not_applicable_when:
+  - 完整材料确认当前任务不涉及或不依赖病史、药物和治疗信息。
+  insufficient_context_when:
+  - 当前咨询边界、完整范围、说话人、合理回应机会或必要原始内容缺失，无法可靠判断。
+  - 与本项相关的关键上下文或必要工具事实缺失，不能区分未观察到与确实未发生。
+evidence:
+  allowed_sources:
+  - current_dialogue
+  - current_intake
+  required_checks:
+  - 先列当前建议实际依赖的必要信息，核对本次资料来源、时效、患者更新及医生确认行为；不机械要求每次收齐全部病史。
+  - 将已核实的信息与仍待补充的信息分开记录；资料暂缺时检查是否提出针对性补充要求、暂缓依赖性建议及明确后续核对步骤。
+  - 逐条核对当前消息ID、说话人、消息类型、连续原文与引用范围；患者与医生证据分别引用。
+  - 检查前后文、否定及适用条件，保留反证与材料冲突；负向判断核对完整性和回应机会。
+  forbidden_uses:
+  - 不得把历史互动、自动通知、资料卡存在或模板词语本身当成本次已完成的医生服务行为。
+  - 不得从缺失片段、媒体占位、未提供工具事实或未检索到行为直接推断低质量。
+  - 不得生成缺失的咨询行为、文献依据、时间结果或患者心理诊断；不以评分推断治疗正确性。
+score_values:
+- 1
+- 2
+- 3
+- 4
+- 5
+anchors:
+- score: 1
+  criteria: 关键资料明确过期、缺失或矛盾，医生在有核查机会时忽略该问题，直接给出依赖这些未核实信息的具体建议。
+- score: 2
+  criteria: 仅泛泛要求提供资料或核对外围事项，未针对当前关键缺口提出必要询问或有效核查步骤；材料完整且有合理机会。
+- score: 3
+  criteria: 已针对部分关键内容核查，但仍存在医生可处理而未处理的重要缺口，或未说明缺口如何影响当前讨论及下一步如何核实。
+- score: 4
+  criteria: 主要必要信息已核实、仅有非关键细节未清；或关键资料客观暂缺，但医生明确识别缺口、针对性索取当前资料、暂缓依赖该信息的建议，并交代补齐后核对再讨论的步骤。后一种仍须注明核对未完成，不可当作已核实。
+- score: 5
+  criteria: 当前任务实际依赖的必要信息已取得并经医生有针对性确认，相关变化或冲突已澄清，依据和剩余非关键限制交代清楚；不能仅因请求补材料或承诺以后核对而给5分。
+manual_review:
+- rule_id: rubric_unpublished
+  condition: 当前skill.spec.status为draft；本次仅观察，分数为空，须待规则审定后才能形成确定性评分。
+- rule_id: source_incomplete
+  condition: 关键原始消息、必要转写或当前服务事实缺失、被截断或无法读取，可能改变判断。
+- rule_id: context_ambiguous
+  condition: 说话人、咨询边界、回应机会或语句含义不能可靠确定，补充前后文后仍不能消除歧义。
+- rule_id: source_conflict
+  condition: 本次材料中的关键事实互相冲突，无法确认来源或时效，不能可靠选择支持结论的依据。
+- rule_id: anchor_ambiguous
+  condition: 事实已经较明确，但无法可靠区分相邻评分锚点，或草案未覆盖当前必要情境。
+- rule_id: history_verification_pending
+  condition: 当前任务依赖的关键病史或治疗资料仍未取得或确认；即使医生妥善管理缺失且符合4分候选行为，也保留核对待完成标记，不放行依赖该信息的具体建议。
+- rule_id: advice_on_unverified_history
+  condition: 原文明示关键资料过期、缺失或矛盾，医生仍直接给出依赖该信息的具体建议，须专业复核，不由模型判断处方正确性。
+required_tools:
+- evidence_locator

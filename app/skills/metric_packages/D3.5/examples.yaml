@@ -1,0 +1,101 @@
+examples:
+- case_id: D3_5_adequate
+  input:
+    session_id: D3_5_adequate
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_5_adequate-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 你说的记录变化是什么意思，我不理解。
+    - message_id: D3_5_adequate-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 就是写下每天你注意到的变化，例如什么时候发生、对日常生活有何影响，不需要用专业词。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_5_poor
+  input:
+    session_id: D3_5_poor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_5_poor-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 你说的记录变化是什么意思，我不理解。
+    - message_id: D3_5_poor-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 就是那个指标动态变化，按那个弄就行。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_5_not_applicable
+  input:
+    session_id: D3_5_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_5_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 资料收到了吗？
+    - message_id: D3_5_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 收到了。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_5_incomplete
+  input:
+    session_id: D3_5_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D3_5_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 你说的记录变化是什么意思，我不理解。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
