@@ -1,0 +1,101 @@
+examples:
+- case_id: D3_3_adequate
+  input:
+    session_id: D3_3_adequate
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_3_adequate-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 最近搬家后压力很大，我觉得和现在的生活环境有关。
+    - message_id: D3_3_adequate-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 搬家后哪些生活变化最让你有压力？是居住、人际还是日常安排？你愿意先谈哪一部分？
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_3_poor
+  input:
+    session_id: D3_3_poor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_3_poor-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 最近搬家后压力很大，我觉得和现在的生活环境有关。
+    - message_id: D3_3_poor-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 生活环境不需要了解。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_3_not_applicable
+  input:
+    session_id: D3_3_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D3_3_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 预约时间在哪里看？
+    - message_id: D3_3_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 在订单详情里看。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D3_3_incomplete
+  input:
+    session_id: D3_3_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D3_3_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 最近搬家后压力很大，我觉得和现在的生活环境有关。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。

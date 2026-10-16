@@ -53,6 +53,20 @@ class Message(BaseModel):
     media: MediaAsset | None = None
     transcript: TranscriptInfo | None = None
     redaction_applied: bool = False
+    message_kind: Literal["dialogue", "system_notification", "non_dialogue", "unknown"] = "dialogue"
+    patient_submitted_intake: bool = False
+    source_ref: str | None = None
+    text_version: str = "normalized-v1"
+
+
+class ServiceContext(BaseModel):
+    """Trusted order metadata, supplied by the source adapter rather than by an Agent."""
+
+    order_ref: str
+    consultation_started_at: datetime | None = None
+    start_basis: Literal["order_timestamp", "purchase_notification_proxy", "unknown"] = "unknown"
+    state: Literal["active", "closed", "withdrawn", "unknown"] = "unknown"
+    observation_complete: bool = False
 
 
 class ConversationSession(BaseModel):
@@ -64,6 +78,7 @@ class ConversationSession(BaseModel):
     consultation_round: ConsultationRound = "unknown"
     messages: list[Message] = Field(default_factory=list)
     imported_at: datetime | None = None
+    service_context: ServiceContext | None = None
 
 
 class PreprocessingStageReport(BaseModel):
@@ -174,7 +189,7 @@ class HistoryContext(BaseModel):
 
 
 class RiskTrigger(BaseModel):
-    """风险 Hook 候选；命中仅路由 D6 评价，不构成违规或风险结论。"""
+    """风险候选补充D6专项关注；不控制D6默认任务存在，也不构成违规或风险结论。"""
 
     trigger_id: str
     category: str
@@ -213,12 +228,17 @@ class Finding(BaseModel):
     attempt: int = Field(default=0, ge=0, le=1)
     supersedes_finding_id: str | None = None
     applicability: Literal["applicable", "not_applicable", "insufficient_context"] = "applicable"
-    score: float | None = Field(default=None, ge=0, le=5)
+    score: float | None = Field(default=None, ge=0, le=5, strict=True)
     rationale: str
     evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
     knowledge_refs: list[KnowledgeRef] = Field(default_factory=list)
     confidence_band: Literal["high", "medium", "low"] | None = None
     limitations: list[str] = Field(default_factory=list)
+    review_rule_ids: list[str] = Field(default_factory=list)
+    requires_manual_review: bool = False
+    evidence_bindings: list[dict] = Field(default_factory=list)
+    evidence_binding_status: Literal["unbound", "bound", "partial", "invalid"] = "unbound"
+    time_facts: list[dict] = Field(default_factory=list)
 
 
 class AgentResult(BaseModel):
@@ -261,9 +281,7 @@ class EvidenceVerificationResult(BaseModel):
     verification_id: str = Field(default_factory=lambda: f"verification-{uuid4()}")
     finding_id: str
     verifier_agent_id: str = "evidence_verification"
-    reference_status: Literal[
-        "valid", "missing", "quote_mismatch", "source_mismatch", "uncertain"
-    ]
+    reference_status: Literal["valid", "missing", "quote_mismatch", "source_mismatch", "uncertain"]
     claims: list[FactClaim] = Field(default_factory=list)
     claim_results: list[ClaimVerification] = Field(default_factory=list)
     reference_conflict: bool = False
@@ -349,5 +367,9 @@ class EvaluationReport(BaseModel):
     improvements: list[ImprovementSuggestion] = Field(default_factory=list)
     review_required: bool = False
     review_reasons: list[str] = Field(default_factory=list)
-    summary_status: Literal["completed", "partial", "failed", "not_configured", "skipped"] | None = None
-    arbitration_status: Literal["not_needed", "resolved", "unresolved", "not_configured"] | None = None
+    summary_status: (
+        Literal["completed", "partial", "failed", "not_configured", "skipped"] | None
+    ) = None
+    arbitration_status: Literal["not_needed", "resolved", "unresolved", "not_configured"] | None = (
+        None
+    )

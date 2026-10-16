@@ -23,3 +23,9 @@ frontend/dist/
 frontend/.env.local
 frontend/.env.*.local
 # 功能：忽略本地环境、隐私数据、数据库和构建缓存，避免意外提交。
+
+frontend/.pnpm-store/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/*.tsbuildinfo
