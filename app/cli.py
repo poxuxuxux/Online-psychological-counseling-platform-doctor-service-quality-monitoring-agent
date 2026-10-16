@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import json
 import os
+import time
 from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
@@ -11,7 +12,7 @@ from pathlib import Path
 from app.application.preprocessing.rounds import first_response, split_rounds
 from app.infrastructure.importers.hxq_json import iter_threads, normalize_thread, stable_ref
 from app.infrastructure.llm.qwen import QwenConfig, QwenProvider
-from app.infrastructure.repositories.local_jobs import LocalJobStore
+from app.infrastructure.repositories.metric_store import build_metric_store
 
 
 def preview(path: Path, limit: int, timezone: str) -> dict:
@@ -66,6 +67,7 @@ def main():
     imported.add_argument("path", type=Path)
     imported.add_argument("--limit", type=int, default=10)
     commands.add_parser("worker-once", help="Claim one queued synthetic run and call Qwen")
+    commands.add_parser("worker-forever", help="Process queued metric runs continuously")
     commands.add_parser("recover-local", help="Mark interrupted runs; stop workers before running")
     skills = commands.add_parser("validate-skills", help="Validate metric Skill packages locally")
     skills.add_argument("path", type=Path)
@@ -106,7 +108,7 @@ def main():
         if args.require_complete and len(configured) != 18:
             parser.error("All 18 published Skill packages are required")
     else:
-        store = LocalJobStore(Path(os.getenv("LOCAL_JOB_DB", "data/local/jobs.sqlite3")))
+        store = build_metric_store(os.getenv("DATABASE_URL", ""))
         if args.command == "recover-local":
             print(json.dumps({"interrupted": store.recover_interrupted()}))
         elif args.command == "worker-once":
@@ -115,6 +117,14 @@ def main():
 
             engine = StructuredEvaluation(QwenProvider(QwenConfig.from_env()))
             print(json.dumps({"processed": asyncio.run(run_one(store, engine))}))
+        elif args.command == "worker-forever":
+            from app.agents.structured import StructuredEvaluation
+            from app.application.local_worker import run_one
+
+            engine = StructuredEvaluation(QwenProvider(QwenConfig.from_env()))
+            while True:
+                if not asyncio.run(run_one(store, engine)):
+                    time.sleep(3)
         else:
             if args.limit < 0:
                 parser.error("limit must be nonnegative")

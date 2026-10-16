@@ -1,6 +1,7 @@
 """功能：创建 FastAPI 应用，装配 API 路由并在生命周期内构建依赖容器。"""
 
 from contextlib import asynccontextmanager
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.v1.router import api_router
 from app.bootstrap import build_container
 from app.core.config import get_settings
+from app.infrastructure.repositories.metric_store import build_metric_store
 
 settings = get_settings()
 
@@ -19,6 +21,8 @@ async def lifespan(app: FastAPI):
     """启动时构建组合根；路由通过 app.state.container 获取依赖。"""
     app.state.container = build_container(settings)
     await app.state.container.evaluation_store.initialize()
+    if len(os.getenv("METRIC_RUNS_ACCESS_CODE", "")) >= 24:
+        app.state.metric_job_store = build_metric_store(settings.database_url)
     yield
 
 

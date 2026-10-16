@@ -2,6 +2,8 @@
 
 本地后端增量开发：数据流式导入、订单候选轮次、响应时间工具与 Qwen3.5-Plus 连接方式见 [本地后端开发说明](docs/development/LOCAL_BACKEND_START.md)。这些模块尚未替换网站现有演示评价链路。
 
+合成会话的新版指标评价网页、同源任务接口、独立 worker 与 Railway PostgreSQL 部署步骤见 [指标评价网页联调与部署](docs/development/METRIC_WEB_DEPLOY.md)。
+
 指标规则负责人请使用 [指标Skill接口交接规范](docs/contracts/METRIC_SKILL_CONTRACT.md)，按样例交付metric.yaml和SKILL.md；后端已经接通加载、版本快照及评价/核验调用。
 
 本地新链路的管理与结果Agent、持久化共享通信池见 [协同模块说明](docs/architecture/MANAGER_RESULT_POOL.md)。
