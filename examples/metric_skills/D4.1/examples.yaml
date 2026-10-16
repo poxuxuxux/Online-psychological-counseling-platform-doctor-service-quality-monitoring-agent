@@ -1,0 +1,12 @@
+# 开发案例格式；此文件供组员做规则回归，当前不自动注入模型。
+examples:
+  - case_id: synthetic_emotion_response
+    messages:
+      - {message_id: p1, role: patient, content: "我担心今晚又睡不着。"}
+      - {message_id: d1, role: doctor, content: "听起来你很担心今晚的睡眠。"}
+    expected:
+      applicability: applicable
+      score: null
+      review_rule_ids: []
+      evidence_message_ids: [p1, d1]
+    note: 分档尚未填写，不能从这条案例推导正式分数。

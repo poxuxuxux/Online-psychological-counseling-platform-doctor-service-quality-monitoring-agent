@@ -1,5 +1,15 @@
 # 在线心理咨询平台医生服务质量监测 Agent
 
+本地后端增量开发：数据流式导入、订单候选轮次、响应时间工具与 Qwen3.5-Plus 连接方式见 [本地后端开发说明](docs/development/LOCAL_BACKEND_START.md)。这些模块尚未替换网站现有演示评价链路。
+
+指标规则负责人请使用 [指标Skill接口交接规范](docs/contracts/METRIC_SKILL_CONTRACT.md)，按样例交付metric.yaml和SKILL.md；后端已经接通加载、版本快照及评价/核验调用。
+
+本地新链路的管理与结果Agent、持久化共享通信池见 [协同模块说明](docs/architecture/MANAGER_RESULT_POOL.md)。
+
+三个业务Tool的职责、输入输出和接入方案见 [时间计算、历史检索与证据定位设计](docs/architecture/THREE_TOOLS_DESIGN.md)（当前为设计稿，尚未接入执行）。
+
+两个业务Hook的触发时点与结果契约见 [风险监测与分歧检测设计](docs/architecture/TWO_HOOKS_DESIGN.md)（当前为设计稿，尚未接入执行）。
+
 三人协作开发与数据适配边界见 [模块接口约定](docs/architecture/TEAM_DEVELOPMENT_CONTRACT.md)，第一次使用 GitHub 的完整操作、两人版/三人版分工和实施顺序见 [GitHub 团队协作与开发分工手册](docs/development/GITHUB_TEAM_WORKFLOW.md)。评价单位已确定为一次订单或咨询轮次：原始聊天线程先由可替换切分器形成评价轮次，不能将多年聊天线程直接当作一次咨询。该切分器及文档列出的新增契约仍待实现。
 
 面向在线心理咨询平台运营方的 B2B 服务质检与风险线索监测系统。平台操作员导入授权的咨询记录后，后端识别初诊/复诊；复诊时检索必要的历史咨询上下文。三个专职 Agent 分别为专业服务评价 Agent（D1/D3/D6.2）、过程与响应评价 Agent（D2/D5）、共情与关系评价 Agent（D4/D6.1）。D6 两项指标默认进入评价任务，由所属 Agent 判断适用性；风险监测 Hook 仅提供可选候选线索，不控制 D6 是否执行；一个证据核验子 Agent 统一负责原文定位、评分依据核查和指标定义校对。

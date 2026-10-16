@@ -4,6 +4,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel
+
 ToolHandler = Callable[[dict[str, Any]], Awaitable[Any]]
 
 
@@ -14,6 +16,9 @@ class ToolSpec:
     name: str
     description: str
     allowed_agents: frozenset[str]
+    request_model: type[BaseModel] | None = None
+    timeout_seconds: float = 10.0
+    version: str = "1.0.0"
 
 
 class ToolRegistry:

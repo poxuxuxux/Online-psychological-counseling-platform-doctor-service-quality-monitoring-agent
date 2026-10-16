@@ -1,0 +1,31 @@
+schema_version: "1.0"
+metric_id: D4.1
+name: 情绪识别与回应
+version: 0.1.0-draft
+status: draft
+owner: empathy_relationship
+definition: 判断医生是否识别并回应患者在本次咨询中明确表达的情绪。
+applicability:
+  applicable_when:
+    - 患者在本次记录中明确表达担心、焦虑、悲伤、恐惧或其他情绪体验。
+  not_applicable_when:
+    - 在完整可观察范围内没有相关情绪表达，也无本项可评价机会。
+  insufficient_context_when:
+    - 存在情绪线索，但相关患者表达或医生后续回复缺失、未转写或被截断。
+evidence:
+  allowed_sources: [current_dialogue]
+  required_checks:
+    - 同时定位情绪表达及医生对该表达的回应，检查前后语境。
+    - 每条引用绑定本次消息ID和该消息内的连续原文，明确说话者。
+  forbidden_uses:
+    - 不得以既往会话、通用心理知识或患者是否满意代替本次医生行为证据。
+    - 不得将没有观察到回应直接等同于医生没有回应。
+score_values: [1, 2, 3, 4, 5]
+# 交接示例尚无正式分档，组员按自己的规则补齐。draft状态不允许打分。
+anchors: []
+manual_review:
+  - rule_id: context_ambiguous
+    condition: 引用语句含义依赖缺失语境，或表达可能具有反讽、多义性，无法可靠判断回应性质。
+  - rule_id: source_incomplete
+    condition: 关键原始消息缺失或未解析媒体可能改变评价结论。
+required_tools: [evidence_locator]
