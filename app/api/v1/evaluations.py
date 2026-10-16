@@ -1,10 +1,10 @@
 """功能：提供比赛演示会话与单轮评价接口。"""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
-from app.domain.models import ConversationSession, EvaluationReport, Message
+from app.domain.models import ConversationSession, EvaluationReport, Message, ServiceContext
 from app.evaluation.analytics import build_overview, statistics_period
 
 router = APIRouter(prefix="/api/v1")
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/v1")
 
 def build_demo_session() -> ConversationSession:
     """返回不含真实个人信息的固定合成咨询轮次。"""
-    started_at = datetime(2026, 10, 11, 14, 0, 0)
+    started_at = datetime(2026, 10, 11, 14, 0, 0, tzinfo=timezone(timedelta(hours=8)))
     rows = (
         ("patient", "医生您好，我最近两周晚上很难入睡，白天上班也很疲惫。"),
         ("doctor", "听起来这段时间的失眠让你很辛苦。我想先了解一下，通常几点入睡，夜里会醒几次？"),
@@ -41,6 +41,12 @@ def build_demo_session() -> ConversationSession:
         consultation_round="initial",
         messages=messages,
         imported_at=started_at,
+        service_context=ServiceContext(
+            order_ref="synthetic-order-001",
+            consultation_started_at=started_at,
+            start_basis="order_timestamp",
+            state="active",
+        ),
     )
 
 

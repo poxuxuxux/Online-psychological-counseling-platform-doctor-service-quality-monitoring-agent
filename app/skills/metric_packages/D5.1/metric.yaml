@@ -1,0 +1,56 @@
+schema_version: '1.0'
+metric_id: D5.1
+name: 咨询目标协商
+version: 0.2.0-draft
+status: draft
+owner: process_response
+definition: 需要形成咨询或治疗计划时，医生是否与患者澄清或共同讨论目标。
+applicability:
+  applicable_when:
+  - 本次需要制定、调整咨询目标、计划或讨论主题的优先次序。
+  not_applicable_when:
+  - 完整任务仅为简单答疑或流程确认，没有目标或计划协商需要。
+  insufficient_context_when:
+  - 当前咨询边界、完整范围、说话人、合理回应机会或必要原始内容缺失，无法可靠判断。
+  - 与本项相关的关键上下文或必要工具事实缺失，不能区分未观察到与确实未发生。
+evidence:
+  allowed_sources:
+  - current_dialogue
+  required_checks:
+  - 定位患者关注点、医生协商、共同确认；医生单方宣布目标不等于协商完成。
+  - 逐条核对当前消息ID、说话人、消息类型、连续原文与引用范围；患者与医生证据分别引用。
+  - 检查前后文、否定及适用条件，保留反证与材料冲突；负向判断核对完整性和回应机会。
+  forbidden_uses:
+  - 不得把历史互动、自动通知、资料卡存在或模板词语本身当成本次已完成的医生服务行为。
+  - 不得从缺失片段、媒体占位、未提供工具事实或未检索到行为直接推断低质量。
+  - 不得生成缺失的咨询行为、文献依据、时间结果或患者心理诊断；不以评分推断治疗正确性。
+score_values:
+- 1
+- 2
+- 3
+- 4
+- 5
+anchors:
+- score: 1
+  criteria: 在明确需要协商时完全忽视患者目标，直接强加与其诉求明显不符的目标
+- score: 2
+  criteria: 医生单方面提出笼统目标，没有给予患者表达或确认的机会
+- score: 3
+  criteria: 提及或确认了基本目标，但重点、可行性或双方理解仍不明确
+- score: 4
+  criteria: 主要目标与患者达成基本一致，少量范围或优先级仍可澄清
+- score: 5
+  criteria: 根据本次需要明确并共同确认目标，必要时协调优先级与可行范围，体现患者诉求
+manual_review:
+- rule_id: rubric_unpublished
+  condition: 当前skill.spec.status为draft；本次仅观察，分数为空，须待规则审定后才能形成确定性评分。
+- rule_id: source_incomplete
+  condition: 关键原始消息、必要转写或当前服务事实缺失、被截断或无法读取，可能改变判断。
+- rule_id: context_ambiguous
+  condition: 说话人、咨询边界、回应机会或语句含义不能可靠确定，补充前后文后仍不能消除歧义。
+- rule_id: source_conflict
+  condition: 本次材料中的关键事实互相冲突，无法确认来源或时效，不能可靠选择支持结论的依据。
+- rule_id: anchor_ambiguous
+  condition: 事实已经较明确，但无法可靠区分相邻评分锚点，或草案未覆盖当前必要情境。
+required_tools:
+- evidence_locator

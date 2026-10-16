@@ -13,6 +13,7 @@ import {
 } from './utils/reviewPriority'
 import FindingDetail from './components/feedback/FindingDetail.vue'
 import OverviewPage from './pages/OverviewPage.vue'
+import MetricRunsPage from './pages/MetricRunsPage.vue'
 import { useConsole } from './composables/useConsole'
 import { agentName, dimensions, label, metricName, metrics, time } from './utils/catalog'
 import { overallScore } from './utils/trust'
@@ -51,6 +52,7 @@ const {
 const nav = [
   { id: 'overview', name: '数据总览', icon: 'pulse' },
   { id: 'workspace', name: '评估工作台', icon: 'workspace' },
+  { id: 'metric-runs', name: '指标评价', icon: 'list' },
   { id: 'reports', name: '质检报告', icon: 'report' },
   { id: 'review', name: '人工复核', icon: 'shield' },
   { id: 'rubrics', name: '评价指标', icon: 'list' },
@@ -374,6 +376,8 @@ onUnmounted(() => {
                   ? '汇总可信评分，了解服务质量与各维度表现。'
                   : page === 'workspace'
                     ? '从一轮咨询出发，核查每一条评价的依据。'
+                    : page === 'metric-runs'
+                      ? '运行新版指标 Skill 链路，查看任务进度与原文证据。'
                     : page === 'reports'
                       ? '查看服务端运行记录与当前报告。'
                       : page === 'review'
@@ -413,6 +417,7 @@ onUnmounted(() => {
           :refresh-key="lastRun"
           @navigate="navigate"
         />
+        <MetricRunsPage v-else-if="page === 'metric-runs'" :preview="mode === 'preview'" />
         <template v-else-if="page === 'workspace'">
           <ConsultationList
             :items="consultations"

@@ -1,4 +1,4 @@
-"""功能：管理与情境识别 Agent 协议与占位实现；只产出候选路由与情境说明，指派权在确定性校验。"""
+"""早期演示兼容协议；新结构化链路的实际管理实现位于 app.agents.management。"""
 
 from dataclasses import dataclass, field
 from typing import Protocol
