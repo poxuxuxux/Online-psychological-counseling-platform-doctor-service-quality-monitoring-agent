@@ -1,3 +1,4 @@
+// 环节：前端构建辅助层；用途：执行构建产物同步、预览启动或产物检查。
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'

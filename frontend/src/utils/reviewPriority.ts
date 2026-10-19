@@ -1,3 +1,4 @@
+// 环节：前端展示工具层；用途：提供目录映射、显示计算、导出或复核排序逻辑。
 import type { Row } from './trust'
 
 export type PriorityLevel = 'high' | 'medium' | 'low'

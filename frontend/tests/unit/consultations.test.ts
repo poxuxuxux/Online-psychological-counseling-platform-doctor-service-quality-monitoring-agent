@@ -1,3 +1,4 @@
+// 环节：前端测试层；用途：验证前端组件逻辑、API 客户端和展示工具。
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../../src/api/endpoints/evaluations'
@@ -7,6 +8,8 @@ import { previewSession, previewReport } from '../../src/data/preview'
 vi.mock('../../src/api/endpoints/evaluations', () => ({
   api: {
     demo: vi.fn(),
+    demoSessions: vi.fn(),
+    demoDetail: vi.fn(),
     consultation: vi.fn(),
     consultations: vi.fn(),
     evaluate: vi.fn(),
@@ -21,13 +24,9 @@ const detail = (index: number) => {
   return { session, report: previewReport(session) }
 }
 describe('consultation detail ownership', () => {
-  it('keeps the explicit built-in demo usable when the configured database is empty', async () => {
-    vi.mocked(api.consultations).mockResolvedValue({
-      database_configured: true,
-      total: 0,
-      items: [],
-    })
-    vi.mocked(api.demo).mockResolvedValue(previewSession())
+  it('loads the complete synthetic catalog even when the database is empty', async () => {
+    vi.mocked(api.demoSessions).mockResolvedValue([previewSession()])
+    vi.mocked(api.demoDetail).mockResolvedValue({ session: previewSession(), report: null })
     const state = useConsole()
     await state.loadSession()
     expect(state.listSource.value).toBe('demo')
@@ -50,23 +49,11 @@ describe('consultation detail ownership', () => {
   })
   it('reads a saved report without submitting another evaluation', async () => {
     const result = detail(1)
-    vi.mocked(api.consultations).mockResolvedValue({
-      database_configured: true,
-      total: 1,
-      items: [
-        {
-          session_id: result.session.session_id,
-          consultation_round: 'initial',
-          message_count: 6,
-          updated_at: '',
-          evaluation_status: 'completed',
-        },
-      ],
-    })
-    vi.mocked(api.consultation).mockResolvedValue(result)
+    vi.mocked(api.demoSessions).mockResolvedValue([result.session])
+    vi.mocked(api.demoDetail).mockResolvedValue(result)
     const state = useConsole()
     await state.loadSession()
-    expect(state.listSource.value).toBe('database')
+    expect(state.listSource.value).toBe('demo')
     expect(state.report.value?.session_id).toBe(result.session.session_id)
     expect(api.evaluate).not.toHaveBeenCalled()
   })
@@ -106,12 +93,12 @@ describe('consultation detail ownership', () => {
     expect(state.report.value).toBeNull()
     expect(state.rows.value).toHaveLength(0)
   })
-  it('does not fall back to demo data when the database list fails', async () => {
-    vi.mocked(api.consultations).mockRejectedValue(new Error('database unavailable'))
+  it('shows a catalog error instead of pretending records were loaded', async () => {
+    vi.mocked(api.demoSessions).mockRejectedValue(new Error('catalog unavailable'))
     const state = useConsole()
     await state.refreshConsultations()
     expect(state.listSource.value).toBe('unavailable')
-    expect(state.listError.value).toBe('database unavailable')
+    expect(state.listError.value).toBe('catalog unavailable')
     expect(api.demo).not.toHaveBeenCalled()
   })
 })

@@ -1,3 +1,4 @@
+# 环节：项目协作与 CI 层；用途：配置自动化检查或代码评审流程。
 name: Frontend checks
 on:
   pull_request:

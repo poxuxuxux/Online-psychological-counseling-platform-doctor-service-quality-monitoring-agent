@@ -1,3 +1,4 @@
+# 环节：项目配置层；用途：为开发、构建、部署或预览提供配置与入口。
 # 开发案例格式；此文件供组员做规则回归，当前不自动注入模型。
 examples:
   - case_id: synthetic_emotion_response

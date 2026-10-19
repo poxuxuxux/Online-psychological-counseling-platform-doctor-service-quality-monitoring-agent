@@ -1,7 +1,11 @@
+// 环节：前端展示工具层；用途：提供目录映射、显示计算、导出或复核排序逻辑。
 export const agents: Record<string, string> = {
   professional_service: '专业服务评价',
   process_response: '过程与响应评价',
   empathy_relationship: '共情与关系评价',
+  'evaluator:D1': '主责评价 Agent · D1+D3',
+  'evaluator:D2': '主责评价 Agent · D2+D5',
+  'evaluator:D4': '主责评价 Agent · D4+D6',
 }
 export const dimensions = [
   { id: 'D1', name: '服务履行' },
@@ -10,6 +14,11 @@ export const dimensions = [
   { id: 'D4', name: '共情与关系' },
   { id: 'D5', name: '协作与建议' },
   { id: 'D6', name: '风险回应与转介' },
+]
+export const dimensionGroups = [
+  { id: 'D1+D3', name: '服务履行与专业信息探询', dimensionIds: ['D1', 'D3'] },
+  { id: 'D2+D5', name: '响应及时性与咨询建议', dimensionIds: ['D2', 'D5'] },
+  { id: 'D4+D6', name: '共情关系与风险转介', dimensionIds: ['D4', 'D6'] },
 ]
 export const metrics = [
   ['D1.1', '实质性服务履行', 'professional_service'],

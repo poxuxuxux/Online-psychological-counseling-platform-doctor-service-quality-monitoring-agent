@@ -1,3 +1,4 @@
+// 环节：前端预览数据层；用途：提供界面预览使用的合成数据，不代表生产评价结果。
 import { OverviewSchema, type Overview } from '../api/contracts/overview'
 import { dimensions } from '../utils/catalog'
 

@@ -10,6 +10,8 @@ __pycache__/
 .ruff_cache/
 data/raw/
 data/private/
+data/patients/
+data/longest_1000_sessions.json
 data/local/
 *.db
 *.sqlite
@@ -29,3 +31,7 @@ frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/*.tsbuildinfo
+
+.backend-backups/
+.pytest*/
+

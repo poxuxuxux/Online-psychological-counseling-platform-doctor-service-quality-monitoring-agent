@@ -1,3 +1,4 @@
+// 环节：前端预览数据层；用途：提供界面预览使用的合成数据，不代表生产评价结果。
 import { SessionSchema, ReportSchema, type Report } from '../api/contracts/evaluation'
 
 // Entirely synthetic UX fixtures. These values are not model results or validated clinical anchors.

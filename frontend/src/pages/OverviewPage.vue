@@ -1,3 +1,4 @@
+<!-- 环节：前端页面层；用途：实现独立业务页面及其数据呈现。 -->
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { request } from '../api/client/http'

@@ -1,375 +1,187 @@
-"""功能：定义多模态会话、预处理报告、历史上下文、风险候选、质量画像、仲裁与报告等跨模块契约。"""
-
-from datetime import datetime
+# 环节：领域契约层；用途：定义业务数据模型与可替换端口，不依赖具体基础设施。
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
-
-Modality = Literal["text", "audio", "video"]
-SpeakerRole = Literal["doctor", "patient", "system", "unknown"]
-ConsultationRound = Literal["initial", "follow_up", "unknown"]
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
-class MediaAsset(BaseModel):
-    """一段已授权导入的原始音视频资产；只保存受控存储引用，不内嵌二进制。"""
-
-    media_id: str
-    modality: Literal["audio", "video"]
-    storage_ref: str
-    mime_type: str | None = None
-    duration_seconds: float | None = Field(default=None, ge=0)
+def now() -> str:
+    return datetime.now(UTC).isoformat()
 
 
-class TranscriptSegment(BaseModel):
-    """ASR 转写片段；时间偏移用于把报告证据定位回原始音视频位置。"""
-
-    segment_id: str
-    start_seconds: float = Field(ge=0)
-    end_seconds: float = Field(ge=0)
-    text: str
-    speaker_role: SpeakerRole = "unknown"
-    confidence: float | None = Field(default=None, ge=0, le=1)
+def uid(prefix: str) -> str:
+    return f"{prefix}-{uuid4().hex}"
 
 
-class TranscriptInfo(BaseModel):
-    """消息级转写元数据；引擎与版本必须记录，便于复现、回归和证据追溯。"""
+def known_fields_only(cls, data):
+    """Drop model-invented keys at the parse boundary; nothing unvalidated passes through."""
+    return (
+        {k: v for k, v in data.items() if k in cls.model_fields} if isinstance(data, dict) else data
+    )
 
-    engine: str
-    engine_version: str
-    language: str | None = None
-    segments: list[TranscriptSegment] = Field(default_factory=list)
+
+def _known_fields_only(cls, data):
+    return known_fields_only(cls, data)
+
+
+def _coerce_score(value):
+    """LLMs often emit integral floats or digit strings for scores."""
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return value
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
 class Message(BaseModel):
-    """规范化单条对话；content 是预处理后的可评价文本（原文或转写并脱敏后）。"""
-
-    message_id: str
-    role: SpeakerRole = "unknown"
-    modality: Modality = "text"
-    content: str
+    message_id: str = Field(min_length=1, max_length=200)
+    role: Literal["doctor", "patient", "system", "unknown"] = "unknown"
+    content: str = Field(max_length=20000)
     sequence: int = Field(ge=0)
     timestamp: datetime | None = None
-    media: MediaAsset | None = None
-    transcript: TranscriptInfo | None = None
-    redaction_applied: bool = False
+    modality: Literal["text", "audio", "video"] = "text"
     message_kind: Literal["dialogue", "system_notification", "non_dialogue", "unknown"] = "dialogue"
-    patient_submitted_intake: bool = False
-    source_ref: str | None = None
-    text_version: str = "normalized-v1"
+    redaction_applied: bool = False
 
 
-class ServiceContext(BaseModel):
-    """Trusted order metadata, supplied by the source adapter rather than by an Agent."""
-
-    order_ref: str
-    consultation_started_at: datetime | None = None
-    start_basis: Literal["order_timestamp", "purchase_notification_proxy", "unknown"] = "unknown"
-    state: Literal["active", "closed", "withdrawn", "unknown"] = "unknown"
-    observation_complete: bool = False
-
-
-class ConversationSession(BaseModel):
-    """一次咨询会话；患者关联只允许使用经授权的匿名键，初复诊只来自可信元数据。"""
-
-    session_id: str
-    source_id: str | None = None
+class Session(BaseModel):
+    session_id: str = Field(min_length=1, max_length=200)
+    patient_id: str | None = Field(default=None, max_length=200)
+    doctor_id: str | None = Field(default=None, max_length=200)
     anonymized_patient_ref: str | None = None
-    consultation_round: ConsultationRound = "unknown"
-    messages: list[Message] = Field(default_factory=list)
-    imported_at: datetime | None = None
-    service_context: ServiceContext | None = None
-
-
-class PreprocessingStageReport(BaseModel):
-    """单个预处理阶段的执行记录；failed 会阻断后续阶段。"""
-
-    stage_name: str
-    stage_version: str
-    status: Literal["completed", "partial", "failed", "skipped"]
-    issues: list[str] = Field(default_factory=list)
-
-
-class RedactionSummary(BaseModel):
-    """脱敏执行摘要；映射本体隔离保存，不进入 Agent 上下文或报告。"""
-
-    ruleset_version: str
-    masked_item_count: int = Field(ge=0)
-    rule_ids: list[str] = Field(default_factory=list)
-
-
-class TranscriptSummary(BaseModel):
-    """一条消息的转写摘要；供报告展示派生文本的来源与质量。"""
-
-    message_id: str
-    engine: str
-    engine_version: str
-    segment_count: int = Field(ge=0)
-    average_confidence: float | None = Field(default=None, ge=0, le=1)
-
-
-class PreprocessingReport(BaseModel):
-    """一次预处理的完整报告；verdict 决定会话能否进入评价流程。"""
-
-    session_id: str
-    status: Literal["completed", "partial", "failed"]
-    verdict: Literal["evaluable", "partially_evaluable", "not_evaluable"]
-    stage_reports: list[PreprocessingStageReport] = Field(default_factory=list)
-    redaction: RedactionSummary | None = None
-    transcripts: list[TranscriptSummary] = Field(default_factory=list)
-    notes: list[str] = Field(default_factory=list)
-
-
-class PreprocessedSession(BaseModel):
-    """预处理产物：规范化会话 + 预处理报告，二者一起流转。"""
-
-    session: ConversationSession
-    report: PreprocessingReport
-
-
-class TimeRange(BaseModel):
-    """音视频片段的时间区间；用于证据跳转到原始媒体位置。"""
-
-    start_seconds: float = Field(ge=0)
-    end_seconds: float = Field(ge=0)
-
-
-class ConversationEvidenceRef(BaseModel):
-    """指向原会话消息的证据引用；音视频消息可附带媒体时间区间。"""
-
-    message_ids: list[str]
-    quote: str
-    explanation: str
-    media_time_ranges: list[TimeRange] = Field(default_factory=list)
-
-
-class KnowledgeRef(BaseModel):
-    """知识库来源引用；与会话证据分开，避免把规范材料误当成行为证据。"""
-
-    source_id: str
-    title: str
-    excerpt: str
-    version: str | None = None
-
-
-class MemoryRef(BaseModel):
-    """患者背景记忆引用；默认不启用，且不能作为医生行为评分的直接证据。"""
-
-    memory_id: str
-    anonymized_patient_ref: str
-    summary: str
-
-
-class HistorySessionRef(BaseModel):
-    """历史会话来源引用；复诊历史检索结果按来源记录。"""
-
-    session_id: str
-    occurred_at: datetime | None = None
     source_id: str | None = None
+    session_time: datetime | None = None
+    imported_at: datetime | None = None
+    history_complete: bool = False
+    observation_complete: bool = False
+    consultation_round: Literal["initial", "follow_up", "unknown"] = "unknown"
+    service_context: dict = Field(default_factory=dict)
+    messages: list[Message] = Field(min_length=1, max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_session(self):
+        for values in ([m.message_id for m in self.messages], [m.sequence for m in self.messages]):
+            if len(values) != len(set(values)):
+                raise ValueError("Message IDs and sequence numbers must be unique")
+        times = [self.session_time, *[m.timestamp for m in self.messages]]
+        if any(t is not None and t.utcoffset() is None for t in times):
+            raise ValueError("Times must include a timezone")
+        if sum(len(m.content) for m in self.messages) > 120000:
+            raise ValueError("Dialogue exceeds 120000 characters; split at session boundaries")
+        self.patient_id = self.patient_id or self.anonymized_patient_ref
+        return self
 
 
-class HistoricalMessageRef(BaseModel):
-    """历史消息引用；只作背景注入，不能支撑本次医生行为评分。"""
-
-    session_id: str
+class EvidenceInput(StrictModel):
     message_id: str
-    role: SpeakerRole
-    content: str
-    modality: Modality = "text"
-    timestamp: datetime | None = None
+    speaker: Literal["doctor", "patient", "system", "unknown"]
+    quote: str = Field(min_length=1, max_length=10000)
 
 
-class HistoryContext(BaseModel):
-    """复诊历史上下文；与本次会话消息分区注入并持续标注来源。"""
+class Claim(StrictModel):
+    behavior: str = Field(min_length=1, max_length=200)
+    subject: Literal["doctor", "patient"] = "doctor"
+    polarity: Literal["present", "absent"]
+    scope: str = Field(min_length=1, max_length=200)
+    statement: str = Field(min_length=1, max_length=2000)
+    evidence_ids: list[str] = Field(default_factory=list)
 
-    status: Literal["retrieved", "not_follow_up", "unavailable", "not_authorized"]
-    source_sessions: list[HistorySessionRef] = Field(default_factory=list)
-    messages: list[HistoricalMessageRef] = Field(default_factory=list)
-    retrieval_trace_id: str | None = None
-
-
-class RiskTrigger(BaseModel):
-    """风险候选补充D6专项关注；不控制D6默认任务存在，也不构成违规或风险结论。"""
-
-    trigger_id: str
-    category: str
-    message_ids: list[str]
-    rule_id: str
-    rule_version: str
-    status: Literal["candidate", "routed", "evaluated", "dismissed"] = "candidate"
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_model_output(cls, data):
+        return _known_fields_only(cls, data)
 
 
-class RunConfig(BaseModel):
-    """一次评价运行的配置快照；随报告保存用于复现。"""
-
-    language: str = "zh"
-    rubric_version: str = "draft"
-    output_schema_version: str = "0.1.0"
-
-
-class AgentInput(BaseModel):
-    """Agent 统一输入；只接收当前任务获准访问的 Skill、知识、记忆和历史上下文。"""
-
-    session: ConversationSession
-    history_context: HistoryContext | None = None
-    selected_skill_ids: list[str] = Field(default_factory=list)
-    knowledge_context: list[KnowledgeRef] = Field(default_factory=list)
-    memory_context: list[MemoryRef] = Field(default_factory=list)
-    risk_candidates: list[RiskTrigger] = Field(default_factory=list)
-    run_config: RunConfig = Field(default_factory=RunConfig)
-
-
-class Finding(BaseModel):
-    """一个指标的评价结果；不适用、上下文不足或证据无效时 score 应为空。"""
-
-    finding_id: str = Field(default_factory=lambda: f"finding-{uuid4()}")
+class FindingInput(StrictModel):
     metric_id: str
-    metric_version: str | None = None
-    attempt: int = Field(default=0, ge=0, le=1)
-    supersedes_finding_id: str | None = None
-    applicability: Literal["applicable", "not_applicable", "insufficient_context"] = "applicable"
-    score: float | None = Field(default=None, ge=0, le=5, strict=True)
-    rationale: str
-    evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
-    knowledge_refs: list[KnowledgeRef] = Field(default_factory=list)
-    confidence_band: Literal["high", "medium", "low"] | None = None
-    limitations: list[str] = Field(default_factory=list)
+    status: Literal["EVALUATED", "NOT_APPLICABLE", "NOT_EVALUABLE"]
+    score: int | None = Field(default=None, ge=0, le=5, strict=True)
+    reason: str = Field(min_length=1, max_length=5000)
+    evidence_ids: list[str] = Field(default_factory=list)
+    claims: list[Claim] = Field(default_factory=list, max_length=12)
     review_rule_ids: list[str] = Field(default_factory=list)
-    requires_manual_review: bool = False
-    evidence_bindings: list[dict] = Field(default_factory=list)
-    evidence_binding_status: Literal["unbound", "bound", "partial", "invalid"] = "unbound"
-    time_facts: list[dict] = Field(default_factory=list)
+    risk: Literal["none", "service_gap", "serious_service_risk"] = "none"
+
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_model_output(cls, data):
+        if isinstance(data, dict):
+            # Observed provider deviation: rationale instead of the required reason.
+            if not data.get("reason") and isinstance(data.get("rationale"), str):
+                data = {**data, "reason": data["rationale"]}
+            if "score" in data:
+                data = {**data, "score": _coerce_score(data["score"])}
+        return _known_fields_only(cls, data)
+
+    @model_validator(mode="after")
+    def score_matches_status(self):
+        if self.status != "EVALUATED" and self.score is not None:
+            raise ValueError("Only EVALUATED findings may contain scores")
+        if self.status == "EVALUATED" and self.score is None:
+            raise ValueError("EVALUATED requires a score")
+        return self
 
 
-class AgentResult(BaseModel):
-    """Agent 的结构化执行结果；支持成功、部分成功和失败状态。"""
-
-    agent_id: str
-    status: Literal["completed", "partial", "failed"]
-    findings: list[Finding] = Field(default_factory=list)
-    error: str | None = None
-
-
-class FactClaim(BaseModel):
-    """从 Finding 中拆出的最小可核验事实；复杂条件保留在 statement 与 qualifiers。"""
-
-    claim_id: str = Field(default_factory=lambda: f"claim-{uuid4()}")
-    finding_id: str
-    claim_type: Literal["observed_behavior", "absence", "applicability", "score_basis"]
-    statement: str
-    subject_role: SpeakerRole | None = None
-    behavior: str | None = None
-    object_text: str | None = None
-    time_scope: str | None = None
-    negated: bool = False
-    qualifiers: list[str] = Field(default_factory=list)
+class ToolCall(StrictModel):
+    name: Literal[
+        "read_skill",
+        "get_dialogue",
+        "get_evidence",
+        "search_knowledge",
+        "get_session_context",
+        "get_previous_evaluations",
+        "time_calculator",
+        "share_evidence",
+        "send_message",
+        "get_messages",
+        "acknowledge_message",
+        "request_review",
+        "submit_review",
+        "submit_evaluation",
+        "wait",
+        "finish",
+    ]
+    arguments: dict = Field(default_factory=dict)
 
 
-class ClaimVerification(BaseModel):
-    """一条事实主张的核验结论；证据不足与明确反证分开表达。"""
+class Decision(StrictModel):
+    # Short action justification, not private chain-of-thought.
+    rationale: str = Field(min_length=1, max_length=1000)
+    tool_call: ToolCall
 
-    claim_id: str
-    status: Literal["supported", "contradicted", "insufficient_evidence"]
-    supporting_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
-    contradicting_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
-    rationale: str = ""
-
-
-class EvidenceVerificationResult(BaseModel):
-    """统一核验结果：原文定位、事实核验、适用性与评分锚点分别记录。"""
-
-    verification_id: str = Field(default_factory=lambda: f"verification-{uuid4()}")
-    finding_id: str
-    verifier_agent_id: str = "evidence_verification"
-    reference_status: Literal["valid", "missing", "quote_mismatch", "source_mismatch", "uncertain"]
-    claims: list[FactClaim] = Field(default_factory=list)
-    claim_results: list[ClaimVerification] = Field(default_factory=list)
-    reference_conflict: bool = False
-    applicability_status: Literal["matched", "mismatched", "uncertain"] = "uncertain"
-    rubric_status: Literal["matched", "mismatched", "uncertain"] = "uncertain"
-    support_status: Literal["supported", "partial", "unsupported", "uncertain"]
-    issues: list[str] = Field(default_factory=list)
-    revision_request: str | None = None
-    verifier_version: str | None = None
-
-
-class MetricScore(BaseModel):
-    """单指标评分汇总输入；指标 ID 与权重以版本化 Skill 发布的指标体系为准。"""
-
-    metric_id: str
-    dimension_id: str
-    score: float | None = Field(default=None, ge=0, le=5)
-    weight: float = Field(default=1.0, gt=0)
-    applicability: Literal["applicable", "not_applicable", "insufficient_context"] = "applicable"
-    agent_id: str | None = None
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_model_output(cls, data):
+        # Observed provider deviation: flat {"tool"/"name", "arguments"} instead of tool_call.
+        if isinstance(data, dict) and "tool_call" not in data:
+            if isinstance(data.get("findings"), list):
+                data = {
+                    **data,
+                    "tool_call": {
+                        "name": "submit_evaluation",
+                        "arguments": {"findings": data["findings"], "complete": True},
+                    },
+                }
+            name = data.get("tool") if isinstance(data.get("tool"), str) else data.get("name")
+            if isinstance(name, str):
+                data = {
+                    **data,
+                    "tool_call": {"name": name, "arguments": data.get("arguments", {})},
+                }
+        if isinstance(data, dict) and "tool_call" in data and not data.get("rationale"):
+            data = {**data, "rationale": "Execute the selected tool for the assigned task."}
+        return _known_fields_only(cls, data)
 
 
-class DimensionProfile(BaseModel):
-    """一个维度的画像：加权维度分与覆盖率；覆盖率不达标时 score 为空。"""
-
-    dimension_id: str
-    name: str
-    score: float | None = Field(default=None, ge=0, le=5)
-    coverage: float = Field(default=0.0, ge=0, le=1)
-    metric_scores: list[MetricScore] = Field(default_factory=list)
-
-
-class QualityProfile(BaseModel):
-    """6 维质量画像与总评分；全部由确定性汇总器计算，LLM 不得改写。"""
-
-    dimensions: list[DimensionProfile] = Field(default_factory=list)
-    overall_score: float | None = Field(default=None, ge=0, le=5)
-    overall_coverage: float = Field(default=0.0, ge=0, le=1)
-    coverage_gate_passed: bool = False
-
-
-class ConflictCase(BaseModel):
-    """确定性冲突检测的输出；语义复核与裁决交给分歧仲裁 Agent。"""
-
-    conflict_id: str
-    kind: Literal["cross_dimension", "score_revision", "verification_dispute", "rule_mismatch"]
-    metric_ids: list[str] = Field(default_factory=list)
-    description: str
-
-
-class ArbitrationDecision(BaseModel):
-    """仲裁 Agent 对单个冲突的裁决；不重写分数，只选择保留结论或转人工。"""
-
-    conflict_id: str
-    status: Literal["resolved", "unresolved", "not_needed"]
-    adopted: Literal["initial", "re_evaluated", "verification", "manual_review"] | None = None
-    rationale: str = ""
-    re_evaluation_metric_ids: list[str] = Field(default_factory=list)
-    requires_manual_review: bool = False
-
-
-class ImprovementSuggestion(BaseModel):
-    """总结 Agent 生成的改进意见；基于评分锚点，不构成临床督导结论。"""
-
-    target_id: str
-    level: Literal["metric", "dimension", "overall"]
-    suggestion: str
-    based_on: Literal["score_anchor", "risk_case", "coverage_gap"] = "score_anchor"
-    related_evidence: list[ConversationEvidenceRef] = Field(default_factory=list)
-
-
-class EvaluationReport(BaseModel):
-    """评价报告数据结构；限制项携带预处理与证据核验问题，画像与改进意见随报告保留。"""
-
-    evaluation_id: str
-    session_id: str
-    status: Literal["completed", "partial", "failed"]
-    agent_results: list[AgentResult] = Field(default_factory=list)
-    verification_results: list[EvidenceVerificationResult] = Field(default_factory=list)
-    summary: str = ""
-    limitations: list[str] = Field(default_factory=list)
-    quality_profile: QualityProfile | None = None
-    improvements: list[ImprovementSuggestion] = Field(default_factory=list)
-    review_required: bool = False
-    review_reasons: list[str] = Field(default_factory=list)
-    summary_status: (
-        Literal["completed", "partial", "failed", "not_configured", "skipped"] | None
-    ) = None
-    arbitration_status: Literal["not_needed", "resolved", "unresolved", "not_configured"] | None = (
-        None
-    )
+MESSAGE_TYPES = {
+    "EVIDENCE_SHARE",
+    "CLARIFICATION_REQUEST",
+    "CONFLICT_REPORT",
+    "REVIEW_REQUEST",
+    "RISK_ALERT",
+}

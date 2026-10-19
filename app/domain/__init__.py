@@ -1,1 +1,2 @@
-"""功能：领域模型与规则层；保持与 FastAPI、数据库和具体模型供应商解耦。"""
+# 环节：领域契约层；用途：定义业务数据模型与可替换端口，不依赖具体基础设施。
+"""Domain contracts independent of HTTP, model vendors and database drivers."""

@@ -1,3 +1,4 @@
+// 环节：前端测试层；用途：验证前端组件逻辑、API 客户端和展示工具。
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
@@ -7,12 +8,18 @@ import { previewSession, previewReport } from '../../src/data/preview'
 let wrapper: VueWrapper | undefined
 let requests: string[] = []
 let failEvaluation = false
+let failSessionId = ''
+let catalogUnavailable = false
 let resolveEvaluation: (() => void) | undefined
 let holdEvaluation = false
+let withInvestigation = false
 beforeEach(() => {
   requests = []
   failEvaluation = false
+  failSessionId = ''
+  catalogUnavailable = false
   holdEvaluation = false
+  withInvestigation = false
   location.hash = 'workspace'
   vi.stubGlobal('matchMedia', () => ({ matches: true }))
   Element.prototype.scrollIntoView = vi.fn()
@@ -27,14 +34,39 @@ beforeEach(() => {
         )
       if (path.startsWith('/api/v1/evaluations/recent'))
         return new Response(JSON.stringify({ database_configured: false, items: [] }))
+      if (path === '/api/v1/demo/sessions')
+        return catalogUnavailable
+          ? new Response('{}', { status: 404 })
+          : new Response(JSON.stringify([0, 1, 2].map((index) => previewSession(index))))
+      if (path.startsWith('/api/v1/demo/sessions/')) {
+        const id = decodeURIComponent(path.split('/').pop() || '')
+        const session = [0, 1, 2].map((index) => previewSession(index)).find((item) => item.session_id === id)
+        return new Response(JSON.stringify({ session, report: null }))
+      }
       if (path === '/api/v1/demo/session') return new Response(JSON.stringify(previewSession()))
+      if (path.endsWith('/reviews') && options?.method === 'POST') {
+        const input = JSON.parse(String(options.body))
+        return new Response(JSON.stringify({ ...input, review_id: 'review-test', created_at: new Date().toISOString() }))
+      }
+      if (path.endsWith('/reviews')) return new Response(JSON.stringify({ items: [] }))
       if (path === '/api/v1/evaluations') {
+        const session = JSON.parse(String(options?.body))
         if (holdEvaluation)
           await new Promise<void>((resolve) => {
             resolveEvaluation = resolve
           })
-        if (failEvaluation) return new Response('{}', { status: 500 })
-        return new Response(JSON.stringify(previewReport()))
+        if (failEvaluation || session.session_id === failSessionId)
+          return new Response('{}', { status: 500 })
+        const generated = previewReport(session)
+        if (withInvestigation) generated.investigation = {
+          stop_reason: 'agent_finished', uncovered_metric_ids: [], attempts: { 'D2.1': 1 },
+          model_call_count: 7, model_call_limit: 48,
+          preflight_history: { required: true, status: 'completed', issues: [] },
+          metric_statuses: { 'D2.1': 'evaluated' },
+          observations: [{ step: 1, action: 'calculate_time', question: '回复间隔是多少？',
+                           status: 'completed', tool_name: 'time_calculator' }],
+        }
+        return new Response(JSON.stringify(generated))
       }
       return new Response('{}', { status: 404 })
     }),
@@ -59,6 +91,14 @@ async function navigate(page: string) {
   await flushPromises()
 }
 describe('workbench actual component interaction', () => {
+  it('shows the bounded investigation trace returned by the backend', async () => {
+    withInvestigation = true
+    const app = await start()
+    await evaluate()
+    expect(app.get('.investigation-trace').text()).toContain('回复间隔是多少？')
+    expect(app.get('.investigation-trace').text()).toContain('复诊强制历史检索：completed')
+    expect(app.get('.investigation-trace').text()).toContain('模型请求：7/48')
+  })
   it('opens the overview by default and keeps the evaluation workspace reachable', async () => {
     location.hash = ''
     const app = await start()
@@ -71,6 +111,32 @@ describe('workbench actual component interaction', () => {
     const app = await start()
     expect(app.findAll('.conversation-message')).toHaveLength(6)
     expect(app.get('.heading-actions .primary').attributes('disabled')).toBeUndefined()
+    expect(app.get('.heading-actions .primary').text()).toContain('一键自动评估')
+  })
+  it('evaluates all connected sessions despite a list search filter', async () => {
+    const app = await start()
+    await app.get('.search-field input').setValue('preview-synthetic-001')
+    await app.get('.consultation-list-tools').trigger('submit')
+    await flushPromises()
+    expect(app.findAll('.consultation-id')).toHaveLength(1)
+    await evaluate()
+    expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
+    expect(app.get('.run-note').text()).toContain('成功 3 条，失败 0 条')
+  })
+  it('continues the remaining sessions when one evaluation fails', async () => {
+    failSessionId = 'preview-synthetic-002'
+    const app = await start()
+    await evaluate()
+    expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
+    expect(app.get('.run-note').text()).toContain('成功 2 条，失败 1 条')
+    expect(app.text()).toContain('preview-synthetic-002')
+  })
+  it('does not claim a single legacy demo record is the complete batch', async () => {
+    const app = await start()
+    catalogUnavailable = true
+    await evaluate()
+    expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(0)
+    expect(app.text()).toContain('本次请求未完成')
   })
   it('renders a report and does not average initial scores', async () => {
     const app = await start()
@@ -110,7 +176,7 @@ describe('workbench actual component interaction', () => {
     await app.get('.export-area input').setValue(true)
     expect(app.get('.export-area button').attributes('disabled')).toBeUndefined()
   })
-  it('switches to an unresolved item in the review queue and saves only local drafts', async () => {
+  it('switches to an unresolved item and submits a review decision', async () => {
     const app = await start()
     await evaluate()
     await navigate('review')
@@ -120,8 +186,8 @@ describe('workbench actual component interaction', () => {
     await app.get('.review-form').trigger('submit')
     await flushPromises()
     expect(app.findAll('.draft-record')).toHaveLength(1)
-    expect(requests.filter((r) => r.startsWith('POST'))).toHaveLength(1)
-    expect(app.text()).toContain('未提交服务器')
+    expect(requests.filter((r) => r.startsWith('POST') && r.endsWith('/reviews'))).toHaveLength(1)
+    expect(app.text()).toContain('已写入服务器')
   })
   it('rejects a draft without a substantive reason', async () => {
     const app = await start()
@@ -132,10 +198,14 @@ describe('workbench actual component interaction', () => {
     await app.get('.review-form').trigger('submit')
     expect(app.findAll('.draft-record')).toHaveLength(0)
   })
-  it('catalog has eighteen unique-owner rows', async () => {
+  it('catalog shows eighteen metrics under the three merged evaluator groups', async () => {
     const app = await start()
     await navigate('rubrics')
     expect(app.findAll('.rubric-item')).toHaveLength(18)
+    expect(app.findAll('.rubric-section')).toHaveLength(3)
+    expect(app.text()).toContain('D1+D3')
+    expect(app.text()).toContain('D2+D5')
+    expect(app.text()).toContain('D4+D6')
   })
   it('does not claim the local database is connected', async () => {
     const app = await start()
@@ -148,15 +218,17 @@ describe('workbench actual component interaction', () => {
     await evaluate()
     expect(app.text()).toContain('本次请求未完成')
     expect(app.findAll('.finding-row')).toHaveLength(0)
-    expect(requests.filter((r) => r.startsWith('POST'))).toHaveLength(1)
+    expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
   })
   it('guards double clicks while mutation is running', async () => {
     holdEvaluation = true
     const app = await start()
     await app.get('.heading-actions .primary').trigger('click')
+    await flushPromises()
     await app.get('.heading-actions .primary').trigger('click')
     expect(app.get('.heading-actions .primary').attributes('disabled')).toBeDefined()
     expect(requests.filter((r) => r.startsWith('POST'))).toHaveLength(1)
+    holdEvaluation = false
     resolveEvaluation!()
     await flushPromises()
   })
@@ -197,15 +269,16 @@ describe('workbench actual component interaction', () => {
     const app = await start()
     await evaluate()
     await navigate('review')
-    expect(app.findAll('.queue-item')[0]!.text()).toContain('D6.1')
+    expect(app.findAll('.session-review-item')).toHaveLength(3)
+    await app.get('.priority-count.priority-high').trigger('click')
+    expect(app.findAll('.session-review-item')).toHaveLength(0)
+    await app.get('.priority-count.priority-medium').trigger('click')
+    expect(app.findAll('.session-review-item')).toHaveLength(3)
+    expect(app.findAll('.session-finding-item')[0]!.text()).toContain('D6.1')
     expect(app.get('.priority-detail').text()).toContain('核查优先级：高')
     expect(app.get('.finding-detail .status-badge').text()).toBe('材料冲突')
-    await app.get('.priority-count.priority-medium').trigger('click')
-    expect(app.findAll('.queue-item')).toHaveLength(1)
-    expect(app.get('.queue-item').text()).toContain('D3.2')
-    expect(app.get('.priority-detail').text()).toContain('核查优先级：中')
     await app.get('.priority-count.priority-low').trigger('click')
-    expect(app.findAll('.queue-item')).toHaveLength(3)
-    expect(app.get('.priority-detail').text()).toContain('核查优先级：低')
+    expect(app.findAll('.session-review-item')).toHaveLength(0)
+    expect(app.get('.review-queue .empty-note').text()).toContain('当前筛选没有待复核会话')
   })
 })

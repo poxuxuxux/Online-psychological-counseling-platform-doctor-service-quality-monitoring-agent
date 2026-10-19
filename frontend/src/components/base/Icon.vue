@@ -1,3 +1,4 @@
+<!-- 环节：前端组件层；用途：实现可复用的会话、图表、反馈或基础界面组件。 -->
 <script setup lang="ts">
 withDefaults(defineProps<{ name: string; size?: number }>(), { size: 20 })
 const paths: Record<string, string> = {

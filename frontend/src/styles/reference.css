@@ -1,3 +1,4 @@
+/* 环节：前端样式层；用途：定义工作台主题、布局和组件视觉规范。 */
 /* 心衡：matte paper, jade accents, deliberate typography and ruled sections. */
 :root {
   --sidebar-width: 248px;

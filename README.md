@@ -1,133 +1,117 @@
-# 在线心理咨询平台医生服务质量监测 Agent
+# 医生服务质量评价 Agent Teams
 
-本地后端增量开发：数据流式导入、订单候选轮次、响应时间工具与 Qwen3.5-Plus 连接方式见 [本地后端开发说明](docs/development/LOCAL_BACKEND_START.md)。这些模块尚未替换网站现有演示评价链路。
+Python 3.11+ / FastAPI / LangGraph / PostgreSQL。评价对象是医生服务行为。外层确定性流程，内层按需协作团队；不根据分数诊断患者。
 
-合成会话的新版指标评价网页、同源任务接口、独立 worker 与 Railway PostgreSQL 部署步骤见 [指标评价网页联调与部署](docs/development/METRIC_WEB_DEPLOY.md)。
-
-指标规则负责人请使用 [指标Skill接口交接规范](docs/contracts/METRIC_SKILL_CONTRACT.md)，按样例交付metric.yaml和SKILL.md；后端已经接通加载、版本快照及评价/核验调用。
-
-本地新链路的管理与结果Agent、持久化共享通信池见 [协同模块说明](docs/architecture/MANAGER_RESULT_POOL.md)。
-
-三个业务Tool的职责、输入输出和接入方案见 [时间计算、历史检索与证据定位设计](docs/architecture/THREE_TOOLS_DESIGN.md)（当前为设计稿，尚未接入执行）。
-
-两个业务Hook的触发时点与结果契约见 [风险监测与分歧检测设计](docs/architecture/TWO_HOOKS_DESIGN.md)（当前为设计稿，尚未接入执行）。
-
-三人协作开发与数据适配边界见 [模块接口约定](docs/architecture/TEAM_DEVELOPMENT_CONTRACT.md)，第一次使用 GitHub 的完整操作、两人版/三人版分工和实施顺序见 [GitHub 团队协作与开发分工手册](docs/development/GITHUB_TEAM_WORKFLOW.md)。评价单位已确定为一次订单或咨询轮次：原始聊天线程先由可替换切分器形成评价轮次，不能将多年聊天线程直接当作一次咨询。该切分器及文档列出的新增契约仍待实现。
-
-面向在线心理咨询平台运营方的 B2B 服务质检与风险线索监测系统。平台操作员导入授权的咨询记录后，后端识别初诊/复诊；复诊时检索必要的历史咨询上下文。三个专职 Agent 分别为专业服务评价 Agent（D1/D3/D6.2）、过程与响应评价 Agent（D2/D5）、共情与关系评价 Agent（D4/D6.1）。D6 两项指标默认进入评价任务，由所属 Agent 判断适用性；风险监测 Hook 仅提供可选候选线索，不控制 D6 是否执行；一个证据核验子 Agent 统一负责原文定位、评分依据核查和指标定义校对。
-
-系统评价医生在会话中可观察到的服务行为，辅助平台扩大质检覆盖、定位问题和追溯依据。系统不对患者作临床诊断，不替代专业人员判断，也不会根据未复核的模型输出自动处罚医生或联系患者。
-
-## Agent 工作流程
-
-```mermaid
-flowchart LR
-    A[导入授权聊天记录：文本/语音/视频] --> SEG[按订单或咨询轮次切分]
-    SEG --> B[多模态预处理：校验、规范化、ASR 转写、脱敏、预检]
-    B --> C[初诊/复诊识别]
-    C -->|复诊| D[授权检索历史咨询并分区注入]
-    C -->|初诊| E[构建当前会话上下文]
-    D --> E
-    E --> F[风险监测 Hook：可选候选线索，不控制 D6 执行]
-    F --> G[三个专职 Agent 并行评价]
-    G --> H[单一证据核验 Agent：定位原文、核查评分依据、校对指标定义]
-    H --> O[应用编排器：检查证据状态与分歧]
-    O -->|存在待语义判断的分歧| ARB[分歧仲裁 Agent]
-    O -->|无需仲裁| SCORE[确定性评分汇总]
-    ARB --> O2[应用编排器：校验裁决并控制每指标一次重评]
-    H -->|核验不充分| O2
-    O2 -->|建议重评且额度可用| R[原评价 Agent 定向复评]
-    R --> H
-    O2 -->|无需重评、已解决或额度已用| SCORE
-    SCORE --> M[人工复核门控]
-    M --> S[总结 Agent：画像叙述、总评分说明与改进意见]
-    S --> J[报告与案件构造]
-    J --> K[操作员复核或归档并留审计记录]
-```
-
-评价体系沿用竞赛指标表的 6 个维度、18 项指标分布（D1/D2/D3/D4/D5/D6 分别为 2/2/5/3/4/2 项），全部通过版本化 Skill 包定义。证据核验 Agent 将复合评价拆成最小事实，分别记录支持、矛盾、证据不足、材料冲突、适用性和评分锚点状态；应用编排器控制一次定向质疑—修正，仍有语义分歧才调用仲裁 Agent。确定性评分汇总器生成 6 维质量画像与总评分（受覆盖率门槛约束），之后运行人工复核门控与总结 Agent。D6 默认纳入任务并按二级指标分工：共情与关系评价 Agent 评“风险信号回应”，专业服务评价 Agent 评“必要转介与求助提示”。历史咨询只作为有来源标签的复诊背景，评分证据必须定位到本次会话消息。
-
-## 产品与技术结构
-
-- **使用对象**：单平台工作空间中的一名平台质检操作员，不包含组织成员、角色或租户管理。
-- **后端**：Python 3.11+、FastAPI、Pydantic 数据契约、可替换的 LLM Provider 接口和版本化 Skill。
-- **前端**：规划为 Vue 3 + TypeScript 管理后台，按总览、质量监测、风险中心、复核工作台、评价任务、指标管理、数据接入和审计日志划分。
-- **系统形态**：比赛 MVP 采用 FastAPI 模块化单体；前端通过版本化 HTTP API 与后端交互。
-
-```text
-.
-├── app/                    # FastAPI、Agent 编排、评价规则与基础设施适配
-├── frontend/               # Vue 3 + TypeScript 质检工作台源码
-├── data/                   # 合成演示数据与本地数据目录
-└── docs/
-    ├── architecture/       # Agent 与系统架构设计
-    └── product/             # 后台 PRD 与后端功能说明
-```
-
-## 本地启动
-
-需要 Python 3.11 或更高版本。
-
-### Windows PowerShell
+## 本地运行
 
 ```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-python -m uvicorn app.main:app --reload
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+# 填写模型配置；已有 .env 时不要覆盖。
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --env-file .env --host 127.0.0.1 --port 8000
 ```
 
-### macOS / Linux
+打开 `http://127.0.0.1:8000`，接口文档为 `/docs`。无 DATABASE_URL 的 local 环境使用 `data/local/teams.sqlite3`。无模型配置会持久化明确的失败/不可评价结果，不生成演示分数。
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-python -m uvicorn app.main:app --reload
+```powershell
+.\.venv\Scripts\python.exe -m app.cli check
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest-teams
+.\.venv\Scripts\python.exe -m ruff check app tests
+.\.venv\Scripts\python.exe -m app.cli evaluate examples/team-session.json --output data/local/report.json
+.\.venv\Scripts\python.exe -m app.cli resume <evaluation_id>
 ```
 
-启动后打开 [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)，服务应返回：
+CLI 会加载 `.env`；`evaluate` 会调用配置的真实模型。自动测试使用可编程模型替身，执行真实图、工具、数据库和 API。`TEST_DATABASE_URL` 专用于可丢弃测试库，CI 启动 PostgreSQL 16 执行集成测试，禁止把它指向生产数据库。
 
-```json
-{"status":"ok"}
+## 模块边界
+
+```text
+app/
+  domain/          Pydantic 输入/动作/评分契约、模型/仓储/知识接口
+  context/         对话规范化、医患关系查询、初复诊路由、历史上下文
+  rubrics/         现有 metric.yaml + SKILL.md、动态目录加载和版本哈希
+  team/            任务状态、共享证据、消息工具、独立 Reviewer、动态子图
+  evaluation/      证据语义校验、确定性评分、服务风险、总结、纵向分析、报表
+  workflow/        外层 StateGraph、依赖编排、恢复入口和总超时
+  infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配
+  api/            HTTP 参数、鉴权、响应；不实现评分规则
+  bootstrap.py    组合根：注入模型、仓储、Skill 和知识库
+  config.py       运行预算与环境配置
+  web/            原前端构建产物
 ```
 
-### 运行测试
+更换模型实现 `domain.ports.ModelGateway`，更换知识源实现 `KnowledgeSource`，更换存储实现 `EvaluationRepository`。通过 `build_container` 或 `create_app` 注入，评分逻辑无需改动。细节见 [模块开发说明](docs/MODULES.md)。
 
-```bash
-python -m pytest
-```
+## 执行流程
 
-测试覆盖预处理管道的阶段编排与可评价性判定、脱敏失败阻断、评价协调器的超时与失败隔离、证据引用的归一化匹配，以及注册表与账本等骨架行为，共 35 个测试；尚未覆盖三人接口约定中的完整模块连接。
+主图节点：预处理 → Session Context → Initial / Historical Context → Team Lead → Team Initialization → Team Subgraph → Completion Check → Evidence Validator → Scoring → Risk → Summary → Longitudinal Analysis → Report → Storage。
 
-`/health` 只检查 FastAPI 进程是否响应，不代表数据库、模型服务或完整评价工作流已经连通。本分支前端已实现 Vue 3 + TypeScript 工作台，运行与构建命令见 [前端说明](frontend/README.md)。
+团队子图：`schedule → observe → reason → act → save → schedule`。不是一次并行评分后结束；每一步根据当前观察调用工具，并重新进入调度。
 
-当前代码骨架已包含：FastAPI 入口与组合根装配、多模态会话数据契约（文本/语音/视频消息、ASR 转写元数据、媒体时间区间）、四阶段预处理管道（规范化 → 转写 → 脱敏 → 预检，含可评价性判定与安全阻断）、带超时与并发预算的多 Agent 协调器、共享通信池运行账本（append-only 事件/任务单/结论消息，按 run_id 隔离）、管理与情境识别 Agent 的协议占位（只产出候选路由，指派权在确定性校验）、错误隔离的 Hook 注册表、确定性证据核验工具（引文归一化匹配、媒体区间校验）、分歧仲裁 Agent 与总结 Agent 的协议占位、画像/冲突/仲裁/改进意见数据契约、评分汇总器与复核门控接口、内存仓储和 35 个契约测试。尚未实现：真实 LLM Provider 与 AgentRunner、三个正式评价 Agent 的完整执行、证据核验子 Agent、管理/分歧仲裁/总结 Agent 的完整执行、评分汇总与门控规则、复诊历史检索、风险监测 Hook 规则、持久化和后台 API。产品文档描述目标闭环，不代表上述模块都已可运行。
+- 主责 Evaluator 按 `app/rubrics/groups.py` 分为 D1+D3、D2+D5、D4+D6 三组；原始六个维度仍独立评分和统计。新增未映射维度会自动建立单独 Agent。临时 Reviewer 在需要时创建。
+- 任务拥有独立观察记录、负责指标、状态、步数和耗时。消息接收者在已完成或等待状态下也会重新进入 PENDING。
+- 消息经过 PENDING → DELIVERED → PROCESSED；接收者读取后必须记录采纳/无关/已答复及理由，才能完成任务。
+- 共享证据必须是当前消息中连续原文，带角色、消息 ID、轮次、来源 Agent；解释不能充当事实。
+- 只允许指标主责 Agent 修订自己的评分。全部修订和原始版本保存，Reviewer 只提出复核意见。
+- 相同主体、行为和范围的相反事实主张触发复核；不同维度分数差异不触发冲突。表达未被归一为同一行为的语义冲突可由 Agent 主动报告；当前不宣称确定性检测器能识别全部语义等价表述。
+- 严重服务风险标记单调保留，Reviewer 不能取消。
+- 有步数、轮次、消息、复核、修订、单 Agent 耗时、总耗时和模型调用数限制。
 
-## 多模态输入与预处理边界
+工具包括 `read_skill`、`get_dialogue`、`get_evidence`、`share_evidence`、`time_calculator`、`search_knowledge`、`get_session_context`、`get_previous_evaluations`、`send_message`、`get_messages`、`acknowledge_message`、`request_review`、`submit_review`、`submit_evaluation`、`wait`、`finish`。模型输出结构化工具决策，后端执行受控能力，不执行模型提供的 Python/SQL。
 
-- 会话消息支持文本、语音、视频三种模态；原始音视频只保存在受控媒体存储中，**不进入模型上下文**。
-- 语音/视频消息经 ASR 转写为带引擎版本与时间偏移的派生文本后才可评价；证据引用可附带媒体时间区间，供前端跳转回原始音视频位置。
-- 脱敏在评价前强制执行：文本脱敏产生的映射保存在隔离仓储中，仅供审计与人工复核，不进入 Agent 输入或报告；脱敏阶段失败会阻断整条评价链路。
-- 转写引擎与脱敏规则集均为可替换适配器；当前分别为"未配置显式报错"和"仅限合成演示数据"的占位实现。
+## 初复诊与历史防锚定
 
-## 文档
+`patient_id + doctor_id + session_time` 决定历史查询；仅查询相同医患关系的严格更早会话，排除本次会话。时间统一 UTC，必须带时区。
 
-- [GitHub 团队协作与开发分工手册](docs/development/GITHUB_TEAM_WORKFLOW.md)：成员邀请、分支/PR/评审/冲突流程、公共契约规则、两人版和三人版分工及分阶段 Issues。
-- [Agent 系统设计文档](docs/architecture/AGENT_SYSTEM_DESIGN.md)：Agent 模块职责、复诊历史检索、风险 Hook/D6、证据核验子 Agent、评价流转、数据契约、API、失败处理和安全设计。
-- [B2B 后台架构融合提案](docs/architecture/B2B_ADMIN_CONSOLE_ARCHITECTURE.md)：后台如何融入现有项目结构，以及单操作员 MVP 的边界。
-- [后台产品 PRD](docs/product/PRD_B2B_QUALITY_CONTROL_CONSOLE.md)：产品目标、用户、流程、页面、功能需求和验收标准。
-- [后端 Agent 功能说明](docs/product/BACKEND_AGENT_FUNCTIONAL_SPEC.md)：后端完整业务能力、评价器职责、证据、风险复核和接口。
-- [前端目录骨架说明](frontend/README.md)：前端运行、构建、可信展示策略与后端联调边界。
+- 找到更早会话：FOLLOW_UP。
+- 没有更早会话，身份时间齐全，可信导入方确认 `history_complete=true`：INITIAL。
+- 其余：UNKNOWN。不能将“没查到”自动当成初诊。
 
-## 数据与安全
+`history_complete` 是平台导入契约，默认 false，不能由 LLM 设置；接入方只有确认历史导入完整时才能置 true。历史原始数据通过受保护的 `/sessions` 导入。旧数据库表保留，但不自动猜测它们的医患键或时间字段，也不把旧演示分数并入新标准。
 
-- 演示优先使用合成会话；未经授权不要导入真实咨询记录。
-- 不要提交 `.env`、患者身份信息、数据库文件、私有对话或本地向量索引。
-- 评价结论必须与会话证据分开记录平台规则知识；引用无效或证据不足时不应给出确定分数。
-- 复诊历史仅按可信匿名患者标识和平台授权检索；历史片段与本次消息分开标注，不能作为本次医生行为评分的直接证据，并需记录访问审计和执行保留/删除策略。
-- 高风险结果是平台内部待核查线索；人工复核和平台处置流程保留最终判断权。
+历史评价、风险、总结与未解决问题进入服务端 Context Store 和纵向分析。常规 Evaluator 只看到会话类型和历史可用状态。历史工具仅对 Skill 的 `allowed_sources` 明确包含 `historical_dialogue` 的指标开放，只返回历史事实，隐藏历史分数与总结。现有指标尚未声明该来源，所以历史工具会明确返回不允许，不会偷偷注入旧分数。
 
-## 工程说明
+## Skill 与评分
 
-仓库提供可启动的 FastAPI 服务入口和健康检查，Agent 与评价流程按模块化架构组织。真实模型供应商、持久化数据层和后台页面应在满足平台授权与安全要求后接入；当前的 `/health` 响应不代表完整质检产品已可投入运营。
+保留的指标位于 `app/rubrics/metrics/<metric_id>/`。维度由 `dimension_id` 或指标 ID 的点号前缀确定，可增加新维度而不改 Agent 类。每次运行冻结规则内容、说明及哈希。
+
+18 个指标以 `metric.yaml` 的 `status` 字段为发布状态唯一依据。配套 `SKILL.md` 已同步为遵循该状态：published 指标可以按已发布锚点评分；证据不足、材料冲突或无法区分锚点时仍须留空并触发相应人工复核。
+
+模型请求仅携带 `metric.yaml` 的结构化规则，避免重复传入旧版说明中的接口和候选锚点。规则与对话由程序预载；Agent 仍可主动取证、协作和修正。核验输出的 `issues` 只接受阻断错误代码，普通说明进入 `notes`。有效的语义核验指出评分或引用错误时，原评价者最多自动修正一次，随后独立复核；无法解决的问题保留待复核，不直接放行。
+
+新报告的 `team.usage` 记录供应商返回的输入/输出 token、实际记录用量的请求数与输入字符数，前端报告中可展开查看。旧报告没有 token 统计，不把缺失统计当作零成本。模型超时和服务错误每个 Agent 最多连续累计两次后停止，避免预算空转。
+
+可运行 `python -m scripts.prepare_real_samples` 从本地真实数据流式选取 3 份订单范围样本，输出到忽略提交的 `data/private/quality-samples`。不会把跨年线程当作一次问诊，也不会截断长订单来伪装完整会话。样本去除原始身份元数据及可识别的姓名、联系方式，但自由文本不保证完全匿名，必须保留私有访问。没有明确结束事件时 `observation_complete=false`，没有明确接诊事件时不生成首次响应计时起点。
+
+分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。语义校验逐项核验事实、适用性和评分锚点；缺项、引文不匹配、未决冲突不计分。总分使用 Skill 权重均值，默认等权；所有适用指标覆盖并通过校验且团队任务完成，才生成总分。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，证据充分且无标记为 low；证据不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
+
+总结由确定性模板和已核验结果生成自然语言，不额外让 LLM 编造事实。纵向分析仅在规则哈希一致且两次总分均有效时计算变化；历史来源、限额及不可比原因保留。
+
+## API 与权限
+
+- `POST /api/v1/evaluations`：同步完成并返回兼容现有前端的报告。
+- `POST /api/v1/runs`：持久化待执行任务，返回 run_id；不隐式创建后台进程。
+- `POST /api/v1/runs/{id}/execute`：执行/恢复。长运行可先创建 ID，再由客户端轮询 GET。
+- `GET /api/v1/runs/{id}`：状态、阶段、最终报告。
+- `GET /api/v1/runs/{id}/audit`：任务、证据、消息状态、模型调用数、复核、版本和工具审计。
+- `POST /api/v1/sessions`：导入可信平台会话；同一 session_id 的内容不可被覆盖。
+- `GET /api/v1/consultations`、`/{session_id}`、`/evaluations/recent`、`/evaluations/overview`：查询。
+- `/evaluations/{id}/reviews`：人工复核记录；不会静默重写机器评分。
+- `/demo/session`、`/demo/sessions`、`/demo/sessions/{id}`：内置合成样本。
+
+真实数据和审计需 `Authorization: Bearer <EVALUATION_API_TOKEN>`，至少 24 字符。匿名接口只允许服务端固定合成样本，伪造 source_id 无法绕过。此 token 是单平台管理凭据；多机构权限隔离需在接入平台认证层另行实现。前端当前仍为合成样本工作台，真实平台数据通过 API/CLI 接入。
+
+## 持久化与恢复
+
+新增 `team_sessions`、`team_runs`、`team_tasks`、`team_evidence`、`team_messages`、`team_events`、`team_human_reviews`，不删除旧表。启动执行幂等建表；后续 schema 变更应新增迁移。
+
+每步模型请求前预留预算并保存状态，工具动作后将整个快照和协作审计在同一事务提交。恢复从已提交的节点边界继续；进程在模型调用中崩溃时，该调用可能重发，但已预留调用数不会回退。已提交消息不会丢失或重复发送，未提交的内存动作不对外可见。数据库租约防止同一 run 被两个 worker 同时执行；崩溃后等待租约过期，再调用 execute 或 CLI resume。主动取消释放租约。
+
+这是应用级节点快照恢复，不宣称提供 LangGraph 原生 checkpoint 的任意节点 time-travel。后续可以替换存储并增加原生 checkpointer，当前外部工具均为只读或事务内状态修改。
+
+## Railway
+
+保留 `Dockerfile` 和 `railway.toml` 启动入口 `app.main:app`。在 **后端服务** Variables 中引用既有 PostgreSQL 服务的 `DATABASE_URL`；它由 Railway 注入，不需要复制密码到本地 `.env`。同时设置模型配置、`APP_ENV=production`、`EVALUATION_API_TOKEN`。`/health` 为存活检查，`/ready` 检查数据库并报告模型及规则状态。
+
+该重构已准备部署配置，未自动发布到 Railway，也未连接生产库执行测试。旧独立 worker 入口已移除；运行与恢复统一通过新 API/CLI。若 Railway 原来还有旧 worker 服务，应停用旧 start command 或改为调用新运行接口。

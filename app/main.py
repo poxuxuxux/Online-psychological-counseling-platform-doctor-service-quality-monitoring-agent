@@ -1,39 +1,32 @@
-"""功能：创建 FastAPI 应用，装配 API 路由并在生命周期内构建依赖容器。"""
-
+# 环节：后端应用入口层；用途：提供应用启动、配置、命令行或合成演示能力。
 from contextlib import asynccontextmanager
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1.router import api_router
+from app.api.routes import router
 from app.bootstrap import build_container
-from app.core.config import get_settings
-from app.infrastructure.repositories.metric_store import build_metric_store
-
-settings = get_settings()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """启动时构建组合根；路由通过 app.state.container 获取依赖。"""
-    app.state.container = build_container(settings)
-    await app.state.container.evaluation_store.initialize()
-    if len(os.getenv("METRIC_RUNS_ACCESS_CODE", "")) >= 24:
-        app.state.metric_job_store = build_metric_store(settings.database_url)
-    yield
+def create_app(settings=None, repository=None, model=None, catalog=None):
+    @asynccontextmanager
+    async def lifespan(app):
+        app.state.container = await build_container(settings, repository, model, catalog)
+        yield
+
+    app = FastAPI(title="Doctor Service Quality Agent Teams", version="2.0.0", lifespan=lifespan)
+    app.include_router(router)
+    web = Path(__file__).parent / "web"
+    if (web / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=web / "assets"), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def index():
+        return FileResponse(web / "index.html")
+
+    return app
 
 
-app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
-app.include_router(api_router)
-
-web_dir = Path(__file__).parent / "web"
-app.mount("/assets", StaticFiles(directory=web_dir / "assets"), name="assets")
-
-
-@app.get("/", include_in_schema=False)
-async def root() -> FileResponse:
-    """返回比赛最小闭环演示页面。"""
-    return FileResponse(web_dir / "index.html")
+app = create_app()

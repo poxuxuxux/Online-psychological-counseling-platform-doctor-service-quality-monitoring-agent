@@ -1,3 +1,4 @@
+// 环节：前端构建辅助层；用途：执行构建产物同步、预览启动或产物检查。
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'

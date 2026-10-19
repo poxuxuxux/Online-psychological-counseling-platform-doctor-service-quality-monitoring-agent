@@ -1,3 +1,4 @@
+/* 环节：前端样式层；用途：定义工作台主题、布局和组件视觉规范。 */
 @charset "UTF-8";
 :root {
   font-family: 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', sans-serif;
@@ -448,6 +449,12 @@ h1 {
   font-size: 14px;
   font-weight: 400;
 }
+.investigation-trace { padding: 1rem 1.25rem; margin: 1rem 0; }
+.investigation-trace summary { cursor: pointer; font-weight: 650; }
+.investigation-trace ol { margin: .75rem 0 0; padding-left: 1.4rem; }
+.investigation-trace li { margin: .6rem 0; }
+.investigation-trace li span, .investigation-trace li small { display: block; }
+
 .run-track {
   display: flex;
   align-items: center;

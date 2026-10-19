@@ -1,10 +1,43 @@
+// 环节：前端状态逻辑层；用途：封装页面复用状态与 API 联动逻辑。
 import { computed, ref } from 'vue'
 import { api } from '../api/endpoints/evaluations'
+import { hasPrivateAccessToken } from '../api/client/http'
 import { ApiError } from '../api/client/http'
 import type { ConsultationItem, ConsultationDetail } from '../api/contracts/consultations'
 import type { Session, Report, Ready, Recent } from '../api/contracts/evaluation'
 import { previewReport, previewSession } from '../data/preview'
 import { reportRows } from '../utils/trust'
+import { overallScore } from '../utils/trust'
+
+export type BatchRiskLevel = 'high' | 'medium' | 'low' | 'unknown'
+export type BatchRun = {
+  batch_id: string
+  created_at: string
+  total: number
+  succeeded: number
+  failed: number
+  high: number
+  medium: number
+  low: number
+  quality_summary: string
+  sessions: { session_id: string; status: string; risk_level: BatchRiskLevel; pending_count: number }[]
+}
+const batchStorageKey = 'xin-heng-batch-runs-v1'
+function savedBatchRuns(): BatchRun[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(batchStorageKey) || '[]')
+    return Array.isArray(parsed) ? (parsed as BatchRun[]).slice(0, 10) : []
+  } catch {
+    return []
+  }
+}
+function persistBatchRuns(runs: BatchRun[]) {
+  try {
+    localStorage.setItem(batchStorageKey, JSON.stringify(runs.slice(0, 10)))
+  } catch {
+    // The current page still shows this batch if browser storage is unavailable.
+  }
+}
 
 export function useConsole() {
   const mode = ref<'service' | 'preview'>(location.protocol === 'file:' ? 'preview' : 'service')
@@ -15,6 +48,8 @@ export function useConsole() {
   const loading = ref(false),
     running = ref(false),
     checking = ref(false)
+  const batchProgress = ref({ total: 0, completed: 0, succeeded: 0, failed: 0, currentId: '' })
+  const batchRuns = ref<BatchRun[]>(savedBatchRuns())
   const consultations = ref<ConsultationItem[]>([])
   const totalConsultations = ref(0),
     listOffset = ref(0),
@@ -78,11 +113,19 @@ export function useConsole() {
     errors.value.session = ''
     errors.value.run = ''
     try {
+      async function demoDetail() {
+        try {
+          return await api.demoDetail(id)
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 404) throw error
+          return { session: await api.demo(), report: null }
+        }
+      }
       const detail =
         mode.value === 'preview'
           ? previewData().find((d) => d.session.session_id === id)
           : listSource.value === 'demo'
-            ? { session: await api.demo(), report: null }
+            ? await demoDetail()
             : await api.consultation(id)
       if (
         !detail ||
@@ -119,39 +162,38 @@ export function useConsole() {
         }))
         totalConsultations.value = data.length
         listSource.value = 'preview'
+      } else if (hasPrivateAccessToken()) {
+        const result = await api.consultations(offset, query)
+        if (token !== epoch || listToken !== listEpoch) return
+        consultations.value = result.items
+        totalConsultations.value = result.total
+        listSource.value = 'database'
       } else {
-        let result
+        let demos
         try {
-          result = await api.consultations(offset, query.trim())
+          demos = await api.demoSessions()
         } catch (error) {
           if (!(error instanceof ApiError) || error.status !== 404) throw error
-          // Older deployed services still have a demo route; never invent database entries.
-          result = null
+          demos = [await api.demo()]
         }
         if (token !== epoch || listToken !== listEpoch) return
-        if (result?.database_configured && (result.total > 0 || query.trim() || offset > 0)) {
-          consultations.value = result.items
-          totalConsultations.value = result.total
-          listSource.value = 'database'
-        } else {
-          const demo = await api.demo()
-          if (token !== epoch || listToken !== listEpoch) return
-          const matches = demo.session_id.includes(query.trim())
-          consultations.value =
-            matches && offset === 0
-              ? [
-                  {
-                    session_id: demo.session_id,
-                    consultation_round: demo.consultation_round,
-                    message_count: demo.messages.length,
-                    updated_at: demo.imported_at || '',
-                    evaluation_status: null,
-                  },
-                ]
-              : []
-          totalConsultations.value = matches ? 1 : 0
-          listSource.value = 'demo'
-        }
+        const matches = demos.filter((demo) => demo.session_id.includes(query.trim()))
+        let storedStatuses = new Map<string, ConsultationItem['evaluation_status']>()
+        try {
+          const stored = await api.consultations(0, '')
+          if (stored?.database_configured)
+            storedStatuses = new Map(stored.items.map((item) => [item.session_id, item.evaluation_status]))
+        } catch { /* 演示目录仍可独立读取；点开订单会读取其持久化报告。 */ }
+        if (token !== epoch || listToken !== listEpoch) return
+        consultations.value = matches.slice(offset, offset + 5).map((demo) => ({
+          session_id: demo.session_id,
+          consultation_round: demo.consultation_round,
+          message_count: demo.messages.length,
+          updated_at: demo.imported_at || '',
+          evaluation_status: storedStatuses.get(demo.session_id) ?? null,
+        }))
+        totalConsultations.value = matches.length
+        listSource.value = 'demo'
       }
       if (token === epoch && listToken === listEpoch) {
         listOffset.value = offset
@@ -183,27 +225,100 @@ export function useConsole() {
       if (token === epoch) loading.value = false
     }
   }
-  async function run() {
-    if (!session.value || running.value || loading.value) return
+  async function runAll() {
+    if (running.value || loading.value || listing.value) return
     const token = epoch
-    const submittedId = session.value.session_id
+    const selectedSessionId = session.value?.session_id
     running.value = true
     errors.value.run = ''
+    batchProgress.value = { total: 0, completed: 0, succeeded: 0, failed: 0, currentId: '' }
     try {
-      const result =
-        mode.value === 'preview' ? previewReport(session.value) : await api.evaluate(session.value)
-      if (result.session_id !== submittedId)
-        throw new Error('返回报告与本次会话不一致，已阻止展示。')
-      if (token === epoch) {
-        report.value = result
-        lastRun.value = new Date().toISOString()
-        if (mode.value === 'preview')
-          previewDetails.set(submittedId, { session: session.value!, report: result })
-        consultations.value = consultations.value.map((item) =>
-          item.session_id === submittedId ? { ...item, evaluation_status: result.status } : item,
-        )
-        await refreshRecent()
+      let allSessions: Session[]
+      if (mode.value === 'preview') {
+        allSessions = previewData().map((detail) => detail.session)
+      } else {
+        // A legacy single-session endpoint cannot prove the complete imported scope.
+        allSessions = await api.demoSessions()
       }
+      if (token !== epoch) return
+      if (!allSessions.length) throw new Error('当前没有可评估的合成咨询订单。')
+      if (new Set(allSessions.map((item) => item.session_id)).size !== allSessions.length)
+        throw new Error('咨询目录包含重复 ID，已阻止批量评估。')
+      batchProgress.value.total = allSessions.length
+      const failures: string[] = []
+      const completedReports: Report[] = []
+      const sessionOutcomes: BatchRun['sessions'] = []
+      for (const item of allSessions) {
+        if (token !== epoch) return
+        batchProgress.value.currentId = item.session_id
+        try {
+          const result = mode.value === 'preview' ? previewReport(item) : await api.evaluate(item)
+          if (result.session_id !== item.session_id)
+            throw new Error('返回报告与提交的咨询 ID 不一致。')
+          if (mode.value === 'preview')
+            previewDetails.set(item.session_id, { session: item, report: result })
+          completedReports.push(result)
+          const reportRowsForSession = reportRows(result)
+          const pendingCount = reportRowsForSession.filter(
+            (row) => !['verified', 'not_applicable'].includes(row.verdict.code),
+          ).length
+          const riskCandidate = /风险表达候选|合成风险情境|当前自伤|安全风险候选/.test(
+            result.review_reasons.join(' '),
+          )
+          sessionOutcomes.push({
+            session_id: item.session_id,
+            status: result.status,
+            risk_level: riskCandidate ? 'high' : pendingCount ? 'medium' : 'low',
+            pending_count: pendingCount,
+          })
+          if (selectedSessionId === item.session_id) report.value = result
+          consultations.value = consultations.value.map((listed) =>
+            listed.session_id === item.session_id
+              ? { ...listed, evaluation_status: result.status }
+              : listed,
+          )
+          batchProgress.value.succeeded++
+          lastRun.value = new Date().toISOString()
+        } catch (error) {
+          batchProgress.value.failed++
+          failures.push(`${item.session_id}：${(error as Error).message}`)
+          sessionOutcomes.push({ session_id: item.session_id, status: 'failed', risk_level: 'unknown', pending_count: 0 })
+        } finally {
+          batchProgress.value.completed++
+        }
+      }
+      batchProgress.value.currentId = ''
+      if (failures.length) errors.value.run = `有 ${failures.length} 条未完成：${failures.join('；')}`
+      const high = sessionOutcomes.filter((item) => item.risk_level === 'high').length
+      const medium = sessionOutcomes.filter((item) => item.risk_level === 'medium').length
+      const low = sessionOutcomes.filter((item) => item.risk_level === 'low').length
+      const totalRows = completedReports.flatMap((result) => reportRows(result))
+      const verifiedItems = totalRows.filter((row) => row.verdict.code === 'verified').length
+      const pendingItems = totalRows.filter((row) => !['verified', 'not_applicable'].includes(row.verdict.code)).length
+      const trustedScores = completedReports.map(overallScore).filter((score): score is number => score !== null)
+      const hasDemoFallback = completedReports.some((result) =>
+        result.limitations.some((item) => item.includes('固定演示规则')),
+      )
+      const qualitySummary = completedReports.length === 0
+        ? '本批没有会话完成评价，暂时无法判断平台服务质量。'
+        : trustedScores.length === completedReports.length
+          ? `本批 ${completedReports.length} 轮均通过总分门槛，质量评分均值为 ${(trustedScores.reduce((sum, score) => sum + score, 0) / trustedScores.length * 20).toFixed(1)} 分（满分 100）。高风险候选 ${high} 轮仍需人工复核。`
+          : `本批完成 ${completedReports.length} 轮评价，${verifiedItems} 项核验通过，${pendingItems} 项待复核；识别到 ${high} 轮高风险候选。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到正式总分门槛，暂不能给出服务质量达标结论。`
+      const batchRun: BatchRun = {
+        batch_id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        created_at: new Date().toISOString(),
+        total: allSessions.length,
+        succeeded: batchProgress.value.succeeded,
+        failed: batchProgress.value.failed,
+        high,
+        medium,
+        low,
+        quality_summary: qualitySummary,
+        sessions: sessionOutcomes,
+      }
+      batchRuns.value = [batchRun, ...batchRuns.value].slice(0, 10)
+      persistBatchRuns(batchRuns.value)
+      if (mode.value === 'service') await refreshRecent()
     } catch (error) {
       if (token === epoch) errors.value.run = (error as Error).message
     } finally {
@@ -227,6 +342,7 @@ export function useConsole() {
     listing.value = false
     listError.value = ''
     listSource.value = 'unavailable'
+    batchProgress.value = { total: 0, completed: 0, succeeded: 0, failed: 0, currentId: '' }
     errors.value = { session: '', run: '', recent: '', ready: '' }
     connected.value = false
     loading.value = false
@@ -245,6 +361,8 @@ export function useConsole() {
     recent,
     loading,
     running,
+    batchProgress,
+    batchRuns,
     checking,
     errors,
     connected,
@@ -264,7 +382,7 @@ export function useConsole() {
     initialize,
     setMode,
     loadSession,
-    run,
+    runAll,
     checkService,
     refreshRecent,
   }

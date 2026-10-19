@@ -1,3 +1,4 @@
+// 环节：前端 API 契约层；用途：定义前后端共享的数据结构和 TypeScript 类型。
 import { z } from 'zod'
 
 const strings = z.array(z.string()).default([])
@@ -163,6 +164,42 @@ export const ReportSchema = z
       .default([]),
     review_required: z.boolean().default(false),
     review_reasons: strings,
+    team: z.object({
+      model_call_count: z.number(),
+      stop_reason: z.string().nullable().optional(),
+      usage: z.object({
+        requests: z.number(),
+        input_characters: z.number(),
+        prompt_tokens: z.number(),
+        completion_tokens: z.number(),
+        usage_reported_requests: z.number(),
+      }).optional(),
+    }).optional(),
+    investigation: z.object({
+      stop_reason: z.string(),
+      uncovered_metric_ids: strings,
+      attempts: z.record(z.string(), z.number()),
+      model_call_count: z.number().optional(),
+      model_call_limit: z.number().optional(),
+      metric_statuses: z.record(z.string(), z.enum([
+        'evaluated', 'not_applicable', 'insufficient_evidence', 'manual_review',
+      ])).optional(),
+      preflight_history: z.object({
+        required: z.boolean(), status: z.string(), issues: strings,
+      }).optional(),
+      observations: z.array(z.object({
+        step: z.number(),
+        action: z.string(),
+        question: z.string(),
+        status: z.string(),
+        issues: strings.optional(),
+        metric_ids: strings.optional(),
+        tool_name: z.string().optional(),
+        verification: z.array(z.object({
+          metric_id: z.string(), status: z.string(), reason: z.string(),
+        })).optional(),
+      }).passthrough()),
+    }).nullable().optional(),
     summary_status: z
       .enum(['completed', 'partial', 'failed', 'not_configured', 'skipped'])
       .nullable()

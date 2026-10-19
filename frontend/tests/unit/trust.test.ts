@@ -1,3 +1,4 @@
+// 环节：前端测试层；用途：验证前端组件逻辑、API 客户端和展示工具。
 import { describe, expect, it } from 'vitest'
 import {
   FindingSchema,

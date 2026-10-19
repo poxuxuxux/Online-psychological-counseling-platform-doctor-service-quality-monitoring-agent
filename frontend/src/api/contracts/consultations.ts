@@ -1,3 +1,4 @@
+// 环节：前端 API 契约层；用途：定义前后端共享的数据结构和 TypeScript 类型。
 import { z } from 'zod'
 import { SessionSchema, ReportSchema } from './evaluation'
 

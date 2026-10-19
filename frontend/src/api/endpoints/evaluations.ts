@@ -1,3 +1,4 @@
+// 环节：前端 API 接入层；用途：封装 HTTP 通信及后端业务接口调用。
 import { z } from 'zod'
 import { request } from '../client/http'
 import { ConsultationListSchema, ConsultationDetailSchema } from '../contracts/consultations'
@@ -10,6 +11,21 @@ import {
 } from '../contracts/evaluation'
 
 export const api = {
+  demoSessions: () => request('/api/v1/demo/sessions', z.array(SessionSchema)),
+  demoDetail: (id: string) =>
+    request(`/api/v1/demo/sessions/${encodeURIComponent(id)}`, ConsultationDetailSchema),
+  reviews: (evaluationId: string, accessCode = '') =>
+    request(`/api/v1/evaluations/${encodeURIComponent(evaluationId)}/reviews`, z.object({
+      items: z.array(z.object({
+        review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
+        decision: z.string(), reason: z.string(), created_at: z.string(),
+      })),
+    }), { headers: accessCode ? { 'X-Demo-Review-Key': accessCode } : {} }),
+  addReview: (input: { evaluation_id: string; finding_id: string; decision: string; reason: string }, accessCode = '') =>
+    request(`/api/v1/evaluations/${encodeURIComponent(input.evaluation_id)}/reviews`,
+      z.object({ review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
+        decision: z.string(), reason: z.string(), created_at: z.string() }),
+      { method: 'POST', headers: { 'Content-Type': 'application/json', ...(accessCode ? { 'X-Demo-Review-Key': accessCode } : {}) }, body: JSON.stringify(input) }),
   consultations: (offset = 0, query = '') =>
     request(
       `/api/v1/consultations?limit=5&offset=${offset}&query=${encodeURIComponent(query)}`,
@@ -27,7 +43,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session),
       },
-      90000,
+      600000,
     ),
   recent: () => request('/api/v1/evaluations/recent?limit=20', RecentSchema),
   health: () => request('/health', z.object({ status: z.string() })),

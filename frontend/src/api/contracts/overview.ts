@@ -1,3 +1,4 @@
+// 环节：前端 API 契约层；用途：定义前后端共享的数据结构和 TypeScript 类型。
 import { z } from 'zod'
 const count = z.number().int().nonnegative()
 const score = z.number().min(0).max(100).nullable()
@@ -5,7 +6,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const OverviewSchema = z
   .object({
     available: z.boolean(),
-    source: z.enum(['postgresql', 'offline-preview']),
+    source: z.enum(['postgresql', 'sqlite', 'offline-preview']),
     days: z.number().int().min(1).max(90),
     period_start: date,
     period_end: date,
@@ -27,18 +28,18 @@ export const OverviewSchema = z
     dimensions: z
       .array(
         z.object({
-          dimension_id: z.enum(['D1', 'D2', 'D3', 'D4', 'D5', 'D6']),
+          dimension_id: z.string().min(1),
           name: z.string(),
           average: score,
           sample_count: count,
         }),
       )
-      .length(6),
+      .min(1),
     trend: z.array(z.object({ date, average: score, sample_count: count })),
   })
   .superRefine((data, ctx) => {
     const c = data.counts
-    if (new Set(data.dimensions.map((d) => d.dimension_id)).size !== 6)
+    if (new Set(data.dimensions.map((d) => d.dimension_id)).size !== data.dimensions.length)
       ctx.addIssue({ code: 'custom', message: '维度重复' })
     if (data.available && Object.values(c).some((v) => v === null))
       ctx.addIssue({ code: 'custom', message: '统计计数缺失' })

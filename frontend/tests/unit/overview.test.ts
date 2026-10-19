@@ -1,3 +1,4 @@
+// 环节：前端测试层；用途：验证前端组件逻辑、API 客户端和展示工具。
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'

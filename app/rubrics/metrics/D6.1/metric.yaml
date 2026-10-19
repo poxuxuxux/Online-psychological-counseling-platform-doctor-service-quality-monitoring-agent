@@ -1,0 +1,69 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+schema_version: '1.0'
+metric_id: D6.1
+name: 风险信号回应
+version: 0.3.0-draft
+status: published
+owner: empathy_relationship
+definition: 患者明确表达严重风险信号时，医生是否识别并作出与情境相应的安全询问或风险回应。
+applicability:
+  applicable_when:
+  - 患者本次明确表达自伤、自杀或其他严重安全担忧，进入医生安全回应行为检查；不据此诊断危险程度。
+  - 患者本次提及既往相关行为，同时表达当前安全担忧或寻求安全评估；既往事实本身不自动证明当前紧迫性。
+  not_applicable_when:
+  - 完整范围没有明确风险表达或可核实相关线索；孤立关键词不能证明触发或排除。
+  insufficient_context_when:
+  - 当前咨询边界、完整范围、说话人、合理回应机会或必要原始内容缺失，无法可靠判断。
+  - 与本项相关的关键上下文或必要工具事实缺失，不能区分未观察到与确实未发生。
+  - 出现含糊绝望、比喻或转述，关键语境缺失且不能确认是否为患者当前安全表达；保留复核，不用关键词断定风险。
+evidence:
+  allowed_sources:
+  - current_dialogue
+  required_checks:
+  - 并列定位患者风险表达、医生相关询问和回应；泛泛提醒不等于充分处理。
+  - 检查医生是否澄清当前安全状态、时间紧迫性及与情境有关的支持条件；已可靠提供的信息可确认使用，不要求重复完整问卷。
+  - 对原文明确的当前不能保持安全或正在发生的伤害，检查是否及时转向现实安全支持；不要求为了凑齐询问而延误必要行动。
+  - 逐条核对当前消息ID、说话人、消息类型、连续原文与引用范围；患者与医生证据分别引用。
+  - 检查前后文、否定及适用条件，保留反证与材料冲突；负向判断核对完整性和回应机会。
+  forbidden_uses:
+  - 不得把历史互动、自动通知、资料卡存在或模板词语本身当成本次已完成的医生服务行为。
+  - 不得从缺失片段、媒体占位、未提供工具事实或未检索到行为直接推断低质量。
+  - 不得生成缺失的咨询行为、文献依据、时间结果或患者心理诊断；不以评分推断治疗正确性。
+score_values:
+- 1
+- 2
+- 3
+- 4
+- 5
+anchors:
+- score: 5
+  criteria: 立即识别风险信号并作出与情境相应的安全询问或风险回应
+- score: 4
+  criteria: 识别风险但回应略不足
+- score: 3
+  criteria: 识别风险但回应有限
+- score: 2
+  criteria: 识别迟钝或回应方式不当
+- score: 1
+  criteria: 完全忽视明确的风险信号
+manual_review:
+- rule_id: rubric_unpublished
+  condition: 当前skill.spec.status为draft；本次仅观察，分数为空，须待规则审定后才能形成确定性评分。
+- rule_id: source_incomplete
+  condition: 关键原始消息、必要转写或当前服务事实缺失、被截断或无法读取，可能改变判断。
+- rule_id: context_ambiguous
+  condition: 说话人、咨询边界、回应机会或语句含义不能可靠确定，补充前后文后仍不能消除歧义。
+- rule_id: source_conflict
+  condition: 本次材料中的关键事实互相冲突，无法确认来源或时效，不能可靠选择支持结论的依据。
+- rule_id: anchor_ambiguous
+  condition: 事实已经较明确，但无法可靠区分相邻评分锚点，或草案未覆盖当前必要情境。
+- rule_id: professional_protocol_pending
+  condition: 存在明确安全求助或风险回应检查需要，但专业规范及线上职责尚未审定，不能判断处理充分性。
+- rule_id: safety_response_gap
+  condition: 明确安全担忧已触发，观察完整且有回应机会，医生仅无关回应、淡化、泛泛安慰，或未处理原文可定位的关键安全问题，须优先专业复核。
+- rule_id: urgent_safety_review
+  condition: 原文明确表达当前不能保持自身安全、伤害正在发生或明确即刻安全求助；即使医生已有相关回应，也保留优先人工核查，不由本指标诊断风险等级。
+- rule_id: special_population_protocol
+  condition: 本次安全评价涉及未成年人、保护责任或其他需要专门流程的情境，当前项目未提供适用的专业规范，不能直接套用成人工具。
+required_tools:
+- evidence_locator

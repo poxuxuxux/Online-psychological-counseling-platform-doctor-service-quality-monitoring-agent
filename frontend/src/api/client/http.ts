@@ -1,4 +1,13 @@
+// 环节：前端 API 接入层；用途：封装 HTTP 通信及后端业务接口调用。
 import type { z } from 'zod'
+
+let privateAccessToken = ''
+export function setPrivateAccessToken(value: string) {
+  privateAccessToken = value.trim()
+}
+export function hasPrivateAccessToken() {
+  return Boolean(privateAccessToken)
+}
 
 export class ApiError extends Error {
   constructor(
@@ -21,14 +30,19 @@ export async function request<T>(
     const response = await fetch(path, {
       ...options,
       signal: controller.signal,
-      headers: { Accept: 'application/json', ...options.headers },
+      headers: {
+        Accept: 'application/json',
+        ...(privateAccessToken && path.startsWith('/api/')
+          ? { Authorization: `Bearer ${privateAccessToken}` } : {}),
+        ...options.headers,
+      },
       cache: 'no-store',
     })
     if (!response.ok) {
       // Do not surface validation bodies containing submitted consultation content.
       const messages: Record<number, string> = {
         400: '服务拒绝了当前请求，请确认使用合成演示数据。',
-        401: '登录状态已失效，请通过平台重新登录。',
+        401: '私有数据访问令牌无效，请在服务连接中重新设置。',
         403: '没有访问权限。',
         404: '该功能尚未在当前服务部署。',
         422: '数据格式与后端约定不一致，请检查消息编号和字段。',
