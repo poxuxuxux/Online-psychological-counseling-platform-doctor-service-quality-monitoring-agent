@@ -2,44 +2,74 @@
 
 本文以当前仓库代码为准，说明系统运行链路、模块边界、目录和文件职责。新增代码时请在文件头写明“环节”和“用途”，并同步更新对应目录说明。
 
-## 总体架构
+## Agent 架构：外层评价流程
 
 ```mermaid
 flowchart TD
-    A[前端工作台 / API / CLI] --> B[FastAPI 路由与鉴权]
-    B --> C[组合根 bootstrap.py<br/>注入模型、仓储、指标目录]
-    C --> D[Workflow 外层 LangGraph]
-    D --> E[会话预处理与 Session Context Manager]
-    E --> F{Session Type Router}
-    F -->|初诊 / UNKNOWN| G[Initial Context<br/>会话事实与历史可用性]
-    F -->|复诊| H[Historical Data Tool<br/>同一患者+医生的更早记录]
-    H --> I[历史评价 / 风险 / 总结]
-    I --> J[Context Builder<br/>隔离历史背景，防止旧分数锚定]
-    G --> K[Evaluation Team Lead]
-    J --> K
-    K --> L[Team Initialization<br/>按指标目录初始化评估任务]
-    L --> M[Agent Team Runtime 子图]
-    subgraph Team[每次评价独立的团队状态]
-      M --> N[Evaluator Agents / 必要时 Reviewer]
-      N --> O[Observe → Reason → Act → Save]
-      O --> P[Shared Task Board / Evidence Store]
-      O --> Q[Message Bus / Session Context Store]
-      P --> N
-      Q --> N
-    end
-    M --> R[Completion Check]
-    R --> S[Evidence Validator]
-    S --> T[Scoring Engine]
-    T --> U[Risk Classifier]
-    U --> V[Summary Generator]
-    V --> W[Longitudinal Analyzer]
-    W --> X[评价报告]
-    X --> Y[Evaluation Storage<br/>报告、运行状态与审计]
-    Y -. 下一次复诊的历史上下文 .-> H
-    Y --> Z[API 查询 / 前端展示]
+    A[医患会话 / 前端导入 / API / CLI] --> B[FastAPI 输入校验与私有数据鉴权]
+    B --> C[预处理：消息排序、时间统一、原文保存]
+    C --> D[Session Context Manager]
+    D --> E{初诊、复诊或未知？}
+    E -->|初诊：身份可信且历史完整| F[Initial Context]
+    E -->|复诊：找到同患者同医生的更早会话| G[Historical Data Tool]
+    E -->|未知：无法可靠确认历史| H[Unknown Context]
+    G --> I[Historical Context Builder<br/>历史评价、风险与服务总结]
+    F --> J[Evaluation Team Lead]
+    H --> J
+    I --> J
+    J --> K[Team Initialization<br/>从 metric.yaml 快照分配 18 项指标]
+    K --> L[Agent Team Runtime：动态协作子图]
+    L --> M[Completion Check：任务、指标、消息是否完结]
+    M --> N[Evidence Validator：原文、事实、适用性、评分锚点]
+    N --> O[Scoring Engine：只汇总通过校验的分数]
+    O --> P[Risk Classifier：服务质量风险]
+    P --> Q[Summary Generator]
+    Q --> R[Longitudinal Analyzer]
+    R --> S[Report Builder]
+    S --> T[Evaluation Storage：报告与审计]
+    T --> U[前端查询与人工复核]
+    T -. 作为后续复诊的历史资料 .-> G
 ```
 
-外层图由后端确定性控制节点顺序、超时、失败处理和恢复；内层团队图按 Agent 的任务状态、消息和证据动态轮转。Agent 可决定是否协作、交换证据、查可授权的历史事实、请求冲突复核或修订自己负责的评分。工具权限、预算、证据格式、分数计算及风险策略仍由后端校验。界面展示阶段与审计事件，不把模型私有推理文本当作可验证证据。
+复诊分支并不自动把旧分数交给评价 Agent：常规观察只给会话类型与历史可用性；只有指标允许、且 Agent 说明理由时，`get_previous_evaluations` 才返回受限历史事实。`UNKNOWN` 是独立状态，不推定为初诊。这里的风险分级指**医生服务质量风险**，不等同于患者临床风险判断。
+
+## Agent 架构：内层团队循环
+
+```mermaid
+flowchart TD
+    A[Team Initialization] --> B[共享任务板 / 共享证据 / 消息总线 / 冲突与事件日志]
+    B --> C[Schedule：选择就绪 Agent、检查预算与冲突]
+    C --> D[Observe：装配本轮任务上下文]
+    D --> E[Reason：模型并行给出结构化工具决策]
+    E --> F[Act：后端依次校验并执行工具]
+    F --> G[Save：持久化检查点与审计事件]
+    G --> C
+    C -->|全部完成或达到预算| H[返回外层 Completion Check]
+
+    subgraph Agents[三名主责评价 Agent]
+      A1[Agent A：D1 + D3]
+      A2[Agent B：D2 + D5]
+      A3[Agent C：D4 + D6]
+    end
+    C --> Agents
+    Agents --> D
+    F <--> B
+    C -->|事实冲突或主动请求| V[临时独立 Reviewer]
+    V --> D
+
+    subgraph Tools[受控工具层]
+      T1[预加载：read_skill / get_dialogue]
+      T2[指标需要时预计算：time_calculator]
+      T3[按需：查证据、知识与获准的历史]
+      T4[按需：共享证据、消息、请求复核]
+      T5[提交评价 / 修订本人评分 / 完成任务]
+    end
+    F --> Tools
+```
+
+`read_skill` 是项目中的规则加载工具，相当于常说的 load-skill；现行运行时会在首轮推理前自动加载。`time_calculator` 在负责指标的 `metric.yaml` 声明为必需工具时预计算首次回复与相邻回复间隔，缺乏可靠时间起点时不生成首次回复数字。模型负责选择受控动作，后端负责工具权限、证据约束、预算、校验、评分与存储；模型内部推理文本不作为证据。
+
+PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bucket 时，会话原文及运行快照加密压缩后存入 Bucket，PostgreSQL 保留对象引用。外层和内层都在节点边界保存检查点，支持失败后的恢复。
 
 ## 后端执行顺序
 
