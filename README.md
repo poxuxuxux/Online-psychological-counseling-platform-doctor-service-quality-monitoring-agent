@@ -34,7 +34,7 @@ app/
   team/            任务状态、共享证据、消息工具、独立 Reviewer、动态子图
   evaluation/      证据语义校验、确定性评分、服务风险、总结、纵向分析、报表
   workflow/        外层 StateGraph、依赖编排、恢复入口和总超时
-  infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配
+  infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配、加密 Bucket 对象存储
   api/            HTTP 参数、鉴权、响应；不实现评分规则
   bootstrap.py    组合根：注入模型、仓储、Skill 和知识库
   config.py       运行预算与环境配置
@@ -106,7 +106,7 @@ app/
 
 新增 `team_sessions`、`team_runs`、`team_tasks`、`team_evidence`、`team_messages`、`team_events`、`team_human_reviews`，不删除旧表。启动执行幂等建表；后续 schema 变更应新增迁移。
 
-每步模型请求前预留预算并保存状态，工具动作后将整个快照和协作审计在同一事务提交。恢复从已提交的节点边界继续；进程在模型调用中崩溃时，该调用可能重发，但已预留调用数不会回退。已提交消息不会丢失或重复发送，未提交的内存动作不对外可见。数据库租约防止同一 run 被两个 worker 同时执行；崩溃后等待租约过期，再调用 execute 或 CLI resume。主动取消释放租约。
+每步模型请求前预留预算并保存状态。启用 Bucket 后，会话原文与完整运行快照先加密压缩上传，数据库只在事务中写对象引用、报告和协作审计；上传失败不会把新引用写进数据库。跨服务无法做到严格原子提交，数据库提交失败可能留下未引用对象，清理时必须先核对数据库引用。恢复从已提交的节点边界继续；进程在模型调用中崩溃时，该调用可能重发，但已预留调用数不会回退。已提交消息不会丢失或重复发送，未提交的内存动作不对外可见。数据库租约防止同一 run 被两个 worker 同时执行；崩溃后等待租约过期，再调用 execute 或 CLI resume。主动取消释放租约。
 
 这是应用级节点快照恢复，不宣称提供 LangGraph 原生 checkpoint 的任意节点 time-travel。后续可以替换存储并增加原生 checkpointer，当前外部工具均为只读或事务内状态修改。
 
@@ -114,7 +114,15 @@ app/
 
 保留 `Dockerfile` 和 `railway.toml` 启动入口 `app.main:app`。在 **后端服务** Variables 中引用既有 PostgreSQL 服务的 `DATABASE_URL`；它由 Railway 注入，不需要复制密码到本地 `.env`。同时设置模型配置、`APP_ENV=production`、`EVALUATION_API_TOKEN`。`/health` 为存活检查，`/ready` 检查数据库并报告模型及规则状态。
 
-后端服务的 `DATABASE_URL` 建议使用 Railway 引用 `${{Postgres.DATABASE_URL}}`。部署后打开后端公网地址的 `/ready`，确认 `database.backend` 为 `postgresql`、`database.connected` 为 `true`、`model.configured` 为 `true`；接口不会暴露数据库密码。若 `model.configured` 为 `false`，在后端服务配置 `DEEPSEEK_API_KEY`、`DASHSCOPE_API_KEY` 或 `GLM_API_KEY` 中的一种。前端会在批量评价前检查模型状态并直接给出配置提示。
+后端服务的 `DATABASE_URL` 建议使用 Railway 引用 `${{Postgres.DATABASE_URL}}`。部署后打开后端公网地址的 `/ready`，确认 `database.backend` 为 `postgresql`、`database.connected` 为 `true`、`model.configured` 为 `true`；启用 Bucket 时还须确认 `database.bucket.connected` 为 `true`，否则 `/ready` 返回 503。接口不会暴露数据库密码。若 `model.configured` 为 `false`，在后端服务配置 `DEEPSEEK_API_KEY`、`DASHSCOPE_API_KEY` 或 `GLM_API_KEY` 中的一种。前端会在批量评价前检查模型状态并直接给出配置提示。
+
+### 对话 Bucket
+
+`conversation-files` 的变更先在 Railway 控制台 **Apply/Deploy**。后端服务需要从该 Bucket 引用 `BUCKET`、`ENDPOINT`、`REGION`、`ACCESS_KEY_ID`、`SECRET_ACCESS_KEY`，另设 `BUCKET_ENCRYPTION_KEY`。密钥使用 Fernet 格式，可在可信本机运行 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成，并安全备份；丢失后无法读取已上传对象，不能直接轮换旧密钥。密钥不要发到聊天、写入 Git 或配置到前端。只配部分 Bucket 变量或缺少加密密钥时后端拒绝启动，防止误把对话写回 PostgreSQL 或明文上传。
+
+配置完整时，`team_sessions.payload` 与 `team_runs.payload` 写入小型对象引用；完整会话和运行快照在 Bucket 中加密压缩保存。评价报告及任务、证据和消息审计仍写 PostgreSQL。旧内联记录仍可读。确认 Bucket 可访问并完成数据库备份后，可显式运行 `python -m app.cli migrate-bucket` 迁移旧行；失败会保留原行，命令可重复执行。PostgreSQL 的 UPDATE 不会立即缩小已有卷文件，空间回收需安排数据库维护，切勿在接近 500 MB 容量上直接执行需要额外空间的重写操作。
+
+已整理成 `Session` 结构的每会话 JSON 文件可用 `python -m app.cli import-directory <目录>` 导入；`data/longest_1000_sessions.json` 是原始平台线程格式，不能直接交给此命令。先按可信订单边界转换并检查隐私。`scripts.prepare_real_samples` 只生成少量测试样本，并不表示已导入全部 921 MiB。Bucket 本身不替代独立备份；Railway 当前 Bucket 不提供服务端加密、对象版本和自动快照，故这里在应用端加密。[Railway Bucket 文档](https://docs.railway.com/storage-buckets)
 
 直接访问后端公网域名时，FastAPI 已托管 `app/web` 前端，浏览器使用同源 `/api`，无需前端地址变量。若单独部署 `frontend/`，先为前端服务创建公网域名，再在**前端服务**配置构建变量 `VITE_API_URL=https://<后端公网域名>`，并在**后端服务**配置 `FRONTEND_ORIGINS=https://<前端公网域名>`。两个值都不带尾部 `/`，前端变量更改后需重新构建部署。`API_PROXY_TARGET` 仅供本地 Vite 开发服务器使用；`VITE_DATA_MODE` 当前未被应用代码读取。
 

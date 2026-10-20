@@ -7,11 +7,14 @@ No legacy platform table is altered or deleted.
 
 import asyncio
 import json
+import logging
 import sqlite3
 import time
 from pathlib import Path
 
 from app.domain.models import now
+
+log = logging.getLogger(__name__)
 
 
 class RunBusy(RuntimeError):
@@ -19,9 +22,10 @@ class RunBusy(RuntimeError):
 
 
 class Repository:
-    def __init__(self, url: str):
+    def __init__(self, url: str, object_store=None):
         self.postgres = url.startswith(("postgresql://", "postgres://"))
         self.url = url
+        self.object_store = object_store
         if not self.postgres and not url.startswith("sqlite:///"):
             raise ValueError("DATABASE_URL must use PostgreSQL or explicit local SQLite")
         if not self.postgres:
@@ -100,10 +104,21 @@ class Repository:
     async def readiness(self):
         try:
             await self._transaction([("SELECT 1 FROM team_runs LIMIT 1", ())])
+            bucket_connected = None
+            if self.object_store is not None:
+                try:
+                    await self.object_store.ping()
+                    bucket_connected = True
+                except Exception:  # noqa: BLE001 - readiness must not leak credentials/errors
+                    bucket_connected = False
             return {
                 "configured": True,
                 "connected": True,
                 "backend": "postgresql" if self.postgres else "sqlite",
+                "bucket": {
+                    "configured": self.object_store is not None,
+                    "connected": bucket_connected,
+                },
                 "checked_at": now(),
             }
         except Exception:  # noqa: BLE001 - readiness must not leak database credentials/errors
@@ -111,7 +126,12 @@ class Repository:
 
     async def save_session(self, session: dict):
         # Immutable input prevents later reports being paired with changed original dialogue.
-        data = json.dumps(session, sort_keys=True, ensure_ascii=False)
+        existing = await self.session(session["session_id"])
+        if existing is not None:
+            if existing != session:
+                raise ValueError("session_id already belongs to different immutable input")
+            return
+        data = await self._encode("sessions", session["session_id"], session)
         await self._transaction(
             [
                 (
@@ -130,9 +150,63 @@ class Repository:
                 )
             ]
         )
-        existing = await self.session(session["session_id"])
-        if existing != session:
+        if await self.session(session["session_id"]) != session:
             raise ValueError("session_id already belongs to different immutable input")
+
+    async def _encode(self, kind: str, identifier: str, value: dict) -> str:
+        if self.object_store is None:
+            return json.dumps(value, ensure_ascii=False)
+        reference = await self.object_store.put(kind, identifier, value)
+        if kind == "sessions":
+            # 列表接口只读轻量元数据，不为每个会话下载原文。
+            reference["session_id"] = value["session_id"]
+            reference["message_count"] = len(value["messages"])
+            reference["consultation_round"] = value["consultation_round"]
+        return json.dumps(reference, ensure_ascii=False)
+
+    async def _decode(self, payload: str) -> dict:
+        data = json.loads(payload)
+        if isinstance(data, dict) and data.get("__object_store_v1__") is True:
+            if self.object_store is None:
+                raise RuntimeError("Bucket credentials required to read stored records")
+            return await self.object_store.get(data)
+        return data
+
+    async def migrate_inline_payloads(self) -> dict:
+        """显式迁移旧行；先上传，再用旧 payload 做条件更新，失败时旧行仍可读。"""
+        if self.object_store is None:
+            raise ValueError("Bucket must be configured before migration")
+        counts = {"sessions": 0, "runs": 0}
+        for table, id_column, kind in (
+            ("team_sessions", "session_id", "sessions"),
+            ("team_runs", "run_id", "runs"),
+        ):
+            identifiers = (await self._transaction([(f"SELECT {id_column} FROM {table}", ())]))[0]
+            for (identifier,) in identifiers:
+                rows = (
+                    await self._transaction(
+                        [(f"SELECT payload FROM {table} WHERE {id_column}=?", (identifier,))]
+                    )
+                )[0]
+                if not rows:
+                    continue
+                previous = rows[0][0]
+                value = json.loads(previous)
+                if isinstance(value, dict) and value.get("__object_store_v1__") is True:
+                    continue
+                reference = await self._encode(kind, identifier, value)
+                changed = (
+                    await self._transaction(
+                        [
+                            (
+                                f"UPDATE {table} SET payload=? WHERE {id_column}=? AND payload=?",
+                                (reference, identifier, previous),
+                            )
+                        ]
+                    )
+                )[0]
+                counts[kind] += changed
+        return counts
 
     async def session(self, session_id):
         rows = (
@@ -140,7 +214,7 @@ class Repository:
                 [("SELECT payload FROM team_sessions WHERE session_id=?", (session_id,))]
             )
         )[0]
-        return json.loads(rows[0][0]) if rows else None
+        return await self._decode(rows[0][0]) if rows else None
 
     async def history(self, session: dict, limit=20):
         if not all(session.get(k) for k in ("patient_id", "doctor_id", "session_time")):
@@ -166,12 +240,14 @@ class Repository:
                 ]
             )
         )[0]
+        sessions = await asyncio.gather(*(self._decode(row[0]) for row in rows))
         return [
-            {"session": json.loads(row[0]), "report": json.loads(row[1]) if row[1] else None}
-            for row in rows
+            {"session": item, "report": json.loads(row[1]) if row[1] else None}
+            for item, row in zip(sessions, rows)
         ]
 
     async def create_run(self, state):
+        payload = await self._encode("runs", state["run_id"], state)
         await self._transaction(
             [
                 (
@@ -181,7 +257,7 @@ class Repository:
                         state["run_id"],
                         state["session"]["session_id"],
                         "pending",
-                        json.dumps(state, ensure_ascii=False),
+                        payload,
                         now(),
                         now(),
                     ),
@@ -193,7 +269,7 @@ class Repository:
         rows = (
             await self._transaction([("SELECT payload FROM team_runs WHERE run_id=?", (run_id,))])
         )[0]
-        return json.loads(rows[0][0]) if rows else None
+        return await self._decode(rows[0][0]) if rows else None
 
     async def claim(self, run_id, owner, seconds):
         changed = (
@@ -212,12 +288,18 @@ class Repository:
     async def checkpoint(self, state, owner):
         # CAS/lease check and snapshots + artifacts share one database transaction.
         # Lease ownership is checked by guarding every artifact INSERT against the run row.
+        previous = (
+            await self._transaction(
+                [("SELECT payload FROM team_runs WHERE run_id=?", (state["run_id"],))]
+            )
+        )[0]
+        payload = await self._encode("runs", state["run_id"], state)
         statements = [
             (
                 """UPDATE team_runs SET payload=?,report=?,status=?,updated_at=?
           WHERE run_id=? AND lease_owner=? AND lease_until>?""",
                 (
-                    json.dumps(state, ensure_ascii=False),
+                    payload,
                     json.dumps(state["report"], ensure_ascii=False)
                     if state.get("report")
                     else None,
@@ -255,6 +337,17 @@ class Repository:
                 )
         if (await self._transaction(statements))[0] != 1:
             raise RunBusy("run_lease_lost")
+        if self.object_store is not None and previous:
+            old_reference = json.loads(previous[0][0])
+            new_reference = json.loads(payload)
+            if (
+                old_reference.get("__object_store_v1__") is True
+                and old_reference["key"] != new_reference["key"]
+            ):
+                try:
+                    await self.object_store.delete(old_reference)
+                except Exception:  # noqa: BLE001 - committed checkpoint remains valid
+                    log.warning("Could not remove superseded run snapshot")
 
     async def release(self, run_id, owner):
         await self._transaction(
@@ -302,12 +395,12 @@ class Repository:
         )
         items = []
         for payload, updated, status in rows:
-            session = json.loads(payload)
+            record = json.loads(payload)
             items.append(
                 {
-                    "session_id": session["session_id"],
-                    "consultation_round": session["consultation_round"],
-                    "message_count": len(session["messages"]),
+                    "session_id": record["session_id"],
+                    "consultation_round": record["consultation_round"],
+                    "message_count": record.get("message_count", len(record.get("messages", []))),
                     "updated_at": updated,
                     "evaluation_status": status,
                 }

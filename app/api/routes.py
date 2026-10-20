@@ -53,10 +53,14 @@ async def health():
 async def ready(request: Request):
     c = request.app.state.container
     database = await c.repository.readiness()
+    bucket = database.get("bucket", {})
+    connected = database["connected"] and (
+        not bucket.get("configured") or bucket.get("connected") is True
+    )
     return JSONResponse(
-        status_code=200 if database["connected"] else 503,
+        status_code=200 if connected else 503,
         content={
-            "status": "ready" if database["connected"] else "not_ready",
+            "status": "ready" if connected else "not_ready",
             "database": database,
             "model": {"configured": c.model.configured},
             "skills": {

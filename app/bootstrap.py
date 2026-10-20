@@ -5,6 +5,7 @@ from app.config import Settings
 from app.context.service import preprocess
 from app.demo import sessions
 from app.infrastructure.model import JsonModelGateway
+from app.infrastructure.object_store import S3JsonStore
 from app.infrastructure.repository import Repository
 from app.rubrics.catalog import SkillCatalog, SkillKnowledgeSource
 from app.workflow.service import EvaluationService
@@ -21,7 +22,20 @@ class Container:
 
 async def build_container(settings=None, repository=None, model=None, catalog=None):
     settings = settings or Settings.from_env()
-    repository = repository or Repository(settings.database_url)
+    if repository is None:
+        store = (
+            S3JsonStore(
+                settings.bucket,
+                settings.bucket_endpoint,
+                settings.bucket_region,
+                settings.bucket_access_key,
+                settings.bucket_secret_key,
+                settings.bucket_encryption_key,
+            )
+            if settings.bucket
+            else None
+        )
+        repository = Repository(settings.database_url, object_store=store)
     model = model or JsonModelGateway()
     catalog = catalog or SkillCatalog(settings.skill_dir)
     await repository.initialize()

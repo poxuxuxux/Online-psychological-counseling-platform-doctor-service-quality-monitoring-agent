@@ -15,6 +15,7 @@ Infrastructure 实现 Ports，由组合根注入；Domain 不导入 FastAPI、La
 - 更换 Qwen/GLM 或增加供应商：实现 `ModelGateway.json` 并在 `bootstrap.py` 注入。
 - 对接平台历史表：实现 `EvaluationRepository.history` 和 `save_session`，必须保持医患双键、严格时间过滤、不可变输入及完整性契约。
 - 更换数据库：实现 Repository 接口；保持租约与 checkpoint 的原子性。默认 PostgreSQL 和本地 SQLite 共用 SQL 契约。
+- 更换对话对象存储：实现 `object_store.put/get/delete/ping`，在 `bootstrap.py` 注入。对象先上传，数据库再以事务提交引用；跨服务没有原子提交，上传失败不得替换旧引用。
 - 接知识库：实现 `KnowledgeSource.search`，返回版本和来源，禁止把规范文档当作当前医生行为证据。
 - 增加工具：更新 ToolCall 枚举、TOOL_HELP、TeamTools.execute；验证权限、输入、预算和恢复重放语义，再加行为测试。
 - 更改风险阈值或汇总策略：`evaluation/scoring.py`，升级 policy_version；不修改 Agent 评分。
@@ -27,7 +28,7 @@ Infrastructure 实现 Ports，由组合根注入；Domain 不导入 FastAPI、La
 `team.evidence` 存原文，`team.messages` 存传递状态，`context` 存当前/历史背景。
 
 Agent 只能提交 `metric_ids` 分派范围内的结果；Reviewer 无评分写权限。消息工具可以将接收任务重新激活。
-每个工具动作在内存中整体成功或回滚，然后由 save 节点原子持久化。模型不能传递任意 session_id 查询历史，
+每个工具动作在内存中整体成功或回滚。启用 Bucket 时，save 节点先上传加密快照，再由数据库事务提交引用和协作审计。模型不能传递任意 session_id 查询历史，
 历史范围始终来自可信 session 的患者、医生和时间。
 
 主图和子图都使用 LangGraph `StateGraph`。动态调度采用公平轮转，每次只执行一个 Agent 的决策；
@@ -47,3 +48,4 @@ checkpoint 在模型调用前记录预算，在工具成功后记录动作和消
 `test_api.py`：FastAPI 生命周期、前端兼容、身份边界、报告与审计读取、人工复核。
 `test_policies.py`：动态维度、Skill 冲突、风险保留、模型异常。
 `test_postgres.py`：可丢弃 PostgreSQL 的事务审计；CI 提供容器，默认本地没有测试地址时跳过。
+`test_object_storage.py`：Bucket 引用、加密校验、旧行迁移、上传失败回退和完整评价工作流。

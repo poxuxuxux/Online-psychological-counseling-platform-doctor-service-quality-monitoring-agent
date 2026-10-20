@@ -61,7 +61,7 @@ flowchart TD
 | `app/team` | Agent 团队运行 | 子图调度、任务/证据/消息状态、工具执行和冲突复核 |
 | `app/evaluation` | 结果后处理 | 证据校验、综合评分、风险、报告、总结与纵向分析 |
 | `app/workflow` | 总体编排 | 外层 LangGraph 顺序、恢复、超时和阶段持久化 |
-| `app/infrastructure` | 外部适配器 | 模型网关、PostgreSQL/SQLite 仓储、用量遥测 |
+| `app/infrastructure` | 外部适配器 | 模型网关、PostgreSQL/SQLite 仓储、加密 Bucket 对象存储、用量遥测 |
 | `frontend/src` | 操作工作台 | 会话与报告呈现、趋势/指标图表、复核与 API 客户端 |
 
 依赖方向为：API → 组合根 → Workflow → Context / Team / Evaluation → Domain Ports；Infrastructure 实现 Domain Ports 并由组合根注入。更细的维护约束见 [MODULES.md](MODULES.md)。
@@ -128,7 +128,8 @@ flowchart TD
 | `app/evaluation/analytics.py` | 分析层：汇总概览与评价统计数据。 |
 | `app/evaluation/__init__.py` | 声明评价后处理子包。 |
 | `app/infrastructure/model.py` | 模型适配器：调用配置的模型供应商并解析结构化决策。 |
-| `app/infrastructure/repository.py` | 存储适配器：SQLite/PostgreSQL 数据访问、事务、运行租约、审计和恢复快照。 |
+| `app/infrastructure/repository.py` | 存储适配器：SQLite/PostgreSQL 数据访问、对象引用、旧行迁移、运行租约、审计和恢复快照。 |
+| `app/infrastructure/object_store.py` | Bucket 适配器：将会话原文和运行快照加密压缩上传，读取时校验摘要，删除已被新快照取代的对象。 |
 | `app/infrastructure/telemetry.py` | 可观测性：收集模型调用 token/字符用量等上下文指标。 |
 | `app/infrastructure/__init__.py` | 声明基础设施子包。 |
 | `app/web/index.html`、`app/web/assets/` | 后端静态托管的前端构建产物，由前端构建/同步脚本生成；修改界面请编辑 `frontend/src`，不要手改压缩或带 hash 资源。 |

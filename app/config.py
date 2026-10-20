@@ -22,6 +22,12 @@ class Settings:
     model_timeout: float = 60
     total_timeout: float = 600
     seed_demo: bool = True
+    bucket: str = ""
+    bucket_endpoint: str = ""
+    bucket_region: str = ""
+    bucket_access_key: str = ""
+    bucket_secret_key: str = ""
+    bucket_encryption_key: str = ""
 
     @staticmethod
     def frontend_origins_from_env():
@@ -75,7 +81,24 @@ class Settings:
                 "SEED_DEMO", "true" if app_env in {"local", "test"} else "false"
             ).lower()
             == "true",
+            bucket=os.getenv("BUCKET", "").strip(),
+            bucket_endpoint=os.getenv("ENDPOINT", "").strip(),
+            bucket_region=os.getenv("REGION", "").strip(),
+            bucket_access_key=os.getenv("ACCESS_KEY_ID", "").strip(),
+            bucket_secret_key=os.getenv("SECRET_ACCESS_KEY", "").strip(),
+            bucket_encryption_key=os.getenv("BUCKET_ENCRYPTION_KEY", "").strip(),
         )
+        bucket_values = (
+            settings.bucket,
+            settings.bucket_endpoint,
+            settings.bucket_region,
+            settings.bucket_access_key,
+            settings.bucket_secret_key,
+        )
+        if any(bucket_values) and not all(bucket_values):
+            raise ValueError("Bucket requires BUCKET, ENDPOINT, REGION and both access keys")
+        if all(bucket_values) and not settings.bucket_encryption_key:
+            raise ValueError("Bucket storage requires BUCKET_ENCRYPTION_KEY")
         if any(
             getattr(settings, key) <= 0
             for key in (
