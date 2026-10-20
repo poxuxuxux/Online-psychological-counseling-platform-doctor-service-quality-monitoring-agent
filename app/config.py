@@ -2,12 +2,14 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
 class Settings:
     database_url: str = "sqlite:///./data/local/teams.sqlite3"
     api_token: str = ""
+    frontend_origins: tuple[str, ...] = ()
     skill_dir: Path = Path(__file__).parent / "rubrics" / "metrics"
     max_steps: int = 24
     max_rounds: int = 40
@@ -21,6 +23,27 @@ class Settings:
     total_timeout: float = 600
     seed_demo: bool = True
 
+    @staticmethod
+    def frontend_origins_from_env():
+        origins = tuple(
+            origin.strip().rstrip("/")
+            for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+            if origin.strip()
+        )
+        for origin in origins:
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or parsed.username
+                or origin == "*"
+            ):
+                raise ValueError("FRONTEND_ORIGINS must contain exact HTTP(S) origins")
+        return origins
+
     @classmethod
     def from_env(cls):
         app_env = os.getenv("APP_ENV", "local")
@@ -30,6 +53,7 @@ class Settings:
         settings = cls(
             database_url=db or cls.database_url,
             api_token=os.getenv("EVALUATION_API_TOKEN", ""),
+            frontend_origins=cls.frontend_origins_from_env(),
             skill_dir=Path(os.getenv("METRIC_SKILLS_DIR", str(cls.skill_dir))),
             **{
                 field: int(os.getenv("TEAM_" + field.upper(), str(getattr(cls, field))))

@@ -1,11 +1,31 @@
 # 环节：后端测试层；用途：验证接口、工作流、规则策略或数据持久化行为。
 from dataclasses import replace
 
+import httpx
 from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.main import create_app
 from tests.conftest import ScriptedModel
+
+
+async def test_cors_allows_only_configured_frontend_origin():
+    settings = replace(Settings(), frontend_origins=("https://frontend.example",))
+    transport = httpx.ASGITransport(app=create_app(settings=settings))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        headers = {
+            "Origin": "https://frontend.example",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        }
+        allowed = await client.options("/api/v1/evaluations", headers=headers)
+        assert allowed.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == "https://frontend.example"
+        blocked = await client.options(
+            "/api/v1/evaluations",
+            headers={**headers, "Origin": "https://unknown.example"},
+        )
+        assert "access-control-allow-origin" not in blocked.headers
 
 
 def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session):

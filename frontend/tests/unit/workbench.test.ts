@@ -13,6 +13,8 @@ let catalogUnavailable = false
 let resolveEvaluation: (() => void) | undefined
 let holdEvaluation = false
 let withInvestigation = false
+let modelConfigured: boolean | undefined
+let failedReportSessionId = ''
 beforeEach(() => {
   requests = []
   failEvaluation = false
@@ -20,6 +22,8 @@ beforeEach(() => {
   catalogUnavailable = false
   holdEvaluation = false
   withInvestigation = false
+  modelConfigured = undefined
+  failedReportSessionId = ''
   location.hash = 'workspace'
   vi.stubGlobal('matchMedia', () => ({ matches: true }))
   Element.prototype.scrollIntoView = vi.fn()
@@ -30,7 +34,8 @@ beforeEach(() => {
       if (path === '/health') return new Response(JSON.stringify({ status: 'ok' }))
       if (path === '/ready')
         return new Response(
-          JSON.stringify({ status: 'ready', database: { configured: false, connected: false } }),
+          JSON.stringify({ status: 'ready', database: { configured: false, connected: false },
+            ...(modelConfigured === undefined ? {} : { model: { configured: modelConfigured } }) }),
         )
       if (path.startsWith('/api/v1/evaluations/recent'))
         return new Response(JSON.stringify({ database_configured: false, items: [] }))
@@ -58,6 +63,10 @@ beforeEach(() => {
         if (failEvaluation || session.session_id === failSessionId)
           return new Response('{}', { status: 500 })
         const generated = previewReport(session)
+        if (session.session_id === failedReportSessionId) {
+          generated.status = 'failed'
+          generated.team = { model_call_count: 0, stop_reason: 'model_not_configured' }
+        }
         if (withInvestigation) generated.investigation = {
           stop_reason: 'agent_finished', uncovered_metric_ids: [], attempts: { 'D2.1': 1 },
           model_call_count: 7, model_call_limit: 48,
@@ -122,6 +131,20 @@ describe('workbench actual component interaction', () => {
     await evaluate()
     expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
     expect(app.get('.run-note').text()).toContain('成功 3 条，失败 0 条')
+  })
+  it('stops batch evaluation when the backend reports no model key', async () => {
+    modelConfigured = false
+    const app = await start()
+    await evaluate()
+    expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(0)
+    expect(app.text()).toContain('后端尚未配置模型密钥')
+  })
+  it('counts a failed backend report as a failed session', async () => {
+    failedReportSessionId = 'preview-synthetic-002'
+    const app = await start()
+    await evaluate()
+    expect(app.get('.run-note').text()).toContain('成功 2 条，失败 1 条')
+    expect(app.text()).toContain('model_not_configured')
   })
   it('continues the remaining sessions when one evaluation fails', async () => {
     failSessionId = 'preview-synthetic-002'

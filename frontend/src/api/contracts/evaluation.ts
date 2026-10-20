@@ -234,9 +234,11 @@ export const ReadySchema = z
       .object({
         configured: z.boolean(),
         connected: z.boolean(),
+        backend: z.enum(['postgresql', 'sqlite']).optional(),
         checked_at: z.string().optional(),
       })
       .passthrough(),
+    model: z.object({ configured: z.boolean() }).optional(),
   })
   .passthrough()
 export type Session = z.infer<typeof SessionSchema>

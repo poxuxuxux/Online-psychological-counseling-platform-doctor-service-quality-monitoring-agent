@@ -237,6 +237,10 @@ export function useConsole() {
       if (mode.value === 'preview') {
         allSessions = previewData().map((detail) => detail.session)
       } else {
+        const serviceReady = await api.ready()
+        ready.value = serviceReady
+        if (serviceReady.model?.configured === false)
+          throw new Error('后端尚未配置模型密钥。请在 Railway 后端服务设置 DEEPSEEK_API_KEY、DASHSCOPE_API_KEY 或 GLM_API_KEY。')
         // A legacy single-session endpoint cannot prove the complete imported scope.
         allSessions = await api.demoSessions()
       }
@@ -257,7 +261,7 @@ export function useConsole() {
             throw new Error('返回报告与提交的咨询 ID 不一致。')
           if (mode.value === 'preview')
             previewDetails.set(item.session_id, { session: item, report: result })
-          completedReports.push(result)
+          if (result.status !== 'failed') completedReports.push(result)
           const reportRowsForSession = reportRows(result)
           const pendingCount = reportRowsForSession.filter(
             (row) => !['verified', 'not_applicable'].includes(row.verdict.code),
@@ -268,7 +272,7 @@ export function useConsole() {
           sessionOutcomes.push({
             session_id: item.session_id,
             status: result.status,
-            risk_level: riskCandidate ? 'high' : pendingCount ? 'medium' : 'low',
+            risk_level: result.status === 'failed' ? 'unknown' : riskCandidate ? 'high' : pendingCount ? 'medium' : 'low',
             pending_count: pendingCount,
           })
           if (selectedSessionId === item.session_id) report.value = result
@@ -277,7 +281,12 @@ export function useConsole() {
               ? { ...listed, evaluation_status: result.status }
               : listed,
           )
-          batchProgress.value.succeeded++
+          if (result.status === 'failed') {
+            batchProgress.value.failed++
+            failures.push(`${item.session_id}：后端评价失败（${result.team?.stop_reason || '原因未提供'}）`)
+          } else {
+            batchProgress.value.succeeded++
+          }
           lastRun.value = new Date().toISOString()
         } catch (error) {
           batchProgress.value.failed++

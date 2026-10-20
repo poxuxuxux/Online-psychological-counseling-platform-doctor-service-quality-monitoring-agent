@@ -3,11 +3,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.bootstrap import build_container
+from app.config import Settings
 
 
 def create_app(settings=None, repository=None, model=None, catalog=None):
@@ -17,6 +19,14 @@ def create_app(settings=None, repository=None, model=None, catalog=None):
         yield
 
     app = FastAPI(title="Doctor Service Quality Agent Teams", version="2.0.0", lifespan=lifespan)
+    origins = settings.frontend_origins if settings else Settings.frontend_origins_from_env()
+    if origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(origins),
+            allow_methods=["GET", "POST"],
+            allow_headers=["Authorization", "Content-Type", "X-Demo-Review-Key"],
+        )
     app.include_router(router)
     web = Path(__file__).parent / "web"
     if (web / "assets").is_dir():

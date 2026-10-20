@@ -20,6 +20,7 @@ import { overallScore } from './utils/trust'
 import { downloadJson } from './utils/export'
 import { api } from './api/endpoints/evaluations'
 import { setPrivateAccessToken } from './api/client/http'
+const separateBackend = Boolean(import.meta.env.VITE_API_URL)
 const privateToken = ref('')
 const privateAccessEnabled = ref(false)
 async function applyPrivateAccess() {
@@ -1139,7 +1140,7 @@ onUnmounted(() => {
             <div class="panel-header">
               <div>
                 <h2>服务可用性</h2>
-                <p>服务存活与数据库连接分别检查。</p>
+                <p>检查服务、数据库类型与模型配置。</p>
               </div>
               <button
                 class="button secondary"
@@ -1163,10 +1164,18 @@ onUnmounted(() => {
                 <dd>
                   <StatusBadge :tone="ready?.database.connected ? 'success' : 'warning'">{{
                     ready?.database.connected
-                      ? '连接正常'
+                      ? `连接正常 · ${ready.database.backend === 'postgresql' ? 'PostgreSQL' : ready.database.backend === 'sqlite' ? 'SQLite' : '类型未知'}`
                       : ready?.database.configured
                         ? '已配置，连接未确认'
                         : '未配置或状态未知'
+                  }}</StatusBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>评价模型</dt>
+                <dd>
+                  <StatusBadge :tone="ready?.model?.configured ? 'success' : 'warning'">{{
+                    ready?.model?.configured ? '已配置' : ready?.model ? '未配置密钥' : '状态未知'
                   }}</StatusBadge>
                 </dd>
               </div>
@@ -1176,7 +1185,7 @@ onUnmounted(() => {
               </div>
               <div>
                 <dt>接口方式</dt>
-                <dd>同源 API，不在前端保存密钥</dd>
+                <dd>{{ separateBackend ? '独立后端 API' : '同源 API' }}，不在前端保存密钥</dd>
               </div>
             </dl>
             <p v-if="errors.ready" class="notice danger">{{ errors.ready }}</p>

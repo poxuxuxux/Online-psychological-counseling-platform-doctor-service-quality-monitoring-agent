@@ -114,4 +114,8 @@ app/
 
 保留 `Dockerfile` 和 `railway.toml` 启动入口 `app.main:app`。在 **后端服务** Variables 中引用既有 PostgreSQL 服务的 `DATABASE_URL`；它由 Railway 注入，不需要复制密码到本地 `.env`。同时设置模型配置、`APP_ENV=production`、`EVALUATION_API_TOKEN`。`/health` 为存活检查，`/ready` 检查数据库并报告模型及规则状态。
 
+后端服务的 `DATABASE_URL` 建议使用 Railway 引用 `${{Postgres.DATABASE_URL}}`。部署后打开后端公网地址的 `/ready`，确认 `database.backend` 为 `postgresql`、`database.connected` 为 `true`、`model.configured` 为 `true`；接口不会暴露数据库密码。若 `model.configured` 为 `false`，在后端服务配置 `DEEPSEEK_API_KEY`、`DASHSCOPE_API_KEY` 或 `GLM_API_KEY` 中的一种。前端会在批量评价前检查模型状态并直接给出配置提示。
+
+直接访问后端公网域名时，FastAPI 已托管 `app/web` 前端，浏览器使用同源 `/api`，无需前端地址变量。若单独部署 `frontend/`，先为前端服务创建公网域名，再在**前端服务**配置构建变量 `VITE_API_URL=https://<后端公网域名>`，并在**后端服务**配置 `FRONTEND_ORIGINS=https://<前端公网域名>`。两个值都不带尾部 `/`，前端变量更改后需重新构建部署。`API_PROXY_TARGET` 仅供本地 Vite 开发服务器使用；`VITE_DATA_MODE` 当前未被应用代码读取。
+
 该重构已准备部署配置，未自动发布到 Railway，也未连接生产库执行测试。旧独立 worker 入口已移除；运行与恢复统一通过新 API/CLI。若 Railway 原来还有旧 worker 服务，应停用旧 start command 或改为调用新运行接口。

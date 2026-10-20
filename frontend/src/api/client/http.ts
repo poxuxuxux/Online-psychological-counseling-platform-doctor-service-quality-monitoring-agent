@@ -1,6 +1,9 @@
 // 环节：前端 API 接入层；用途：封装 HTTP 通信及后端业务接口调用。
 import type { z } from 'zod'
 
+// 空值使用同源 API；独立部署前端时由构建变量指向后端公网地址。
+const apiBaseUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '')
+
 let privateAccessToken = ''
 export function setPrivateAccessToken(value: string) {
   privateAccessToken = value.trim()
@@ -27,7 +30,7 @@ export async function request<T>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   try {
-    const response = await fetch(path, {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
       ...options,
       signal: controller.signal,
       headers: {
@@ -47,6 +50,7 @@ export async function request<T>(
         404: '该功能尚未在当前服务部署。',
         422: '数据格式与后端约定不一致，请检查消息编号和字段。',
         429: '请求过于频繁，请稍后再试。',
+        503: '后端尚未就绪，请检查数据库连接与服务状态。',
       }
       throw new ApiError(
         messages[response.status] || `服务暂时不可用（${response.status}），请稍后重试。`,
