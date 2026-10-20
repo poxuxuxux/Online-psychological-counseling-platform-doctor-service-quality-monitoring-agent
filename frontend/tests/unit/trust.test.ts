@@ -107,6 +107,13 @@ describe('trust display policy', () => {
     r.verification_results = []
     expect(overallScore(r)).toBeNull()
   })
+  it('displays Agent scores without claiming independent verification in the new report mode', () => {
+    const r = report()
+    r.verification_mode = 'none'
+    r.verification_results = []
+    expect(reportRows(r)[0]!.verdict).toMatchObject({ code: 'agent_scored', text: 'Agent 已评分' })
+    expect(overallScore(r)).toBe(4)
+  })
   it('hides total under manual review gate', () => {
     const r = report()
     r.review_required = true

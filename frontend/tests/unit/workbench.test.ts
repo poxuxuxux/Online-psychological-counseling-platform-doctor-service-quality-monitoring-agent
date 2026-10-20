@@ -334,7 +334,7 @@ describe('workbench actual component interaction', () => {
     expect(app.findAll('.session-review-item')).toHaveLength(0)
     await app.get('.priority-count.priority-medium').trigger('click')
     expect(app.findAll('.session-review-item')).toHaveLength(3)
-    expect(app.findAll('.session-finding-item')[0]!.text()).toContain('D6.1')
+    expect(app.findAll('.session-finding-item').some((item) => item.text().includes('D6.1'))).toBe(true)
     expect(app.get('.priority-detail').text()).toContain('核查优先级：高')
     expect(app.get('.finding-detail .status-badge').text()).toBe('材料冲突')
     await app.get('.priority-count.priority-low').trigger('click')

@@ -11,9 +11,9 @@ from app.context.service import SessionContextManager, build_history_context, pr
 from app.domain.models import Session, uid
 from app.evaluation.reporting import build_report, longitudinal, summarize
 from app.evaluation.scoring import classify_risk, score
-from app.evaluation.validation import EvidenceValidator
 from app.infrastructure.repository import RunBusy
 from app.infrastructure.telemetry import model_usage
+from app.team.conflicts import finalize_conflicts
 from app.team.runtime import GraphState, TeamRuntime
 from app.team.state import active_findings, initialize_team
 from app.team.tools import TeamTools
@@ -27,7 +27,6 @@ STAGES = [
     "team_initialization",
     "team_runtime",
     "completion_check",
-    "evidence_validator",
     "scoring_engine",
     "risk_classifier",
     "summary_generator",
@@ -72,6 +71,9 @@ class EvaluationService:
             state = await self.repository.get_run(run_id)
             if state.get("report") and state["next_stage"] == "done":
                 return state["report"]
+            # 旧版本检查点可能停在已移除的独立校验节点。
+            if state["next_stage"] == "evidence_validator":
+                state["next_stage"] = "scoring_engine"
             previous_elapsed = state["elapsed_seconds"]
             usage_records = list(state.get("model_usage", []))
             usage_token = model_usage.set(usage_records)
@@ -120,7 +122,6 @@ class EvaluationService:
         context_manager = SessionContextManager(self.repository)
         tools = TeamTools(self.settings, self.knowledge)
         runtime = TeamRuntime(self.settings, self.model, tools, persist)
-        validator = EvidenceValidator(self.settings, self.model, persist)
         graph = StateGraph(GraphState)
 
         async def process(name, state):
@@ -158,6 +159,7 @@ class EvaluationService:
             elif name == "completion_check":
                 if "team_runtime" not in data["completed_stages"]:
                     data["completed_stages"].append("team_runtime")
+                finalize_conflicts(data["team"])
                 findings = active_findings(data["team"])
                 missing = sorted(set(data["skills"]["metrics"]) - set(findings))
                 tasks_done = all(t["status"] == "COMPLETED" for t in data["team"]["tasks"].values())
@@ -202,9 +204,6 @@ class EvaluationService:
                                 "revision_count": 0,
                                 "supersedes_finding_id": None,
                             }
-                next_stage = "evidence_validator"
-            elif name == "evidence_validator":
-                data["checks"] = await validator.validate(data)
                 next_stage = "scoring_engine"
             elif name == "scoring_engine":
                 data["quality_profile"] = score(data)

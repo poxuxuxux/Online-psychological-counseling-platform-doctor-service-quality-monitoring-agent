@@ -44,9 +44,9 @@ const checks = computed(() => [
       v-if="row.finding.score !== null && row.finding.applicability === 'applicable'"
       class="candidate-score"
     >
-      <span>{{ row.verdict.code === 'verified' ? '核验后分数' : 'Agent 初评分' }}</span
+      <span>{{ row.verdict.code === 'verified' ? '核验后分数' : 'Agent 评分' }}</span
       ><strong>{{ row.finding.score.toFixed(1) }}<small> / 5</small></strong
-      ><span v-if="row.verdict.code !== 'verified'">未进入确定性评分</span>
+      ><span v-if="!['verified', 'agent_scored'].includes(row.verdict.code)">未进入综合评分</span>
     </div>
     <section class="detail-section">
       <h4>
@@ -82,7 +82,7 @@ const checks = computed(() => [
         }}
       </p>
     </section>
-    <section class="detail-section">
+    <section v-if="report.verification_mode !== 'none'" class="detail-section">
       <h4>证据核验</h4>
       <p v-if="!v" class="notice">
         后端尚未返回本项的结构化核验结果。能找到原话，不代表语义和评分依据已经核验。

@@ -181,7 +181,7 @@ const finalScore = computed(() => {
   const score = overallScore(report.value)
   return score === null ? null : score * 20
 })
-const verifiedCount = computed(() => rows.value.filter((r) => r.verdict.code === 'verified').length)
+const scoredCount = computed(() => rows.value.filter((r) => ['verified', 'agent_scored'].includes(r.verdict.code)).length)
 const currentTitle = computed(() => nav.find((n) => n.id === page.value)?.name || '评估工作台')
 const isDemoMapping = computed(() => rows.value.some((r) => /^D[1-6]$/.test(r.finding.metric_id)))
 const actionableDrafts = computed(() =>
@@ -580,8 +580,8 @@ onUnmounted(() => {
             <div class="track-step">
               <span>3</span>
               <div>
-                <strong>证据核验</strong
-                ><small>{{ report ? `${verifiedCount} 项核验通过` : '等待核验结果' }}</small>
+                <strong>评分汇总</strong
+                ><small>{{ report ? `${scoredCount} 项已计分` : '等待评价结果' }}</small>
               </div>
             </div>
             <Icon name="chevron" :size="16" />
@@ -658,7 +658,7 @@ onUnmounted(() => {
                   <p>
                     {{
                       report
-                        ? `${rows.length} 项评价 · ${verifiedCount} 项核验通过`
+                        ? `${rows.length} 项评价 · ${scoredCount} 项已计分`
                         : '三个专业视角，共同回到原文'
                     }}
                   </p>
@@ -673,7 +673,7 @@ onUnmounted(() => {
                 </div>
                 <h3>让每条评价都有依据</h3>
                 <p>
-                  开始评估后，可查看评价理由、对应原话和核验状态。未解决的证据问题会保留到复核列表。
+                  开始评估后，可查看 Agent 评分、评价理由与对应原话。未解决的问题会保留到复核列表。
                 </p>
                 <button
                   class="button primary"
@@ -693,21 +693,21 @@ onUnmounted(() => {
                   <p>{{ report.summary }}</p>
                   <div class="summary-counts">
                     <span
-                      ><strong>{{ verifiedCount }}</strong
-                      >核验通过</span
+                      ><strong>{{ scoredCount }}</strong
+                      >已计分</span
                     ><span
                       ><strong>{{ pending.length }}</strong
                       >待核查</span
                     ><span
                       ><strong>{{ finalScore === null ? '—' : finalScore.toFixed(1) }}</strong
-                      >确定性总分（满分100）</span
+                      >综合总分（满分100）</span
                     >
                   </div>
                   <p class="small">
                     {{
                       finalScore === null
-                        ? '尚不满足确定性评分展示条件；初评分不进行前端平均。'
-                        : '总分来自后端评分汇总器。'
+                        ? '尚不满足综合评分展示条件；前端不自行平均 Agent 分数。'
+                        : '总分由后端按 metric.yaml 权重汇总 Agent 评分；未经过独立语义校验。'
                     }}
                   </p>
                 </div>
@@ -752,7 +752,7 @@ onUnmounted(() => {
                           v-if="
                             r.finding.applicability === 'applicable' && r.finding.score !== null
                           "
-                          >{{ r.verdict.code === 'verified' ? '分' : '初评' }}</small
+                          >{{ ['verified', 'agent_scored'].includes(r.verdict.code) ? '分' : '初评' }}</small
                         ></span
                       ><Icon name="chevron" :size="16"
                     /></span>
@@ -1257,9 +1257,9 @@ onUnmounted(() => {
             </div>
             <div class="capability-row">
               <span
-                ><strong>真实模型与完整证据核验</strong
-                ><small>演示后端当前使用确定性规则；页面仅展示实际返回的核验字段。</small></span
-              ><StatusBadge tone="warning">尚待完善</StatusBadge>
+                ><strong>Agent 评价与评分</strong
+                ><small>后端直接汇总 Agent 提交且符合输入约束的评分；未设置独立语义核验环节。</small></span
+              ><StatusBadge>已接入</StatusBadge>
             </div>
             <div class="capability-row">
               <span

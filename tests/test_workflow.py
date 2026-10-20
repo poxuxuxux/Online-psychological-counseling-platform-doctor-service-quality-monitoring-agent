@@ -72,11 +72,15 @@ async def test_history_identity_time_unknown_and_no_score_anchoring(make_service
             assert "latest_evaluation" not in payload
 
 
-async def test_missing_semantic_claim_checks_block_scores(make_service, session):
-    service, _ = await make_service(ScriptedModel(invalid_checks=True))
+async def test_scoring_skips_independent_semantic_model_pass(make_service, session):
+    model = ScriptedModel(invalid_checks=True)
+    service, _ = await make_service(model)
     report = await service.evaluate(session)
-    assert report["quality_profile"]["overall_score"] is None
-    assert report["review_required"]
+    assert report["quality_profile"]["overall_score"] == 5
+    assert report["verification_mode"] == "none"
+    assert report["verification_results"] == []
+    assert "evidence_validator" not in report["pipeline_stages"]
+    assert not any(p.get("purpose") == "evidence_validation" for p in model.payloads)
 
 
 async def test_no_model_never_fabricates_scores(make_service, session):

@@ -32,7 +32,7 @@ app/
   context/         对话规范化、医患关系查询、初复诊路由、历史上下文
   rubrics/         现有 metric.yaml + SKILL.md、动态目录加载和版本哈希
   team/            任务状态、共享证据、消息工具、独立 Reviewer、动态子图
-  evaluation/      证据语义校验、确定性评分、服务风险、总结、纵向分析、报表
+  evaluation/      评分汇总、服务风险、总结、纵向分析、报表
   workflow/        外层 StateGraph、依赖编排、恢复入口和总超时
   infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配、加密 Bucket 对象存储
   api/            HTTP 参数、鉴权、响应；不实现评分规则
@@ -45,7 +45,7 @@ app/
 
 ## 执行流程
 
-主图节点：预处理 → Session Context → Initial / Historical Context → Team Lead → Team Initialization → Team Subgraph → Completion Check → Evidence Validator → Scoring → Risk → Summary → Longitudinal Analysis → Report → Storage。
+主图节点：预处理 → Session Context → Initial / Historical Context → Team Lead → Team Initialization → Team Subgraph → Completion Check → Scoring → Risk → Summary → Longitudinal Analysis → Report → Storage。独立 Evidence Validator 已移除。
 
 团队子图：`schedule → observe → reason → act → save → schedule`。不是一次并行评分后结束；每一步根据当前观察调用工具，并重新进入调度。
 
@@ -78,15 +78,15 @@ app/
 
 18 个指标以 `metric.yaml` 的 `status` 字段为发布状态唯一依据。配套 `SKILL.md` 已同步为遵循该状态：published 指标可以按已发布锚点评分；证据不足、材料冲突或无法区分锚点时仍须留空并触发相应人工复核。
 
-模型请求仅携带 `metric.yaml` 的结构化规则，避免重复传入旧版说明中的接口和候选锚点。规则与对话由程序预载；Agent 仍可主动取证、协作和修正。核验输出的 `issues` 只接受阻断错误代码，普通说明进入 `notes`。有效的语义核验指出评分或引用错误时，原评价者最多自动修正一次，随后独立复核；无法解决的问题保留待复核，不直接放行。
+模型请求仅携带 `metric.yaml` 的结构化规则，避免重复传入旧版说明中的接口和候选锚点。规则与对话由程序预载；Agent 仍可主动取证、协作和修正。已移除独立模型语义校验及其自动修正调用；报告明确标记 `verification_mode=none`，前端显示“Agent 已评分”，不声称经过独立核验。
 
 新报告的 `team.usage` 记录供应商返回的输入/输出 token、实际记录用量的请求数与输入字符数，前端报告中可展开查看。旧报告没有 token 统计，不把缺失统计当作零成本。模型超时和服务错误每个 Agent 最多连续累计两次后停止，避免预算空转。
 
 可运行 `python -m scripts.prepare_real_samples` 从本地真实数据流式选取 3 份订单范围样本，输出到忽略提交的 `data/private/quality-samples`。不会把跨年线程当作一次问诊，也不会截断长订单来伪装完整会话。样本去除原始身份元数据及可识别的姓名、联系方式，但自由文本不保证完全匿名，必须保留私有访问。没有明确结束事件时 `observation_complete=false`，没有明确接诊事件时不生成首次响应计时起点。
 
-分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。语义校验逐项核验事实、适用性和评分锚点；缺项、引文不匹配、未决冲突不计分。总分使用 Skill 权重均值，默认等权；所有适用指标覆盖并通过校验且团队任务完成，才生成总分。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，证据充分且无标记为 low；证据不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
+分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。提交工具仍校验指标归属、发布状态、分数锚点取值、原文证据引用、时间事实和显式复核规则；未解决冲突或缺项不计分。这里不再有独立的事实/适用性/评分语义复核，Agent 判断可能有误。总分使用 Skill 权重均值，默认等权；所有适用指标可计分且团队任务完成，才生成总分。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，覆盖不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
 
-总结由确定性模板和已核验结果生成自然语言，不额外让 LLM 编造事实。纵向分析仅在规则哈希一致且两次总分均有效时计算变化；历史来源、限额及不可比原因保留。
+总结由确定性模板和 Agent 的可计分结果生成自然语言，不额外让 LLM 编造事实。纵向分析仅在规则哈希一致且两次总分均有效时计算变化；历史来源、限额及不可比原因保留。
 
 ## API 与权限
 

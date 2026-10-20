@@ -311,8 +311,7 @@ class TeamTools:
                 raise ValueError("Risk flag requires original evidence")
             for claim in f.claims:
                 self.check_evidence(team, claim.evidence_ids)
-                # Lift already validated claim references to the parent finding. This is
-                # bookkeeping, not evidence invention; semantic checks still inspect every claim.
+                # 将已经通过引用约束的 claim 证据归并到 Finding，供计分输入检查使用。
                 f.evidence_ids = list(dict.fromkeys(f.evidence_ids + claim.evidence_ids))
                 if claim.polarity == "absent" and not state["session"]["observation_complete"]:
                     raise ValueError("Absence claim requires complete observation")

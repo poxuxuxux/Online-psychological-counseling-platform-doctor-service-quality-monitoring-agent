@@ -2,7 +2,7 @@
 import type { Evidence, Finding, Report, Session, Verification } from '../api/contracts/evaluation'
 
 export type Verdict = {
-  code: 'verified' | 'pending' | 'insufficient' | 'conflict' | 'not_applicable'
+  code: 'verified' | 'agent_scored' | 'pending' | 'insufficient' | 'conflict' | 'not_applicable'
   text: string
   tone: 'success' | 'warning' | 'danger' | 'neutral'
 }
@@ -13,7 +13,7 @@ export type Row = {
   verification?: Verification
   verdict: Verdict
 }
-export function verdict(f: Finding, v?: Verification, agentStatus = 'completed'): Verdict {
+export function verdict(f: Finding, v?: Verification, agentStatus = 'completed', mode = 'independent'): Verdict {
   if (f.applicability === 'not_applicable')
     return { code: 'not_applicable', text: '不适用', tone: 'neutral' }
   if (f.applicability === 'insufficient_context')
@@ -34,6 +34,10 @@ export function verdict(f: Finding, v?: Verification, agentStatus = 'completed')
     v?.reference_status === 'missing'
   )
     return { code: 'insufficient', text: '证据不足', tone: 'warning' }
+  if (mode === 'none')
+    return agentStatus === 'completed' && f.score !== null
+      ? { code: 'agent_scored', text: 'Agent 已评分', tone: 'neutral' }
+      : { code: 'pending', text: '待复核', tone: 'warning' }
   const completeClaims =
     v &&
     v.claims.length > 0 &&
@@ -81,7 +85,11 @@ export function reportRows(report: Report | null): Row[] {
         (v) => v.finding_id === row.finding.finding_id,
       )
       const verification = checks.length === 1 ? checks[0] : undefined
-      return { ...row, verification, verdict: verdict(row.finding, verification, row.agentStatus) }
+      const unresolved = report.arbitration_decisions.some((decision) =>
+        decision.status === 'unresolved' && decision.metric_ids.includes(row.finding.metric_id))
+      return { ...row, verification, verdict: unresolved
+        ? { code: 'conflict' as const, text: '材料冲突', tone: 'danger' as const }
+        : verdict(row.finding, verification, row.agentStatus, report.verification_mode) }
     })
 }
 export function overallScore(report: Report | null): number | null {
@@ -94,7 +102,8 @@ export function overallScore(report: Report | null): number | null {
     return null
   const active = reportRows(report).filter((r) => r.verdict.code !== 'not_applicable')
   if (new Set(active.map((r) => r.finding.metric_id)).size !== active.length) return null
-  if (!active.length || active.some((r) => r.verdict.code !== 'verified')) return null
+  const accepted = report.verification_mode === 'none' ? 'agent_scored' : 'verified'
+  if (!active.length || active.some((r) => r.verdict.code !== accepted)) return null
   const profile = report.quality_profile
   return profile?.coverage_gate_passed ? profile.overall_score : null
 }

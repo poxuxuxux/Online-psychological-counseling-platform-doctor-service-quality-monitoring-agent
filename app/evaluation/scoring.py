@@ -1,9 +1,31 @@
-# 环节：评价结果后处理层；用途：负责证据校验、评分、风险、报告或统计分析。
+# 环节：评价结果后处理层；用途：汇总 Agent 评分并计算服务质量风险。
 from app.team.state import active_findings
 
 
+def score_eligible(state, mid, finding):
+    """Use an assigned Agent's structured result; no independent semantic model pass."""
+    if not finding or finding["status"] != "EVALUATED" or finding["score"] is None:
+        return False
+    spec = state["skills"]["metrics"][mid]
+    if (
+        spec["status"] != "published"
+        or spec["configuration_issues"]
+        or finding["score"] not in spec["score_values"]
+        or finding["review_rule_ids"]
+        or not finding["evidence_ids"]
+        or not finding["claims"]
+    ):
+        return False
+    if any(eid not in state["team"]["evidence"] for eid in finding["evidence_ids"]):
+        return False
+    return not any(
+        conflict["status"] != "RESOLVED" and mid in conflict["metric_ids"]
+        for conflict in state["team"]["conflicts"].values()
+    )
+
+
 def score(state):
-    metrics, checks = state["skills"]["metrics"], state["checks"]
+    metrics = state["skills"]["metrics"]
     findings = active_findings(state["team"])
     dimensions, total_weight, weighted, required, accepted = [], 0, 0, 0, 0
     for dimension in state["dimension_ids"]:
@@ -12,10 +34,9 @@ def score(state):
             if spec["dimension_id"] != dimension:
                 continue
             f = findings.get(mid)
-            valid = checks.get(mid, {}).get("accepted", False)
-            if f and f["status"] == "NOT_APPLICABLE" and valid:
+            if f and f["status"] == "NOT_APPLICABLE" and not f["review_rule_ids"]:
                 continue
-            value = f["score"] if f and valid and f["status"] == "EVALUATED" else None
+            value = f["score"] if score_eligible(state, mid, f) else None
             items.append((value, spec["weight"]))
         count = sum(value is not None for value, _ in items)
         coverage = count / len(items) if items else 1.0
@@ -55,12 +76,12 @@ def classify_risk(state):
     if flags:
         level, reasons = "high", ["serious_service_risk_requires_human_review"]
     elif any(
-        f["risk"] == "service_gap" and state["checks"].get(mid, {}).get("accepted")
+        f["risk"] == "service_gap" and score_eligible(state, mid, f)
         for mid, f in findings.items()
     ):
-        level, reasons = "medium", ["validated_service_gap"]
+        level, reasons = "medium", ["agent_reported_service_gap"]
     elif profile["overall_score"] is None:
-        level, reasons = "unknown", ["insufficient_validated_coverage"]
+        level, reasons = "unknown", ["insufficient_scored_coverage"]
     elif profile["overall_score"] < 3:
         level, reasons = "high", ["service_quality_score_below_3"]
     elif profile["overall_score"] < 4:

@@ -66,7 +66,7 @@ export function useConsole() {
   let epoch = 0
   const rows = computed(() => reportRows(report.value))
   const pending = computed(() =>
-    rows.value.filter((r) => !['verified', 'not_applicable'].includes(r.verdict.code)),
+    rows.value.filter((r) => !['verified', 'agent_scored', 'not_applicable'].includes(r.verdict.code)),
   )
   async function refreshRecent() {
     const token = epoch
@@ -243,7 +243,7 @@ export function useConsole() {
           if (result.status !== 'failed') completedReports.push(result)
           const reportRowsForSession = reportRows(result)
           const pendingCount = reportRowsForSession.filter(
-            (row) => !['verified', 'not_applicable'].includes(row.verdict.code),
+            (row) => !['verified', 'agent_scored', 'not_applicable'].includes(row.verdict.code),
           ).length
           const riskCandidate = /风险表达候选|合成风险情境|当前自伤|安全风险候选/.test(
             result.review_reasons.join(' '),
@@ -281,8 +281,8 @@ export function useConsole() {
       const medium = sessionOutcomes.filter((item) => item.risk_level === 'medium').length
       const low = sessionOutcomes.filter((item) => item.risk_level === 'low').length
       const totalRows = completedReports.flatMap((result) => reportRows(result))
-      const verifiedItems = totalRows.filter((row) => row.verdict.code === 'verified').length
-      const pendingItems = totalRows.filter((row) => !['verified', 'not_applicable'].includes(row.verdict.code)).length
+      const scoredItems = totalRows.filter((row) => ['verified', 'agent_scored'].includes(row.verdict.code)).length
+      const pendingItems = totalRows.filter((row) => !['verified', 'agent_scored', 'not_applicable'].includes(row.verdict.code)).length
       const trustedScores = completedReports.map(overallScore).filter((score): score is number => score !== null)
       const hasDemoFallback = completedReports.some((result) =>
         result.limitations.some((item) => item.includes('固定演示规则')),
@@ -291,7 +291,7 @@ export function useConsole() {
         ? '本批没有会话完成评价，暂时无法判断平台服务质量。'
         : trustedScores.length === completedReports.length
           ? `本批 ${completedReports.length} 轮均通过总分门槛，质量评分均值为 ${(trustedScores.reduce((sum, score) => sum + score, 0) / trustedScores.length * 20).toFixed(1)} 分（满分 100）。高风险候选 ${high} 轮仍需人工复核。`
-          : `本批完成 ${completedReports.length} 轮评价，${verifiedItems} 项核验通过，${pendingItems} 项待复核；识别到 ${high} 轮高风险候选。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到正式总分门槛，暂不能给出服务质量达标结论。`
+          : `本批完成 ${completedReports.length} 轮评价，${scoredItems} 项已计分，${pendingItems} 项待复核；识别到 ${high} 轮高风险候选。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到总分门槛，暂不能给出服务质量达标结论。`
       const batchRun: BatchRun = {
         batch_id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         created_at: new Date().toISOString(),

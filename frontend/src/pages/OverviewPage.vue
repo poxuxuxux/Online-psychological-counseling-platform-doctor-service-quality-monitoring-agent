@@ -125,7 +125,7 @@ const trendRows = computed(() => data.value?.trend.filter((p) => p.average !== n
           </div>
           <ul class="hero-features" aria-label="评价机制">
             <li><Icon name="check" :size="15" />六维服务评价</li>
-            <li><Icon name="check" :size="15" />原文证据核验</li>
+            <li><Icon name="check" :size="15" />原文证据引用</li>
             <li><Icon name="check" :size="15" />修正过程留痕</li>
           </ul>
         </div>
@@ -202,7 +202,7 @@ const trendRows = computed(() => data.value?.trend.filter((p) => p.average !== n
           <div v-else class="empty-state chart-empty">
             <Icon name="pulse" :size="36" />
             <h3>{{ loading ? '正在读取维度评分' : '暂无可绘制的维度评分' }}</h3>
-            <p>通过证据核验并生成正式评分后，在此展示雷达图。</p>
+            <p>完成评分并满足汇总条件后，在此展示雷达图。</p>
           </div>
           <div class="table-scroll">
             <table class="data-table dimension-averages">

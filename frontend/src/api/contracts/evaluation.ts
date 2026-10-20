@@ -127,6 +127,7 @@ export const ReportSchema = z
   .object({
     evaluation_id: z.string().min(1),
     session_id: z.string().min(1),
+    verification_mode: z.enum(['independent', 'none']).optional(),
     status: z.enum(['completed', 'partial', 'failed']),
     agent_results: z
       .array(
