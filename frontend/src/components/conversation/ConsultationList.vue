@@ -15,7 +15,7 @@ const props = defineProps<{
   selecting: boolean
   disabled: boolean
   error: string
-  source: 'preview' | 'database' | 'demo' | 'unavailable'
+  source: 'preview' | 'database' | 'access_required' | 'unavailable'
 }>()
 const emit = defineEmits<{ select: [id: string]; refresh: [offset: number, query: string] }>()
 const search = ref(props.query)
@@ -36,8 +36,8 @@ watch(
           ? '数据库记录'
           : source === 'preview'
             ? '3 条合成样例'
-            : source === 'demo'
-              ? '后端演示记录'
+            : source === 'access_required'
+              ? '需要访问令牌'
               : '列表暂不可用'
       }}</StatusBadge>
     </div>
@@ -138,10 +138,12 @@ watch(
       <small>{{
         selecting
           ? '正在加载所选咨询，请稍候…'
-          : source === 'demo'
-            ? '数据库暂无可用记录或列表接口尚未部署，当前仅展示内置演示。'
+          : source === 'access_required'
+            ? '真实咨询受保护。请在“服务连接”中输入访问令牌；演示样例可用顶部“查看离线样例”。'
             : source === 'preview'
               ? '离线合成数据，用于演示 ID 切换；不代表真实咨询。'
+            : source === 'database' && !total
+              ? '数据库中没有真实咨询记录。请先通过受保护接口导入会话。'
               : '每页最多展示 5 条，点击 ID 查看已有报告。'
       }}</small>
       <div>

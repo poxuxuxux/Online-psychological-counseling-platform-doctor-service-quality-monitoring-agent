@@ -44,7 +44,7 @@ export async function request<T>(
     if (!response.ok) {
       // Do not surface validation bodies containing submitted consultation content.
       const messages: Record<number, string> = {
-        400: '服务拒绝了当前请求，请确认使用合成演示数据。',
+        400: '服务拒绝了当前请求，请检查会话内容和请求参数。',
         401: '私有数据访问令牌无效，请在服务连接中重新设置。',
         403: '没有访问权限。',
         404: '该功能尚未在当前服务部署。',

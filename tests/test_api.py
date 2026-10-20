@@ -9,6 +9,22 @@ from app.main import create_app
 from tests.conftest import ScriptedModel
 
 
+def test_private_consultation_catalog_requires_token_and_excludes_demo(tmp_path, catalog, session):
+    settings = replace(
+        Settings(), database_url="sqlite:///" + str(tmp_path / "listing.sqlite3"),
+        api_token="test-token-at-least-24-characters", seed_demo=True,
+    )
+    headers = {"Authorization": "Bearer " + settings.api_token}
+    with TestClient(create_app(settings=settings, model=ScriptedModel(), catalog=catalog)) as client:
+        assert client.get("/api/v1/consultations?scope=private").status_code == 401
+        assert client.get("/api/v1/consultations?scope=private", headers=headers).json()["total"] == 0
+        imported = client.post("/api/v1/sessions", json=session.model_dump(mode="json"), headers=headers)
+        assert imported.status_code == 201
+        listing = client.get("/api/v1/consultations?scope=private", headers=headers).json()
+        assert listing["total"] == 1
+        assert [item["session_id"] for item in listing["items"]] == [session.session_id]
+
+
 async def test_cors_allows_only_configured_frontend_origin():
     settings = replace(Settings(), frontend_origins=("https://frontend.example",))
     transport = httpx.ASGITransport(app=create_app(settings=settings))
@@ -64,6 +80,10 @@ def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session)
             == run
         )
         assert client.get("/api/v1/consultations/s1").status_code == 401
+        assert client.get("/api/v1/consultations?scope=private").status_code == 401
+        private_list = client.get("/api/v1/consultations?scope=private", headers=headers).json()
+        assert private_list["total"] == 1
+        assert [item["session_id"] for item in private_list["items"]] == ["s1"]
         overview = client.get("/api/v1/evaluations/overview?days=7", headers=headers).json()
         assert overview["counts"]["scored"] == 1
         assert len(overview["trend"]) == 7

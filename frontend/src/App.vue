@@ -20,9 +20,43 @@ import { overallScore } from './utils/trust'
 import { downloadJson } from './utils/export'
 import { api } from './api/endpoints/evaluations'
 import { setPrivateAccessToken } from './api/client/http'
+import { SessionSchema } from './api/contracts/evaluation'
 const separateBackend = Boolean(import.meta.env.VITE_API_URL)
 const privateToken = ref('')
 const privateAccessEnabled = ref(false)
+const importing = ref(false)
+const importMessage = ref('')
+async function importSessions(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = [...(input.files || [])]
+  input.value = ''
+  if (!files.length) return
+  if (!privateAccessEnabled.value) {
+    importMessage.value = '请先输入私有数据访问令牌。'
+    return
+  }
+  importing.value = true
+  let imported = 0
+  const failures: string[] = []
+  for (const file of files) {
+    try {
+      if (file.size > 2_000_000) throw new Error('单个文件超过 2 MB，请按会话拆分。')
+      const parsed = SessionSchema.safeParse(JSON.parse(await file.text()))
+      if (!parsed.success) throw new Error('不是符合后端 Session 格式的 JSON。')
+      if (parsed.data.source_id === 'synthetic-demo') throw new Error('演示数据不能作为真实会话导入。')
+      await api.importSession(parsed.data)
+      imported++
+    } catch (error) {
+      failures.push(`${file.name}：${(error as Error).message}`)
+    }
+  }
+  importMessage.value = `已导入 ${imported}/${files.length} 份。${failures.length ? failures.join('；') : ''}`
+  importing.value = false
+  if (imported) {
+    await refreshConsultations(0, '')
+    if (consultations.value[0]) await selectConsultation(consultations.value[0].session_id)
+  }
+}
 async function applyPrivateAccess() {
   setPrivateAccessToken(privateToken.value)
   privateAccessEnabled.value = !!privateToken.value.trim()
@@ -203,7 +237,7 @@ async function start() {
     notify(
       mode.value === 'preview'
         ? `已评估 ${batchProgress.value.succeeded}/${batchProgress.value.total} 条离线样例，未运行模型。`
-        : `已评估 ${batchProgress.value.succeeded}/${batchProgress.value.total} 条合成咨询；请逐条查看报告与待复核项。`,
+        : `已评估 ${batchProgress.value.succeeded}/${batchProgress.value.total} 条真实咨询；请逐条查看报告与待复核项。`,
     )
   }
 }
@@ -398,7 +432,7 @@ onUnmounted(() => {
         </div>
         <div class="topbar-actions">
           <StatusBadge :tone="mode === 'preview' ? 'warning' : 'neutral'">{{
-            mode === 'preview' ? '离线样例' : '合成数据演示'
+            mode === 'preview' ? '离线样例' : privateAccessEnabled ? '私有数据模式' : '待授权'
           }}</StatusBadge
           ><button
             class="text-button mode-button"
@@ -425,7 +459,7 @@ onUnmounted(() => {
                 page === 'overview'
                   ? '汇总可信评分，了解服务质量与各维度表现。'
                   : page === 'workspace'
-                    ? '一键评价全部已接入合成咨询，再按订单核查依据。'
+                    ? '评价已导入的真实咨询，再按订单核查依据。'
                     : page === 'reports'
                       ? '查看服务端运行记录与当前报告。'
                       : page === 'review'
@@ -480,6 +514,12 @@ onUnmounted(() => {
             @select="openConsultation"
             @refresh="refreshConsultations"
           />
+          <div v-if="listSource === 'access_required'" class="notice">
+            真实会话需要访问令牌。<button class="text-button" @click="navigate('service')">前往服务连接设置</button>
+          </div>
+          <div v-else-if="listSource === 'database' && !totalConsultations && !listing" class="notice">
+            当前数据库没有已导入的真实会话。<button class="text-button" @click="navigate('service')">前往服务连接导入</button>
+          </div>
           <div v-if="errors.session" class="alert danger" role="alert">
             <strong>咨询记录加载失败</strong>
             <p>{{ errors.session }}</p>
@@ -514,7 +554,7 @@ onUnmounted(() => {
                   ? '离线合成样例'
                   : listSource === 'database'
                     ? '数据库记录'
-                    : '后端合成示例'
+                    : '尚未选择记录'
               }}</strong>
             </div>
           </section>
@@ -902,7 +942,7 @@ onUnmounted(() => {
               {{
                 mode === 'preview'
                   ? '离线样例不会写入后端数据库。'
-                  : '暂无匹配的运行记录。可先在工作台完成一次合成数据评估。'
+                  : '暂无匹配的运行记录。导入真实会话后可在工作台开始评估。'
               }}
             </p>
             <div class="panel-footer">
@@ -1196,17 +1236,23 @@ onUnmounted(() => {
             <form @submit.prevent="applyPrivateAccess">
               <label for="private-access-token">访问令牌</label>
               <input id="private-access-token" v-model="privateToken" type="password" autocomplete="off" placeholder="输入访问令牌" />
-              <button class="button secondary" type="submit" :disabled="running || mode === 'preview'">应用访问设置</button>
+              <button class="button secondary" type="submit" :disabled="running || importing || mode === 'preview'">应用访问设置</button>
               <button v-if="privateAccessEnabled" class="button secondary" type="button" :disabled="running" @click="privateToken = ''; applyPrivateAccess()">清除访问令牌</button>
             </form>
-            <p class="small">{{ privateAccessEnabled ? '已设置访问令牌，是否有效以接口响应为准。' : '未设置：仅显示公开合成数据。' }}</p>
+            <p class="small">{{ privateAccessEnabled ? '已设置访问令牌，是否有效以接口响应为准。' : '未设置：真实会话列表不会显示。' }}</p>
+            <div v-if="mode === 'service'" class="capability-row">
+              <span><strong>导入真实会话 JSON</strong><small>先用本地脚本将原始平台数据整理成每会话一个 Session JSON；文件只在点击选择后经授权上传到后端。</small></span>
+              <label class="button secondary" for="session-import">{{ importing ? '导入中…' : '选择会话文件' }}</label>
+              <input id="session-import" type="file" accept=".json,application/json" multiple :disabled="!privateAccessEnabled || importing || running" @change="importSessions" />
+            </div>
+            <p v-if="importMessage" class="small" role="status">{{ importMessage }}</p>
           </section>
           <section class="surface capability-panel">
             <div class="panel-header"><h2>功能接入边界</h2></div>
             <div class="capability-row">
               <span
-                ><strong>合成会话、评价请求与最近记录</strong
-                ><small>已按现有 API 契约接入，是否可用以实际请求为准。</small></span
+                ><strong>真实会话导入、评价请求与最近记录</strong
+                ><small>需访问令牌；真实记录从数据库列表读取，演示样例仅在离线模式使用。</small></span
               ><StatusBadge>已有接口</StatusBadge>
             </div>
             <div class="capability-row">
@@ -1223,9 +1269,9 @@ onUnmounted(() => {
             </div>
             <div class="capability-row">
               <span
-                ><strong>授权登录、真实数据导入与复核提交</strong
-                ><small>等待后端提供授权与保存接口，当前不开放真实数据上传。</small></span
-              ><StatusBadge tone="warning">尚未接入</StatusBadge>
+                ><strong>真实数据导入与复核提交</strong
+                ><small>已提供管理员令牌保护的逐会话导入与复核记录；多用户登录及权限分级仍待接入。</small></span
+              ><StatusBadge tone="warning">部分接入</StatusBadge>
             </div>
             <a
               class="button secondary docs-link"
@@ -1238,7 +1284,7 @@ onUnmounted(() => {
         </template>
         <footer class="page-footer">
           <span>心衡 · 服务质量辅助评估</span>
-          <p>合成数据演示。正式结论需核查证据与适用规则，并由授权人员复核。</p>
+          <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : '真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
         </footer>
       </main>
     </div>

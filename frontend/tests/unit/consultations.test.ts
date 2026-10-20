@@ -5,6 +5,7 @@ import { api } from '../../src/api/endpoints/evaluations'
 import { useConsole } from '../../src/composables/useConsole'
 import { ConsultationDetailSchema } from '../../src/api/contracts/consultations'
 import { previewSession, previewReport } from '../../src/data/preview'
+import { setPrivateAccessToken } from '../../src/api/client/http'
 vi.mock('../../src/api/endpoints/evaluations', () => ({
   api: {
     demo: vi.fn(),
@@ -18,20 +19,21 @@ vi.mock('../../src/api/endpoints/evaluations', () => ({
     recent: vi.fn(),
   },
 }))
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => {
+  vi.resetAllMocks()
+  setPrivateAccessToken('')
+})
 const detail = (index: number) => {
   const session = previewSession(index)
   return { session, report: previewReport(session) }
 }
 describe('consultation detail ownership', () => {
-  it('loads the complete synthetic catalog even when the database is empty', async () => {
-    vi.mocked(api.demoSessions).mockResolvedValue([previewSession()])
-    vi.mocked(api.demoDetail).mockResolvedValue({ session: previewSession(), report: null })
+  it('does not substitute synthetic sessions when private access is absent', async () => {
     const state = useConsole()
     await state.loadSession()
-    expect(state.listSource.value).toBe('demo')
-    expect(state.session.value?.messages).toHaveLength(6)
-    expect(state.report.value).toBeNull()
+    expect(state.listSource.value).toBe('access_required')
+    expect(state.session.value).toBeNull()
+    expect(api.demoSessions).not.toHaveBeenCalled()
     expect(api.consultation).not.toHaveBeenCalled()
   })
   it('drops an outstanding service detail after switching to offline mode', async () => {
@@ -49,11 +51,15 @@ describe('consultation detail ownership', () => {
   })
   it('reads a saved report without submitting another evaluation', async () => {
     const result = detail(1)
-    vi.mocked(api.demoSessions).mockResolvedValue([result.session])
-    vi.mocked(api.demoDetail).mockResolvedValue(result)
+    setPrivateAccessToken('a-private-test-token')
+    vi.mocked(api.consultations).mockResolvedValue({ database_configured: true, total: 1, items: [{
+      session_id: result.session.session_id, consultation_round: result.session.consultation_round,
+      message_count: result.session.messages.length, updated_at: '', evaluation_status: result.report.status,
+    }] })
+    vi.mocked(api.consultation).mockResolvedValue(result)
     const state = useConsole()
     await state.loadSession()
-    expect(state.listSource.value).toBe('demo')
+    expect(state.listSource.value).toBe('database')
     expect(state.report.value?.session_id).toBe(result.session.session_id)
     expect(api.evaluate).not.toHaveBeenCalled()
   })
@@ -94,11 +100,12 @@ describe('consultation detail ownership', () => {
     expect(state.rows.value).toHaveLength(0)
   })
   it('shows a catalog error instead of pretending records were loaded', async () => {
-    vi.mocked(api.demoSessions).mockRejectedValue(new Error('catalog unavailable'))
+    setPrivateAccessToken('a-private-test-token')
+    vi.mocked(api.consultations).mockRejectedValue(new Error('catalog unavailable'))
     const state = useConsole()
     await state.refreshConsultations()
     expect(state.listSource.value).toBe('unavailable')
     expect(state.listError.value).toBe('catalog unavailable')
-    expect(api.demo).not.toHaveBeenCalled()
+    expect(api.demoSessions).not.toHaveBeenCalled()
   })
 })

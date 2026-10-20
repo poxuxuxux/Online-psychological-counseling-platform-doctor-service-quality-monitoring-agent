@@ -26,13 +26,19 @@ export const api = {
       z.object({ review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
         decision: z.string(), reason: z.string(), created_at: z.string() }),
       { method: 'POST', headers: { 'Content-Type': 'application/json', ...(accessCode ? { 'X-Demo-Review-Key': accessCode } : {}) }, body: JSON.stringify(input) }),
-  consultations: (offset = 0, query = '') =>
+  consultations: (offset = 0, query = '', limit = 5) =>
     request(
-      `/api/v1/consultations?limit=5&offset=${offset}&query=${encodeURIComponent(query)}`,
+      `/api/v1/consultations?scope=private&limit=${limit}&offset=${offset}&query=${encodeURIComponent(query)}`,
       ConsultationListSchema,
     ),
   consultation: (id: string) =>
     request(`/api/v1/consultations/${encodeURIComponent(id)}`, ConsultationDetailSchema),
+  importSession: (session: Session) =>
+    request('/api/v1/sessions', z.object({ session_id: z.string() }), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session),
+    }),
   demo: () => request('/api/v1/demo/session', SessionSchema),
   evaluate: (session: Session) =>
     request(

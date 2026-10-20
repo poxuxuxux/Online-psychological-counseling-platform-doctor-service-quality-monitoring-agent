@@ -178,9 +178,12 @@ async def consultations(
     limit: int = Query(5, ge=1, le=100),
     offset: int = Query(0, ge=0, le=100000),
     query: str = Query("", max_length=120),
+    scope: str = Query("visible", pattern="^(visible|private)$"),
 ):
+    if scope == "private":
+        require_auth(request)
     return await request.app.state.container.repository.consultations(
-        limit, offset, query, not authorized(request)
+        limit, offset, query, not authorized(request), scope == "private"
     )
 
 

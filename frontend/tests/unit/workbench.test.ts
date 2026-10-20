@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import App from '../../src/App.vue'
 import { previewSession, previewReport } from '../../src/data/preview'
+import { setPrivateAccessToken } from '../../src/api/client/http'
 
 let wrapper: VueWrapper | undefined
 let requests: string[] = []
@@ -24,6 +25,7 @@ beforeEach(() => {
   withInvestigation = false
   modelConfigured = undefined
   failedReportSessionId = ''
+  setPrivateAccessToken('test-private-access-token')
   location.hash = 'workspace'
   vi.stubGlobal('matchMedia', () => ({ matches: true }))
   Element.prototype.scrollIntoView = vi.fn()
@@ -39,6 +41,24 @@ beforeEach(() => {
         )
       if (path.startsWith('/api/v1/evaluations/recent'))
         return new Response(JSON.stringify({ database_configured: false, items: [] }))
+      if (path.startsWith('/api/v1/consultations?')) {
+        if (catalogUnavailable) return new Response('{}', { status: 404 })
+        const url = new URL(path, 'http://testserver')
+        const all = [0, 1, 2].map((index) => previewSession(index))
+        const matched = all.filter((item) => item.session_id.includes(url.searchParams.get('query') || ''))
+        const offset = Number(url.searchParams.get('offset') || 0)
+        const limit = Number(url.searchParams.get('limit') || 5)
+        return new Response(JSON.stringify({ database_configured: true, total: matched.length,
+          items: matched.slice(offset, offset + limit).map((item) => ({
+            session_id: item.session_id, consultation_round: item.consultation_round,
+            message_count: item.messages.length, updated_at: '', evaluation_status: null,
+          })) }))
+      }
+      if (path.startsWith('/api/v1/consultations/')) {
+        const id = decodeURIComponent(path.split('/').pop() || '')
+        const session = [0, 1, 2].map((index) => previewSession(index)).find((item) => item.session_id === id)
+        return new Response(JSON.stringify({ session, report: null }))
+      }
       if (path === '/api/v1/demo/sessions')
         return catalogUnavailable
           ? new Response('{}', { status: 404 })
@@ -54,6 +74,8 @@ beforeEach(() => {
         return new Response(JSON.stringify({ ...input, review_id: 'review-test', created_at: new Date().toISOString() }))
       }
       if (path.endsWith('/reviews')) return new Response(JSON.stringify({ items: [] }))
+      if (path === '/api/v1/sessions' && options?.method === 'POST')
+        return new Response(JSON.stringify({ session_id: JSON.parse(String(options.body)).session_id }))
       if (path === '/api/v1/evaluations') {
         const session = JSON.parse(String(options?.body))
         if (holdEvaluation)
@@ -234,6 +256,21 @@ describe('workbench actual component interaction', () => {
     const app = await start()
     await navigate('service')
     expect(app.get('.connection-facts').text()).toContain('未配置或状态未知')
+  })
+  it('uploads a selected normalized session only after private access is set', async () => {
+    const app = await start()
+    await navigate('service')
+    await app.get('#private-access-token').setValue('test-private-access-token')
+    await app.get('.capability-panel form').trigger('submit')
+    await flushPromises()
+    const input = app.get('#session-import')
+    const file = new File([JSON.stringify(previewSession())], 'sample.json', { type: 'application/json' })
+    Object.defineProperty(file, 'text', { value: async () => JSON.stringify(previewSession()) })
+    Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+    await input.trigger('change')
+    await flushPromises()
+    expect(requests.filter((r) => r === 'POST /api/v1/sessions')).toHaveLength(1)
+    expect(app.text()).toContain('已导入 1/1 份')
   })
   it('does not create a report when the POST fails', async () => {
     failEvaluation = true

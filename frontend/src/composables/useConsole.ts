@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { api } from '../api/endpoints/evaluations'
 import { hasPrivateAccessToken } from '../api/client/http'
-import { ApiError } from '../api/client/http'
 import type { ConsultationItem, ConsultationDetail } from '../api/contracts/consultations'
 import type { Session, Report, Ready, Recent } from '../api/contracts/evaluation'
 import { previewReport, previewSession } from '../data/preview'
@@ -56,7 +55,7 @@ export function useConsole() {
     listQuery = ref('')
   const listing = ref(false),
     listError = ref(''),
-    listSource = ref<'preview' | 'database' | 'demo' | 'unavailable'>('unavailable')
+    listSource = ref<'preview' | 'database' | 'access_required' | 'unavailable'>('unavailable')
   let selectionEpoch = 0,
     listEpoch = 0
   const previewDetails = new Map<string, ConsultationDetail>()
@@ -113,20 +112,10 @@ export function useConsole() {
     errors.value.session = ''
     errors.value.run = ''
     try {
-      async function demoDetail() {
-        try {
-          return await api.demoDetail(id)
-        } catch (error) {
-          if (!(error instanceof ApiError) || error.status !== 404) throw error
-          return { session: await api.demo(), report: null }
-        }
-      }
       const detail =
         mode.value === 'preview'
           ? previewData().find((d) => d.session.session_id === id)
-          : listSource.value === 'demo'
-            ? await demoDetail()
-            : await api.consultation(id)
+          : await api.consultation(id)
       if (
         !detail ||
         detail.session.session_id !== id ||
@@ -169,31 +158,9 @@ export function useConsole() {
         totalConsultations.value = result.total
         listSource.value = 'database'
       } else {
-        let demos
-        try {
-          demos = await api.demoSessions()
-        } catch (error) {
-          if (!(error instanceof ApiError) || error.status !== 404) throw error
-          demos = [await api.demo()]
-        }
-        if (token !== epoch || listToken !== listEpoch) return
-        const matches = demos.filter((demo) => demo.session_id.includes(query.trim()))
-        let storedStatuses = new Map<string, ConsultationItem['evaluation_status']>()
-        try {
-          const stored = await api.consultations(0, '')
-          if (stored?.database_configured)
-            storedStatuses = new Map(stored.items.map((item) => [item.session_id, item.evaluation_status]))
-        } catch { /* 演示目录仍可独立读取；点开订单会读取其持久化报告。 */ }
-        if (token !== epoch || listToken !== listEpoch) return
-        consultations.value = matches.slice(offset, offset + 5).map((demo) => ({
-          session_id: demo.session_id,
-          consultation_round: demo.consultation_round,
-          message_count: demo.messages.length,
-          updated_at: demo.imported_at || '',
-          evaluation_status: storedStatuses.get(demo.session_id) ?? null,
-        }))
-        totalConsultations.value = matches.length
-        listSource.value = 'demo'
+        consultations.value = []
+        totalConsultations.value = 0
+        listSource.value = 'access_required'
       }
       if (token === epoch && listToken === listEpoch) {
         listOffset.value = offset
@@ -233,29 +200,41 @@ export function useConsole() {
     errors.value.run = ''
     batchProgress.value = { total: 0, completed: 0, succeeded: 0, failed: 0, currentId: '' }
     try {
-      let allSessions: Session[]
+      let allSessions: Session[] = []
+      let realSessionIds: string[] = []
       if (mode.value === 'preview') {
         allSessions = previewData().map((detail) => detail.session)
       } else {
+        if (!hasPrivateAccessToken())
+          throw new Error('请先在“服务连接”中输入私有数据访问令牌。')
         const serviceReady = await api.ready()
         ready.value = serviceReady
         if (serviceReady.model?.configured === false)
           throw new Error('后端尚未配置模型密钥。请在 Railway 后端服务设置 DEEPSEEK_API_KEY、DASHSCOPE_API_KEY 或 GLM_API_KEY。')
-        // A legacy single-session endpoint cannot prove the complete imported scope.
-        allSessions = await api.demoSessions()
+        // 仅获取真实会话 ID；逐条读取详情，避免在浏览器同时保留大量敏感原文。
+        for (let offset = 0; ; offset += 100) {
+          const page = await api.consultations(offset, '', 100)
+          realSessionIds.push(...page.items.map((item) => item.session_id))
+          if (offset + page.items.length >= page.total || page.items.length === 0) break
+        }
       }
       if (token !== epoch) return
-      if (!allSessions.length) throw new Error('当前没有可评估的合成咨询订单。')
-      if (new Set(allSessions.map((item) => item.session_id)).size !== allSessions.length)
+      const ids = mode.value === 'preview' ? allSessions.map((item) => item.session_id) : realSessionIds
+      if (!ids.length) throw new Error(mode.value === 'preview' ? '当前没有离线样例。' : '数据库没有真实咨询记录。请先导入会话数据，再开始评估。')
+      if (new Set(ids).size !== ids.length)
         throw new Error('咨询目录包含重复 ID，已阻止批量评估。')
-      batchProgress.value.total = allSessions.length
+      batchProgress.value.total = ids.length
       const failures: string[] = []
       const completedReports: Report[] = []
       const sessionOutcomes: BatchRun['sessions'] = []
-      for (const item of allSessions) {
+      for (const id of ids) {
         if (token !== epoch) return
-        batchProgress.value.currentId = item.session_id
+        batchProgress.value.currentId = id
         try {
+          const item = mode.value === 'preview'
+            ? allSessions.find((session) => session.session_id === id)!
+            : (await api.consultation(id)).session
+          if (item.session_id !== id) throw new Error('咨询 ID 与返回记录不一致，已阻止评价。')
           const result = mode.value === 'preview' ? previewReport(item) : await api.evaluate(item)
           if (result.session_id !== item.session_id)
             throw new Error('返回报告与提交的咨询 ID 不一致。')
@@ -290,8 +269,8 @@ export function useConsole() {
           lastRun.value = new Date().toISOString()
         } catch (error) {
           batchProgress.value.failed++
-          failures.push(`${item.session_id}：${(error as Error).message}`)
-          sessionOutcomes.push({ session_id: item.session_id, status: 'failed', risk_level: 'unknown', pending_count: 0 })
+          failures.push(`${id}：${(error as Error).message}`)
+          sessionOutcomes.push({ session_id: id, status: 'failed', risk_level: 'unknown', pending_count: 0 })
         } finally {
           batchProgress.value.completed++
         }
@@ -316,7 +295,7 @@ export function useConsole() {
       const batchRun: BatchRun = {
         batch_id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         created_at: new Date().toISOString(),
-        total: allSessions.length,
+        total: ids.length,
         succeeded: batchProgress.value.succeeded,
         failed: batchProgress.value.failed,
         high,

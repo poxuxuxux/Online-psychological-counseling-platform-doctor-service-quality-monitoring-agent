@@ -100,7 +100,7 @@ app/
 - `/evaluations/{id}/reviews`：人工复核记录；不会静默重写机器评分。
 - `/demo/session`、`/demo/sessions`、`/demo/sessions/{id}`：内置合成样本。
 
-真实数据和审计需 `Authorization: Bearer <EVALUATION_API_TOKEN>`，至少 24 字符。匿名接口只允许服务端固定合成样本，伪造 source_id 无法绕过。此 token 是单平台管理凭据；多机构权限隔离需在接入平台认证层另行实现。前端当前仍为合成样本工作台，真实平台数据通过 API/CLI 接入。
+真实数据和审计需 `Authorization: Bearer <EVALUATION_API_TOKEN>`，至少 24 字符。匿名接口只允许服务端固定合成样本，伪造 source_id 无法绕过。此 token 是单平台管理凭据；多机构权限隔离需在接入平台认证层另行实现。前端服务模式默认不显示演示会话；在“服务连接”输入访问令牌后，仅列出真实导入会话，批量评价也只处理这些会话。离线样例需显式切换。访问令牌只保留在当前页面内存，刷新后需重新输入。
 
 ## 持久化与恢复
 
@@ -122,7 +122,7 @@ app/
 
 配置完整时，`team_sessions.payload` 与 `team_runs.payload` 写入小型对象引用；完整会话和运行快照在 Bucket 中加密压缩保存。评价报告及任务、证据和消息审计仍写 PostgreSQL。旧内联记录仍可读。确认 Bucket 可访问并完成数据库备份后，可显式运行 `python -m app.cli migrate-bucket` 迁移旧行；失败会保留原行，命令可重复执行。PostgreSQL 的 UPDATE 不会立即缩小已有卷文件，空间回收需安排数据库维护，切勿在接近 500 MB 容量上直接执行需要额外空间的重写操作。
 
-已整理成 `Session` 结构的每会话 JSON 文件可用 `python -m app.cli import-directory <目录>` 导入；`data/longest_1000_sessions.json` 是原始平台线程格式，不能直接交给此命令。先按可信订单边界转换并检查隐私。`scripts.prepare_real_samples` 只生成少量测试样本，并不表示已导入全部 921 MiB。Bucket 本身不替代独立备份；Railway 当前 Bucket 不提供服务端加密、对象版本和自动快照，故这里在应用端加密。[Railway Bucket 文档](https://docs.railway.com/storage-buckets)
+已整理成 `Session` 结构的每会话 JSON 文件可用 `python -m app.cli import-directory <目录>` 导入，或在前端“服务连接”中设置访问令牌后选择这些 JSON 文件上传；前端单文件上限 2 MB。`data/longest_1000_sessions.json` 是原始平台线程格式，不能直接上传或交给此命令。先按可信订单边界转换并检查隐私。`scripts.prepare_real_samples` 只生成少量测试样本，并不表示已导入全部 921 MiB；仓库当前的私有测试样本也不会随 Docker 构建进入 Railway。Bucket 本身不替代独立备份；Railway 当前 Bucket 不提供服务端加密、对象版本和自动快照，故这里在应用端加密。[Railway Bucket 文档](https://docs.railway.com/storage-buckets)
 
 直接访问后端公网域名时，FastAPI 已托管 `app/web` 前端，浏览器使用同源 `/api`，无需前端地址变量。若单独部署 `frontend/`，先为前端服务创建公网域名，再在**前端服务**配置构建变量 `VITE_API_URL=https://<后端公网域名>`，并在**后端服务**配置 `FRONTEND_ORIGINS=https://<前端公网域名>`。两个值都不带尾部 `/`，前端变量更改后需重新构建部署。`API_PROXY_TARGET` 仅供本地 Vite 开发服务器使用；`VITE_DATA_MODE` 当前未被应用代码读取。
 
