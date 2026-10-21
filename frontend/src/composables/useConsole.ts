@@ -56,10 +56,11 @@ export function useConsole() {
     listQuery = ref('')
   const listing = ref(false),
     listError = ref(''),
-    listSource = ref<'preview' | 'database' | 'access_required' | 'unavailable'>('unavailable')
+    listSource = ref<'preview' | 'database' | 'uploaded' | 'access_required' | 'unavailable'>('unavailable')
   let selectionEpoch = 0,
     listEpoch = 0
   const previewDetails = new Map<string, ConsultationDetail>()
+  const uploadedDetails = new Map<string, ConsultationDetail>()
   const errors = ref({ session: '', run: '', recent: '', ready: '' })
   const connected = ref(false),
     lastChecked = ref(''),
@@ -116,7 +117,8 @@ export function useConsole() {
       const detail =
         mode.value === 'preview'
           ? previewData().find((d) => d.session.session_id === id)
-          : await api.consultation(id)
+          : uploadedDetails.get(id) ??
+            await api.consultation(id)
       if (
         !detail ||
         detail.session.session_id !== id ||
@@ -152,6 +154,19 @@ export function useConsole() {
         }))
         totalConsultations.value = data.length
         listSource.value = 'preview'
+      } else if (uploadedDetails.size) {
+        const data = [...uploadedDetails.values()].filter((d) =>
+          d.session.session_id.toLowerCase().includes(query.trim().toLowerCase()),
+        )
+        consultations.value = data.slice(offset, offset + 5).map((d) => ({
+          session_id: d.session.session_id,
+          consultation_round: d.session.consultation_round,
+          message_count: d.session.messages.length,
+          updated_at: d.session.imported_at || new Date().toISOString(),
+          evaluation_status: d.report?.status || null,
+        }))
+        totalConsultations.value = data.length
+        listSource.value = 'uploaded'
       } else if (hasPrivateAccessToken()) {
         const result = await api.consultations(offset, query)
         if (token !== epoch || listToken !== listEpoch) return
@@ -193,7 +208,12 @@ export function useConsole() {
       if (token === epoch) loading.value = false
     }
   }
-  async function runAll() {
+  async function addUploadedSessions(items: Session[]) {
+    for (const item of items) uploadedDetails.set(item.session_id, { session: item, report: null })
+    await refreshConsultations(0, '')
+    if (items[0]) await selectConsultation(items[0].session_id)
+  }
+  async function runAll(targetId?: string) {
     if (running.value || loading.value || listing.value) return
     const token = epoch
     const selectedSessionId = session.value?.session_id
@@ -205,6 +225,8 @@ export function useConsole() {
       let realSessionIds: string[] = []
       if (mode.value === 'preview') {
         allSessions = previewData().map((detail) => detail.session)
+      } else if (uploadedDetails.size) {
+        allSessions = [...uploadedDetails.values()].map((detail) => detail.session)
       } else {
         if (!hasPrivateAccessToken())
           throw new Error('请先在“服务连接”中输入私有数据访问令牌。')
@@ -220,7 +242,9 @@ export function useConsole() {
         }
       }
       if (token !== epoch) return
-      const ids = mode.value === 'preview' ? allSessions.map((item) => item.session_id) : realSessionIds
+      const ids = targetId
+        ? [targetId]
+        : allSessions.length ? allSessions.map((item) => item.session_id) : realSessionIds
       if (!ids.length) throw new Error(mode.value === 'preview' ? '当前没有离线样例。' : '数据库没有真实咨询记录。请先导入会话数据，再开始评估。')
       if (new Set(ids).size !== ids.length)
         throw new Error('咨询目录包含重复 ID，已阻止批量评估。')
@@ -232,15 +256,19 @@ export function useConsole() {
         if (token !== epoch) return
         batchProgress.value.currentId = id
         try {
-          const item = mode.value === 'preview'
+          const item = allSessions.length
             ? allSessions.find((session) => session.session_id === id)!
             : (await api.consultation(id)).session
           if (item.session_id !== id) throw new Error('咨询 ID 与返回记录不一致，已阻止评价。')
-          const result = mode.value === 'preview' ? previewReport(item) : await api.evaluate(item)
+          const result = mode.value === 'preview'
+            ? previewReport(item)
+            : uploadedDetails.has(id) ? await api.evaluateGuest(item) : await api.evaluate(item)
           if (result.session_id !== item.session_id)
             throw new Error('返回报告与提交的咨询 ID 不一致。')
           if (mode.value === 'preview')
             previewDetails.set(item.session_id, { session: item, report: result })
+          else if (uploadedDetails.has(id))
+            uploadedDetails.set(id, { session: item, report: result })
           if (result.status !== 'failed') completedReports.push(result)
           const reportRowsForSession = reportRows(result)
           const pendingCount = reportRowsForSession.filter(
@@ -305,7 +333,7 @@ export function useConsole() {
         sessions: sessionOutcomes,
       }
       batchRuns.value = [batchRun, ...batchRuns.value].slice(0, 10)
-      persistBatchRuns(batchRuns.value)
+      if (!uploadedDetails.size) persistBatchRuns(batchRuns.value)
       if (mode.value === 'service') await refreshRecent()
     } catch (error) {
       if (token === epoch) errors.value.run = (error as Error).message
@@ -367,6 +395,7 @@ export function useConsole() {
     listSource,
     selectConsultation,
     refreshConsultations,
+    addUploadedSessions,
     initialize,
     setMode,
     loadSession,

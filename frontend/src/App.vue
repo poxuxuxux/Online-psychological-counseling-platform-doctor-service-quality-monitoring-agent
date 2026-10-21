@@ -14,6 +14,7 @@ import {
 } from './utils/reviewPriority'
 import FindingDetail from './components/feedback/FindingDetail.vue'
 import OverviewPage from './pages/OverviewPage.vue'
+import ProfilePage from './pages/ProfilePage.vue'
 import { useConsole } from './composables/useConsole'
 import { agentName, dimensionGroups, dimensions, label, metricName, metrics, time } from './utils/catalog'
 import { overallScore } from './utils/trust'
@@ -26,17 +27,16 @@ const privateToken = ref('')
 const privateAccessEnabled = ref(false)
 const importing = ref(false)
 const importMessage = ref('')
+const uploadPhase = ref<'idle' | 'uploading' | 'complete'>('idle')
+const uploadInput = ref<HTMLInputElement | null>(null)
 async function importSessions(event: Event) {
   const input = event.target as HTMLInputElement
   const files = [...(input.files || [])]
   input.value = ''
   if (!files.length) return
-  if (!privateAccessEnabled.value) {
-    importMessage.value = '请先输入私有数据访问令牌。'
-    return
-  }
   importing.value = true
-  let imported = 0
+  uploadPhase.value = 'uploading'
+  const accepted: import('./api/contracts/evaluation').Session[] = []
   const failures: string[] = []
   for (const file of files) {
     try {
@@ -44,18 +44,18 @@ async function importSessions(event: Event) {
       const parsed = SessionSchema.safeParse(JSON.parse(await file.text()))
       if (!parsed.success) throw new Error('不是符合后端 Session 格式的 JSON。')
       if (parsed.data.source_id === 'synthetic-demo') throw new Error('演示数据不能作为真实会话导入。')
-      await api.importSession(parsed.data)
-      imported++
+      if (accepted.some((item) => item.session_id === parsed.data.session_id))
+        throw new Error('本次上传包含重复咨询 ID。')
+      accepted.push(parsed.data)
     } catch (error) {
       failures.push(`${file.name}：${(error as Error).message}`)
     }
   }
-  importMessage.value = `已导入 ${imported}/${files.length} 份。${failures.length ? failures.join('；') : ''}`
+  if (accepted.length && mode.value === 'preview') await setMode('service')
+  if (accepted.length) await addUploadedSessions(accepted)
+  importMessage.value = `已完成 ${accepted.length}/${files.length} 份。${failures.length ? failures.join('；') : ''}`
+  uploadPhase.value = accepted.length ? 'complete' : 'idle'
   importing.value = false
-  if (imported) {
-    await refreshConsultations(0, '')
-    if (consultations.value[0]) await selectConsultation(consultations.value[0].session_id)
-  }
 }
 async function applyPrivateAccess() {
   setPrivateAccessToken(privateToken.value)
@@ -99,12 +99,14 @@ const {
   listSource,
   selectConsultation,
   refreshConsultations,
+  addUploadedSessions,
 } = useConsole()
 const nav = [
   { id: 'overview', name: '数据总览', icon: 'pulse' },
   { id: 'workspace', name: '评估工作台', icon: 'workspace' },
   { id: 'reports', name: '质检报告', icon: 'report' },
   { id: 'review', name: '人工复核', icon: 'shield' },
+  { id: 'profile', name: '医生画像', icon: 'trend' },
   { id: 'rubrics', name: '评价指标', icon: 'list' },
   { id: 'service', name: '服务连接', icon: 'settings' },
 ]
@@ -183,6 +185,7 @@ const finalScore = computed(() => {
 const scoredCount = computed(() => rows.value.filter((r) => ['verified', 'agent_scored'].includes(r.verdict.code)).length)
 const currentTitle = computed(() => nav.find((n) => n.id === page.value)?.name || '评估工作台')
 const isDemoMapping = computed(() => rows.value.some((r) => /^D[1-6]$/.test(r.finding.metric_id)))
+const localReview = computed(() => mode.value === 'preview' || listSource.value === 'uploaded')
 const actionableDrafts = computed(() =>
   drafts.value.filter((d) => d.evaluation_id === report.value?.evaluation_id),
 )
@@ -250,6 +253,17 @@ async function openConsultation(id: string) {
   selectedId.value = ''
   highlightedIds.value = []
   await selectConsultation(id)
+  await nextTick()
+  document.getElementById('session-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+async function evaluateConsultation(id: string) {
+  await selectConsultation(id)
+  await runAll(id)
+  if (report.value?.session_id === id) {
+    selectedId.value = rows.value[0]?.finding.finding_id || ''
+    await nextTick()
+    document.getElementById('session-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 function exportReport() {
   if (!report.value) return
@@ -274,7 +288,7 @@ async function saveDraft() {
     reason: draftReason.value.trim(),
   }
   try {
-    const saved = mode.value === 'preview'
+    const saved = localReview.value
       ? { ...input, created_at: new Date().toISOString() }
       : await api.addReview(input)
     drafts.value.push(saved)
@@ -284,10 +298,10 @@ async function saveDraft() {
   }
   draftDecision.value = ''
   draftReason.value = ''
-  notify(mode.value === 'preview' ? '离线样例仅本页暂存。' : '复核意见已写入服务器，可刷新查看。')
+  notify(localReview.value ? '复核意见仅在当前页面保留。' : '复核意见已写入服务器，可刷新查看。')
 }
 async function loadReviews() {
-  if (!report.value || mode.value !== 'service') return
+  if (!report.value || localReview.value) return
   try {
     const result = await api.reviews(report.value.evaluation_id)
     drafts.value = result.items
@@ -324,7 +338,7 @@ watch(
     draftDecision.value = ''
     draftReason.value = ''
     drafts.value = []
-    if (mode.value === 'service' && evaluationId) {
+    if (mode.value === 'service' && !localReview.value && evaluationId) {
       try {
         const saved = await api.reviews(evaluationId)
         if (report.value?.evaluation_id === evaluationId) drafts.value = saved.items
@@ -431,7 +445,7 @@ onUnmounted(() => {
         </div>
         <div class="topbar-actions">
           <StatusBadge :tone="mode === 'preview' ? 'warning' : 'neutral'">{{
-            mode === 'preview' ? '离线样例' : privateAccessEnabled ? '私有数据模式' : '待授权'
+            mode === 'preview' ? '离线样例' : privateAccessEnabled ? '私有数据模式' : listSource === 'uploaded' ? '免令牌评估' : '等待上传'
           }}</StatusBadge
           ><button
             class="text-button mode-button"
@@ -463,7 +477,9 @@ onUnmounted(() => {
                       ? '查看服务端运行记录与当前报告。'
                       : page === 'review'
                         ? '回到原文处理未决问题，保留原评价与修正理由。'
-                        : page === 'rubrics'
+                        : page === 'profile'
+                          ? '按医生聚合历史评价，追踪总分趋势与确定性预警。'
+                          : page === 'rubrics'
                           ? '18 项指标各有唯一主责，原文引用与评分输入分别检查。'
                           : '分别检查服务存活、数据库连接和已接入能力。'
               }}
@@ -472,15 +488,7 @@ onUnmounted(() => {
           <div v-if="page === 'workspace'" class="heading-actions">
             <button class="button secondary" :disabled="loading || running" @click="loadSession">
               <Icon name="refresh" :size="17" />{{ loading ? '加载中…' : '重新加载列表' }}</button
-            ><button
-              class="button primary"
-              :disabled="!session || loading || running"
-              @click="start"
             >
-              <Icon :name="running ? 'clock' : 'play'" :size="17" />{{
-                running ? `正在评估 ${batchProgress.completed}/${batchProgress.total}…` : '一键自动评估'
-              }}
-            </button>
           </div>
           <button
             v-else-if="page === 'reports'"
@@ -499,6 +507,30 @@ onUnmounted(() => {
           @navigate="navigate"
         />
         <template v-else-if="page === 'workspace'">
+          <section class="surface upload-strip" aria-label="上传咨询数据">
+            <div>
+              <strong>上传咨询 JSON</strong>
+              <p>选择一个或多个 JSON 文件。评估时原文会发送给后端模型，请先去标识化。</p>
+            </div>
+            <div class="upload-actions">
+              <button type="button" class="button secondary upload-button" :disabled="importing || running"
+                @click="uploadInput?.click()">
+                <Icon name="upload" :size="17" />{{ importing ? '上传中…' : '上传数据' }}
+              </button>
+              <input id="workspace-session-import" ref="uploadInput" type="file" accept=".json,application/json" multiple
+                :disabled="importing || running" @change="importSessions" />
+              <span class="upload-progress" role="status" aria-live="polite">{{
+                uploadPhase === 'uploading' ? '上传中' : uploadPhase === 'complete' ? '完成' : '等待上传'
+              }}</span>
+              <button class="button primary" :disabled="!session || importing || loading || running"
+                aria-label="一键评估列表中的咨询" @click="start">
+                <Icon :name="running ? 'clock' : 'play'" :size="17" />{{
+                  running ? `评估中 ${batchProgress.completed}/${batchProgress.total}` : '一键评估'
+                }}
+              </button>
+            </div>
+            <p v-if="importMessage" class="upload-message" role="status">{{ importMessage }}</p>
+          </section>
           <ConsultationList
             :items="consultations"
             :total="totalConsultations"
@@ -511,13 +543,14 @@ onUnmounted(() => {
             :error="listError"
             :source="listSource"
             @select="openConsultation"
+            @evaluate="evaluateConsultation"
             @refresh="refreshConsultations"
           />
           <div v-if="listSource === 'access_required'" class="notice">
-            真实会话需要访问令牌。<button class="text-button" @click="navigate('service')">前往服务连接设置</button>
+            上传 JSON 文件即可在本页评估；已有私有数据库记录仍需管理员授权查看。
           </div>
           <div v-else-if="listSource === 'database' && !totalConsultations && !listing" class="notice">
-            当前数据库没有已导入的真实会话。<button class="text-button" @click="navigate('service')">前往服务连接导入</button>
+            当前列表没有咨询记录。请使用上方的“上传数据”。
           </div>
           <div v-if="errors.session" class="alert danger" role="alert">
             <strong>咨询记录加载失败</strong>
@@ -533,7 +566,7 @@ onUnmounted(() => {
             <button class="text-button" @click="navigate('reports')">先查看最近运行记录</button>
             <p v-if="report" class="small">以下保留的是上一次返回的报告，不是本次请求的新结果。</p>
           </div>
-          <section class="session-strip surface" aria-label="本次会话信息">
+          <section id="session-detail" class="session-strip surface" aria-label="本次会话信息">
             <div class="session-symbol"><Icon name="list" :size="23" /></div>
             <div class="session-identity">
               <span>当前咨询轮次</span
@@ -553,6 +586,8 @@ onUnmounted(() => {
                   ? '离线合成样例'
                   : listSource === 'database'
                     ? '数据库记录'
+                    : listSource === 'uploaded'
+                      ? '本页上传'
                     : '尚未选择记录'
               }}</strong>
             </div>
@@ -706,7 +741,7 @@ onUnmounted(() => {
                     {{
                       finalScore === null
                         ? '尚不满足综合评分展示条件；前端不自行平均 Agent 分数。'
-                        : '总分由后端按 metric.yaml 权重汇总 Agent 评分；未经过独立语义校验。'
+                        : '总分由后端按 SKILL.md 规则权重汇总 Agent 评分；未经过独立语义校验。'
                     }}
                   </p>
                 </div>
@@ -955,7 +990,7 @@ onUnmounted(() => {
           <div class="notice review-notice">
             <Icon name="info" :size="18" />
             <p>
-              {{ mode === 'preview' ? '离线复核意见仅保存在当前页面，刷新后会丢失。' : '人工复核意见通过现有接口保存；需使用服务访问令牌，提交后可重新读取。' }}复核记录不会修改 Agent 原结论。
+              {{ localReview ? '本页复核意见刷新后会丢失。' : '人工复核意见通过现有接口保存；需使用服务访问令牌，提交后可重新读取。' }}复核记录不会修改 Agent 原结论。
             </p>
           </div>
           <div v-if="!report" class="surface empty-state">
@@ -1087,8 +1122,8 @@ onUnmounted(() => {
                   class="review-form"
                   @submit.prevent="saveDraft"
                 >
-                  <h3>{{ mode === 'preview' ? '离线复核草稿' : '提交人工复核意见' }}</h3>
-                  <button v-if="mode === 'service'" type="button" class="text-button" @click="loadReviews">读取已提交意见</button>
+                  <h3>{{ localReview ? '本页复核草稿' : '提交人工复核意见' }}</h3>
+                  <button v-if="!localReview" type="button" class="text-button" @click="loadReviews">读取已提交意见</button>
                   <label for="decision">处理意见</label
                   ><select id="decision" v-model="draftDecision" required>
                     <option value="" disabled>选择处理意见</option>
@@ -1108,12 +1143,12 @@ onUnmounted(() => {
                     placeholder="写明所依据的原文、规则或仍缺少的信息（至少 5 字）"
                   ></textarea>
                   <div class="review-form-footer">
-                    <small>{{ mode === 'preview' ? '仅本页暂存' : '提交后写入服务端复核记录' }}</small
+                    <small>{{ localReview ? '仅本页暂存' : '提交后写入服务端复核记录' }}</small
                     ><button
                       class="button primary"
                       :disabled="!draftDecision || draftReason.trim().length < 5"
                     >
-                      {{ mode === 'preview' ? '暂存草稿' : '提交复核' }}
+                      {{ localReview ? '暂存草稿' : '提交复核' }}
                     </button>
                   </div>
                   <div
@@ -1132,19 +1167,25 @@ onUnmounted(() => {
           >
         </template>
 
+        <ProfilePage
+          v-else-if="page === 'profile'"
+          :mode="mode"
+          :refresh-key="lastRun"
+        />
+
         <template v-else-if="page === 'rubrics'">
           <div class="rubric-intro surface">
             <Icon name="shield" :size="30" />
             <div>
               <h2>三组主责评价 Agent</h2>
               <p>
-                D1 与 D3、D2 与 D5、D4 与 D6 分别由同一主责 Agent 评价；事实冲突可触发临时 Reviewer，当前没有独立语义核验环节。
+                D1 与 D3、D2 与 D5、D4 与 D6 分别由同一主责 Agent 评价；事实冲突由 Team Lead 仲裁，当前没有独立语义核验环节。
               </p>
             </div>
             <span class="rubric-total">18<small>项指标</small></span>
           </div>
           <div class="notice">
-            当前目录含 16 项已发布指标及 2 项待审定的 D6 风险应对指标。D6 适用案例保留证据并转人工复核，不生成数值评分。
+            当前 18 项指标均已发布。D6 指标评价医生可观察的风险回应与求助指引；明确安全问题仍按复核规则转人工，不用于诊断患者风险等级。
           </div>
           <div class="rubric-grid">
             <section v-for="d in dimensionGroups" :key="d.id" class="surface rubric-section">
@@ -1165,7 +1206,7 @@ onUnmounted(() => {
                   <strong>{{ m.name }}</strong
                   ><small>{{ agentName(m.agent) }}</small>
                 </div>
-                <span class="draft-label">{{ m.id.startsWith('D6.') ? '待专业审定' : '已发布' }}</span>
+                <span class="draft-label">已发布</span>
               </div>
             </section>
           </div>
@@ -1236,19 +1277,13 @@ onUnmounted(() => {
               <button v-if="privateAccessEnabled" class="button secondary" type="button" :disabled="running" @click="privateToken = ''; applyPrivateAccess()">清除访问令牌</button>
             </form>
             <p class="small">{{ privateAccessEnabled ? '已设置访问令牌，是否有效以接口响应为准。' : '未设置：真实会话列表不会显示。' }}</p>
-            <div v-if="mode === 'service'" class="capability-row">
-              <span><strong>导入真实会话 JSON</strong><small>先用本地脚本将原始平台数据整理成每会话一个 Session JSON；文件只在点击选择后经授权上传到后端。</small></span>
-              <label class="button secondary" for="session-import">{{ importing ? '导入中…' : '选择会话文件' }}</label>
-              <input id="session-import" type="file" accept=".json,application/json" multiple :disabled="!privateAccessEnabled || importing || running" @change="importSessions" />
-            </div>
-            <p v-if="importMessage" class="small" role="status">{{ importMessage }}</p>
           </section>
           <section class="surface capability-panel">
             <div class="panel-header"><h2>功能接入边界</h2></div>
             <div class="capability-row">
               <span
                 ><strong>真实会话导入、评价请求与最近记录</strong
-                ><small>需访问令牌；真实记录从数据库列表读取，演示样例仅在离线模式使用。</small></span
+                ><small>工作台上传文件无需令牌；管理员数据库记录仍需授权读取。</small></span
               ><StatusBadge>已有接口</StatusBadge>
             </div>
             <div class="capability-row">
@@ -1260,7 +1295,7 @@ onUnmounted(() => {
             <div class="capability-row">
               <span
                 ><strong>修正讨论与分歧仲裁</strong
-                ><small>事实冲突可触发临时 Reviewer；报告展示实际产生的记录与未解决状态。</small></span
+                ><small>事实冲突交由 Team Lead 仲裁；报告展示实际产生的记录与未解决状态。</small></span
               ><StatusBadge>按需运行</StatusBadge>
             </div>
             <div class="capability-row">
@@ -1280,7 +1315,7 @@ onUnmounted(() => {
         </template>
         <footer class="page-footer">
           <span>心衡 · 服务质量辅助评估</span>
-          <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : '真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
+          <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : listSource === 'uploaded' ? '本页上传的会话与报告刷新后会清除。' : '数据库中的真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
         </footer>
       </main>
     </div>

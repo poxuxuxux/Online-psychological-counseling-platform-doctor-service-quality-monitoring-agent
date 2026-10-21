@@ -78,7 +78,7 @@ beforeEach(() => {
       if (path.endsWith('/reviews')) return new Response(JSON.stringify({ items: [] }))
       if (path === '/api/v1/sessions' && options?.method === 'POST')
         return new Response(JSON.stringify({ session_id: JSON.parse(String(options.body)).session_id }))
-      if (path === '/api/v1/evaluations') {
+      if (path === '/api/v1/evaluations' || path === '/api/v1/guest/evaluations') {
         const session = JSON.parse(String(options?.body))
         if (holdEvaluation)
           await new Promise<void>((resolve) => {
@@ -121,7 +121,7 @@ async function start() {
   return wrapper
 }
 async function evaluate() {
-  await wrapper!.get('.heading-actions .primary').trigger('click')
+  await wrapper!.get('.upload-actions .primary').trigger('click')
   await flushPromises()
 }
 async function navigate(page: string) {
@@ -143,13 +143,13 @@ describe('workbench actual component interaction', () => {
     expect(app.get('h1').text()).toBe('数据总览')
     await navigate('workspace')
     expect(app.findAll('.conversation-message')).toHaveLength(6)
-    expect(app.get('.heading-actions .primary').attributes('disabled')).toBeUndefined()
+    expect(app.get('.upload-actions .primary').attributes('disabled')).toBeUndefined()
   })
   it('loads six messages and enables evaluation', async () => {
     const app = await start()
     expect(app.findAll('.conversation-message')).toHaveLength(6)
-    expect(app.get('.heading-actions .primary').attributes('disabled')).toBeUndefined()
-    expect(app.get('.heading-actions .primary').text()).toContain('一键自动评估')
+    expect(app.get('.upload-actions .primary').attributes('disabled')).toBeUndefined()
+    expect(app.get('.upload-actions .primary').text()).toContain('一键评估')
   })
   it('evaluates all connected sessions despite a list search filter', async () => {
     const app = await start()
@@ -272,20 +272,22 @@ describe('workbench actual component interaction', () => {
     await navigate('service')
     expect(app.get('.connection-facts').text()).toContain('未配置或状态未知')
   })
-  it('uploads a selected normalized session only after private access is set', async () => {
+  it('uploads a JSON session without an access token and evaluates only its row', async () => {
+    setPrivateAccessToken('')
     const app = await start()
-    await navigate('service')
-    await app.get('#private-access-token').setValue('test-private-access-token')
-    await app.get('.capability-panel form').trigger('submit')
-    await flushPromises()
-    const input = app.get('#session-import')
+    const input = app.get('#workspace-session-import')
     const file = new File([JSON.stringify(previewSession())], 'sample.json', { type: 'application/json' })
     Object.defineProperty(file, 'text', { value: async () => JSON.stringify(previewSession()) })
     Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
     await input.trigger('change')
     await flushPromises()
-    expect(requests.filter((r) => r === 'POST /api/v1/sessions')).toHaveLength(1)
-    expect(app.text()).toContain('已导入 1/1 份')
+    expect(app.text()).toContain('已完成 1/1 份')
+    expect(app.get('.upload-progress').text()).toBe('完成')
+    expect(app.findAll('.consultation-row')).toHaveLength(1)
+    await app.get('.consultation-evaluate').trigger('click')
+    await flushPromises()
+    expect(requests.filter((r) => r === 'POST /api/v1/guest/evaluations')).toHaveLength(1)
+    expect(app.get('.session-identity').text()).toContain('preview-synthetic-001')
   })
   it('does not create a report when the POST fails', async () => {
     failEvaluation = true
@@ -298,10 +300,10 @@ describe('workbench actual component interaction', () => {
   it('guards double clicks while mutation is running', async () => {
     holdEvaluation = true
     const app = await start()
-    await app.get('.heading-actions .primary').trigger('click')
+    await app.get('.upload-actions .primary').trigger('click')
     await flushPromises()
-    await app.get('.heading-actions .primary').trigger('click')
-    expect(app.get('.heading-actions .primary').attributes('disabled')).toBeDefined()
+    await app.get('.upload-actions .primary').trigger('click')
+    expect(app.get('.upload-actions .primary').attributes('disabled')).toBeDefined()
     expect(requests.filter((r) => r.startsWith('POST'))).toHaveLength(1)
     holdEvaluation = false
     resolveEvaluation!()
@@ -329,7 +331,7 @@ describe('workbench actual component interaction', () => {
     await flushPromises()
     expect(app.findAll('.consultation-id')).toHaveLength(3)
     const before = requests.length
-    await app.findAll('.consultation-id')[2]!.trigger('click')
+    await app.findAll('.consultation-row')[2]!.trigger('click')
     await flushPromises()
     expect(app.get('.session-identity').text()).toContain('preview-synthetic-003')
     expect(app.findAll('.conversation-message')[0]!.text()).toContain('最近加班')

@@ -469,3 +469,34 @@ class Repository:
             )
         )[0]
         return [{**json.loads(row[0]), "source_id": row[1]} for row in rows]
+
+    async def doctor_reports(self, public=True):
+        latest = (
+            "r.run_id=(SELECT r2.run_id FROM team_runs r2 WHERE r2.session_id=r.session_id"
+            " AND r2.report IS NOT NULL ORDER BY r2.created_at DESC,r2.run_id DESC LIMIT 1)"
+        )
+        output = await self._transaction(
+            [
+                (
+                    f"""SELECT s.doctor_id,r.report FROM team_runs r
+          JOIN team_sessions s ON s.session_id=r.session_id
+          WHERE r.report IS NOT NULL AND s.doctor_id IS NOT NULL AND s.doctor_id!=''
+          AND {latest} AND (?=0 OR s.source_id='synthetic-demo')""",
+                    (int(public),),
+                ),
+                (
+                    f"""SELECT COUNT(*) FROM team_runs r
+          JOIN team_sessions s ON s.session_id=r.session_id
+          WHERE r.report IS NOT NULL AND (s.doctor_id IS NULL OR s.doctor_id='')
+          AND {latest} AND (?=0 OR s.source_id='synthetic-demo')""",
+                    (int(public),),
+                ),
+            ]
+        )
+        return {
+            "records": [
+                {"doctor_id": doctor_id, "report": json.loads(report)}
+                for doctor_id, report in output[0]
+            ],
+            "excluded_missing_doctor_id": output[1][0][0],
+        }

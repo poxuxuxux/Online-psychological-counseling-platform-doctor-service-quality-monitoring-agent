@@ -17,7 +17,7 @@ flowchart TD
     F --> J[Evaluation Team Lead]
     H --> J
     I --> J
-    J --> K[Team Initialization<br/>从 metric.yaml 快照分配 18 项指标]
+    J --> K[Team Initialization<br/>从 SKILL.md frontmatter 快照分配 18 项指标]
     K --> L[Agent Team Runtime：动态协作子图]
     L --> M[Completion Check：任务、指标、消息是否完结]
     M --> O[Scoring Engine：汇总符合输入约束的 Agent 分数]
@@ -37,7 +37,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[Team Initialization] --> B[共享任务板 / 共享证据 / 消息总线 / 冲突与事件日志]
-    B --> C[Schedule：选择就绪 Agent、检查预算与冲突]
+    B --> C[Schedule：选择就绪 Agent、检查预算]
     C --> D[Observe：装配本轮任务上下文]
     D --> E[Reason：模型并行给出结构化工具决策]
     E --> F[Act：后端依次校验并执行工具]
@@ -53,7 +53,7 @@ flowchart TD
     C --> Agents
     Agents --> D
     F <--> B
-    C -->|事实冲突或主动请求| V[临时独立 Reviewer]
+    C -->|主责评价完成| V[Team Lead：LLM 判断冲突并仲裁]
     V --> D
 
     subgraph Tools[受控工具层]
@@ -66,7 +66,7 @@ flowchart TD
     F --> Tools
 ```
 
-`read_skill` 是项目中的规则加载工具，相当于常说的 load-skill；现行运行时会在首轮推理前自动加载。`time_calculator` 在负责指标的 `metric.yaml` 声明为必需工具时预计算首次回复与相邻回复间隔，缺乏可靠时间起点时不生成首次回复数字。模型负责选择受控动作，后端负责工具权限、输入约束、预算、评分与存储；独立 Evidence Validator 已移除，模型内部推理文本不作为证据。
+`read_skill` 是项目中的规则加载工具，相当于常说的 load-skill；现行运行时会在首轮推理前自动加载 `SKILL.md` 的规则与正文。`time_calculator` 在负责指标的 `SKILL.md` frontmatter 声明为必需工具时预计算首次回复与相邻回复间隔，缺乏可靠时间起点时不生成首次回复数字。模型负责选择受控动作，后端负责工具权限、输入约束、预算、评分与存储；独立 Evidence Validator 已移除，模型内部推理文本不作为证据。
 
 PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bucket 时，会话原文及运行快照加密压缩后存入 Bucket，PostgreSQL 保留对象引用。外层和内层都在节点边界保存检查点，支持失败后的恢复。
 
@@ -75,7 +75,7 @@ PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bu
 1. API/CLI 接收会话，验证输入和访问权限；组合根注入仓储、模型网关和指标目录。
 2. 预处理会话文本及时间，再按可信身份、会话时间和历史导入完整性判断初诊、复诊或未知。
 3. 复诊时只查询相同患者与医生、严格早于当前会话的数据；历史背景与当前证据分开保存，常规评分 Agent 不直接读取历史分数。
-4. Team Lead 根据指标目录和 `app/rubrics/groups.py` 初始化主责任务：D1+D3、D2+D5、D4+D6 各由一名 Evaluator 负责。Agent 团队在共享任务板、证据池、消息总线和会话上下文上自主协作；指标原始维度仍保留用于评分和历史比较。
+4. Team Lead 根据指标目录和 `app/rubrics/groups.py` 初始化主责任务：D1+D3、D2+D5、D4+D6 各由一名 Evaluator 负责。主责评价完成后，Team Lead 的模型读取所有结论和原文，判断是否存在实质事实或适用性冲突；分数不同本身不构成冲突。对确认的冲突，Team Lead 提交仲裁意见，主责 Evaluator 根据意见修订自己的结论；指标原始维度仍保留用于评分和历史比较。
 5. 完成度检查后，直接从符合提交约束的 Agent 结果汇总分数；然后依次执行服务风险分级、总结、跨会话分析和报告存储。
 6. API 提供会话、报告、运行阶段和审计数据；前端负责查询、呈现和人工复核入口。
 
@@ -87,7 +87,7 @@ PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bu
 | `app/domain` | 核心契约 | 输入、结果、工具和端口定义；不依赖 Web 框架或数据库驱动 |
 | `app/context` | 会话上下文 | 规范化、初复诊路由、历史上下文构建 |
 | `app/rubrics` | 评价规则 | 加载 18 个指标、技能说明、样例及规则快照 |
-| `app/team` | Agent 团队运行 | 子图调度、任务/证据/消息状态、工具执行和冲突复核 |
+| `app/team` | Agent 团队运行 | 子图调度、任务/证据/消息状态、Team Lead 的模型冲突判断与仲裁 |
 | `app/evaluation` | 结果后处理 | 综合评分、风险、报告、总结与纵向分析 |
 | `app/workflow` | 总体编排 | 外层 LangGraph 顺序、恢复、超时和阶段持久化 |
 | `app/infrastructure` | 外部适配器 | 模型网关、PostgreSQL/SQLite 仓储、加密 Bucket 对象存储、用量遥测 |
@@ -147,7 +147,7 @@ PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bu
 | `app/team/runtime.py` | 团队运行时：构造 LangGraph 子图并执行 Agent 的动态自主循环。 |
 | `app/team/state.py` | 团队状态：初始化任务板、共享证据、消息与 Agent 上下文。 |
 | `app/team/tools.py` | 工具边界：验证并执行 Agent 可调用的证据、协作、查询和提交动作。 |
-| `app/team/conflicts.py` | 团队协作：检测相反事实主张并管理独立复核状态。 |
+| `app/team/conflicts.py` | 团队协作：在 Team Lead 仲裁后检查冲突是否收敛。 |
 | `app/team/__init__.py` | 声明团队子包。 |
 | `app/workflow/service.py` | 外层流程：按阶段执行 LangGraph，管理超时、检查点持久化和断点恢复。 |
 | `app/workflow/__init__.py` | 声明工作流子包。 |
@@ -168,7 +168,7 @@ PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bu
 
 | 文件 | 用途 |
 |---|---|
-| `metric.yaml` | 机器可读的指标身份、维度、发布状态、评分锚点、证据要求和权重，是结构化评价规范来源。 |
+| `SKILL.md` frontmatter | 机器可读的指标身份、维度、发布状态、评分锚点、证据要求和权重；正文记录判断方法。 |
 | `SKILL.md` | 指导 Evaluator 如何观察、判定、引用证据及处理不确定情形。 |
 | `examples.yaml` | 指标正反例和边界案例，帮助开发、人工理解与策略测试。 |
 
@@ -254,7 +254,7 @@ PostgreSQL 保存会话索引、评价报告、团队任务和审计；配置 Bu
 - 真实会话从受信平台或受保护 API/CLI 输入；前端预览数据是合成样本，不能作为生产评价结果。
 - 历史数据查询的主体和时间范围由可信会话确定，不能由 Agent 任意传入 session ID 扩权。
 - 原文引用必须能在当前会话中核对；历史评价与当前行为证据隔离。
-- `metric.yaml` 提供机器可读评分边界；Agent 提交时执行输入约束，之后直接进入评分引擎。报告注明未运行独立语义校验。
+- `SKILL.md` frontmatter 提供机器可读评分边界；Agent 提交时执行输入约束，之后直接进入评分引擎。报告注明未运行独立语义校验。
 - 评分、服务风险、总结及纵向可比性由后端确定性模块控制；医院服务风险不等同患者临床风险。
 - `.env`、`data/local/`、`data/private/` 与原始大数据需按敏感运行资料管理，不写入文档内容或公开仓库。
 

@@ -141,6 +141,7 @@ class ToolCall(StrictModel):
         "get_messages",
         "acknowledge_message",
         "request_review",
+        "assess_conflicts",
         "submit_review",
         "submit_evaluation",
         "wait",

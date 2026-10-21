@@ -18,6 +18,10 @@ export function verdict(f: Finding, v?: Verification, agentStatus = 'completed',
     return { code: 'not_applicable', text: '不适用', tone: 'neutral' }
   if (f.applicability === 'insufficient_context')
     return { code: 'insufficient', text: '证据不足', tone: 'warning' }
+  if (f.limitations.some((rule) => ['source_incomplete', 'context_ambiguous', 'source_conflict'].includes(rule)))
+    return { code: 'insufficient', text: '证据或语境待核查', tone: 'warning' }
+  if (f.limitations.includes('rubric_unpublished') || f.limitations.includes('professional_protocol_pending'))
+    return { code: 'pending', text: '评分规则待审定', tone: 'warning' }
   if (v?.reference_conflict) return { code: 'conflict', text: '材料冲突', tone: 'danger' }
   if (
     v &&

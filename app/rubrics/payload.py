@@ -1,12 +1,12 @@
 # 环节：指标目录层；用途：加载、校验并组织 Agent 评价规则。
-"""Model-facing rule projection. metric.yaml is authoritative; snapshots retain full docs."""
+"""Model-facing rule projection parsed from SKILL.md frontmatter and body."""
 
 
 def metric_payload(spec):
     result = {
         key: value
         for key, value in spec.items()
-        if key not in {"instructions", "configuration_issues", "owner", "weight", "schema_version"}
+        if key not in {"configuration_issues", "owner", "weight", "schema_version"}
     }
     if spec["status"] == "published":
         result["manual_review"] = [

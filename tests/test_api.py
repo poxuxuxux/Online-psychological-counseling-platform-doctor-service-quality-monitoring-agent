@@ -9,6 +9,22 @@ from app.main import create_app
 from tests.conftest import ScriptedModel
 
 
+def test_guest_evaluation_needs_no_token_and_is_not_published(tmp_path, catalog, session):
+    settings = replace(
+        Settings(), database_url="sqlite:///" + str(tmp_path / "guest-host.sqlite3"),
+        api_token="test-token-at-least-24-characters", seed_demo=False,
+    )
+    with TestClient(create_app(settings=settings, model=ScriptedModel(), catalog=catalog)) as client:
+        response = client.post(
+            "/api/v1/guest/evaluations", json=session.model_dump(mode="json")
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["session_id"] == session.session_id
+        assert client.get("/api/v1/consultations").json()["total"] == 0
+        assert client.get("/api/v1/evaluations/recent").json()["items"] == []
+        assert client.get("/api/v1/consultations/" + session.session_id).status_code == 404
+
+
 def test_private_consultation_catalog_requires_token_and_excludes_demo(tmp_path, catalog, session):
     settings = replace(
         Settings(), database_url="sqlite:///" + str(tmp_path / "listing.sqlite3"),

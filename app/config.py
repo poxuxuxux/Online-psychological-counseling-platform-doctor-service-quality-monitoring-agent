@@ -18,6 +18,7 @@ class Settings:
     max_revisions: int = 2
     concurrency: int = 6
     max_model_calls: int = 180
+    max_input_chars: int = 4_000_000
     agent_timeout: float = 180
     model_timeout: float = 60
     total_timeout: float = 600
@@ -71,6 +72,7 @@ class Settings:
                     "max_revisions",
                     "concurrency",
                     "max_model_calls",
+                    "max_input_chars",
                 )
             },
             **{
@@ -109,6 +111,7 @@ class Settings:
                 "max_revisions",
                 "concurrency",
                 "max_model_calls",
+                "max_input_chars",
                 "agent_timeout",
                 "model_timeout",
                 "total_timeout",

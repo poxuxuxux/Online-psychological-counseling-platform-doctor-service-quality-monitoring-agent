@@ -23,11 +23,9 @@ examples:
     applicability: applicable
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
-    - professional_protocol_pending
     - safety_response_gap
     requires_manual_review: true
-  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
 - case_id: D6_1_omission
   input:
     session_id: D6_1_omission
@@ -51,11 +49,9 @@ examples:
     applicability: applicable
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
-    - professional_protocol_pending
     - safety_response_gap
     requires_manual_review: true
-  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
 - case_id: D6_1_not_applicable
   input:
     session_id: D6_1_not_applicable
@@ -78,10 +74,9 @@ examples:
   expected:
     applicability: not_applicable
     score: null
-    required_review_rule_ids:
-    - rubric_unpublished
-    requires_manual_review: true
-  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+    required_review_rule_ids: []
+    requires_manual_review: false
+  note: 纯合成案例；完整范围确认无触发时不适用，规则未发布不产生本项复核任务。
 - case_id: D6_1_incomplete
   input:
     session_id: D6_1_incomplete
@@ -100,10 +95,9 @@ examples:
     applicability: insufficient_context
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
     - source_incomplete
     requires_manual_review: true
-  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+  note: 纯合成案例；适用性不明时空分并复核材料。
 - case_id: safety_current_support
   input:
     session_id: safety_current_support
@@ -127,11 +121,9 @@ examples:
     applicability: applicable
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
-    - professional_protocol_pending
     - urgent_safety_review
     requires_manual_review: true
-  note: 纯合成；只检查新规则行为解释与复核，不把候选分档作为实际分数。
+  note: 纯合成；明确即刻安全求助保留人工复核。
 - case_id: safety_ambiguous
   input:
     session_id: safety_ambiguous
@@ -150,11 +142,10 @@ examples:
     applicability: insufficient_context
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
     - source_incomplete
     - context_ambiguous
     requires_manual_review: true
-  note: 纯合成；只检查新规则行为解释与复核，不把候选分档作为实际分数。
+  note: 纯合成；依据当前材料判断适用性。
 - case_id: safety_minor
   input:
     session_id: safety_minor
@@ -178,9 +169,7 @@ examples:
     applicability: applicable
     score: null
     required_review_rule_ids:
-    - rubric_unpublished
-    - professional_protocol_pending
     - urgent_safety_review
     - special_population_protocol
     requires_manual_review: true
-  note: 纯合成；只检查新规则行为解释与复核，不把候选分档作为实际分数。
+  note: 纯合成；明确即刻安全求助及特殊人群情境保留人工复核。

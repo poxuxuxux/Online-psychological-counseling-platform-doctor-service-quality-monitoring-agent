@@ -56,6 +56,7 @@ def initialize_team(skills, run_id):
         "messages": [],
         "events": [],
         "conflicts": {},
+        "conflict_reports": [],
         "risk_alerts": [],
         "finding_history": [],
         "turn": 0,

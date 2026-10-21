@@ -13,6 +13,7 @@ const paths: Record<string, string> = {
   chevron: 'm9 5 7 7-7 7',
   arrow: 'M5 12h14 M12 5l7 7-7 7',
   play: 'm8 5 11 7-11 7z',
+  upload: 'M12 16V3m0 0-4 4m4-4 4 4M4 16v4h16v-4',
   check: 'm5 12 4 4L19 6',
   refresh: 'M20 7v5h-5 M4 17v-5h5 M6 6a8 8 0 0 1 13 2 M18 18a8 8 0 0 1-13-2',
   search: 'M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',

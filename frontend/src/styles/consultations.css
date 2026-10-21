@@ -3,6 +3,22 @@
   margin-bottom: 24px;
   overflow: hidden;
 }
+.upload-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 20px 28px;
+  margin-bottom: 16px;
+}
+.upload-strip strong { font-size: 17px; }
+.upload-strip p { margin: 5px 0 0; color: #596963; font-size: 14px; }
+.upload-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.upload-actions input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-button { cursor: pointer; }
+.upload-progress { color: #596963; font-size: 14px; min-width: 4em; }
+.upload-message { width: 100%; margin: 0; }
 .consultation-list-heading {
   display: flex;
   justify-content: space-between;
@@ -67,6 +83,10 @@
 .consultation-table tr.active td {
   background: #edf5f1;
 }
+.consultation-row { cursor: pointer; }
+.consultation-row:hover td { background: #f4f8f6; }
+.consultation-row:focus-visible { outline: 3px solid #087f73; outline-offset: -3px; }
+.consultation-evaluate { white-space: nowrap; }
 .consultation-table tr.active td:first-child {
   box-shadow: inset 4px 0 #087f73;
 }

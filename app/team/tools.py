@@ -21,8 +21,9 @@ TOOL_HELP = {
     "send_message": "{receiver, message_type, content, evidence_ids?:[], related_indicators?:[]}",
     "get_messages": "{} -> pending/delivered messages; sets DELIVERED",
     "acknowledge_message": "{message_id,disposition:used|irrelevant|answered,reason} -> PROCESSED",
-    "request_review": "{metric_ids:string[],reason:string} -> independent temporary reviewer",
-    "submit_review": "{decision:uphold|revise|unresolved,reason,evidence_ids:string[]} reviewer only",
+    "request_review": "{metric_ids:string[],reason:string} -> flag a possible conflict for Team Lead",
+    "assess_conflicts": "{conflicts:[{metric_ids:string[],reason:string,evidence_ids:string[]}],reason:string} -> Team Lead decides which semantic conflicts exist after inspecting all findings and source",
+    "submit_review": "{decision:uphold|revise|unresolved,reason,evidence_ids:string[]} Team Lead arbitration only",
     "submit_evaluation": "{findings:FindingInput[],complete?:boolean} -> submit/revise owned metrics; complete=true finishes if all metrics and messages handled",
     "wait": "{} -> wait for another agent; finish when all metrics covered and inbox handled",
     "finish": "{} -> complete only if all assigned metrics submitted and all messages processed",
@@ -34,6 +35,17 @@ class TeamTools:
         self.settings = settings
         self.knowledge = knowledge
 
+    @staticmethod
+    def ensure_team_lead(state):
+        team = state["team"]
+        if "team_lead" not in team["tasks"]:
+            lead = task("team_lead", "arbitration", list(state["skills"]["metrics"]), "team_lead")
+            lead["pending_conflicts"] = []
+            lead["phase"] = "detect"
+            lead["evaluation_run_id"] = state["run_id"]
+            team["tasks"]["team_lead"] = lead
+        return team["tasks"]["team_lead"]
+
     def add_review(self, state, conflict):
         team = state["team"]
         if conflict.get("reviewer"):
@@ -42,17 +54,31 @@ class TeamTools:
             conflict["status"] = "UNRESOLVED"
             conflict["reason"] = "review_budget_exhausted"
             return None
-        agent = "reviewer:" + conflict["conflict_id"]
-        team["tasks"][agent] = task(
-            agent, "review", conflict["metric_ids"], "reviewer", conflict["conflict_id"]
-        )
-        team["tasks"][agent]["evaluation_run_id"] = state["run_id"]
+        agent = "team_lead"
+        if agent not in team["tasks"]:
+            team["tasks"][agent] = task(
+                agent, "arbitration", conflict["metric_ids"], "team_lead",
+                conflict["conflict_id"],
+            )
+            team["tasks"][agent]["pending_conflicts"] = []
+            team["tasks"][agent]["evaluation_run_id"] = state["run_id"]
+        else:
+            lead = team["tasks"][agent]
+            lead["metric_ids"] = list(dict.fromkeys(lead["metric_ids"] + conflict["metric_ids"]))
+            if lead["status"] == "FAILED":
+                conflict.update(status="UNRESOLVED", reason="team_lead_unavailable")
+                return None
+            if lead["conflict_id"] is None:
+                lead["conflict_id"] = conflict["conflict_id"]
+                lead["status"] = "PENDING"
+            else:
+                lead["pending_conflicts"].append(conflict["conflict_id"])
         team["reviews_created"] += 1
         conflict["reviewer"] = agent
         event(
             team,
             "team_lead",
-            "create_reviewer",
+            "assign_arbitration",
             {"agent": agent, "conflict_id": conflict["conflict_id"]},
         )
         return agent
@@ -113,26 +139,56 @@ class TeamTools:
             raise ValueError("Review needs known metric IDs")
         if not args.get("reason"):
             raise ValueError("Review reason required")
+        report = {"metric_ids": ids, "reason": str(args["reason"])[:3000], "reported_by": sender}
+        state["team"].setdefault("conflict_reports", []).append(report)
+        return {"status": "queued_for_team_lead", "report": report}
+
+    def assess_conflicts(self, state, agent, args):
         team = state["team"]
-        for c in team["conflicts"].values():
-            if set(c["metric_ids"]) == set(ids) and c["status"] == "OPEN":
-                return {"conflict_id": c["conflict_id"], "reviewer": c.get("reviewer")}
-        cid = uid("conflict")
-        conflict = {
-            "conflict_id": cid,
-            "signature": cid,
-            "metric_ids": ids,
-            "description": str(args["reason"])[:3000],
-            "status": "OPEN",
-            "review": None,
-            "kind": "agent_report",
-            "reported_by": sender,
-            "finding_ids": [
-                active_findings(team)[m]["finding_id"] for m in ids if m in active_findings(team)
-            ],
-        }
-        team["conflicts"][cid] = conflict
-        return {"conflict_id": cid, "reviewer": self.add_review(state, conflict)}
+        lead = team["tasks"][agent]
+        if lead["kind"] != "team_lead" or lead.get("phase") != "detect":
+            raise ValueError("Only Team Lead may assess conflicts before arbitration")
+        if not isinstance(args.get("reason"), str) or not args["reason"].strip():
+            raise ValueError("Conflict assessment needs a reason, including when none exist")
+        candidates = args.get("conflicts")
+        if not isinstance(candidates, list):
+            raise TypeError("Conflict assessment needs a conflicts list")
+        findings = active_findings(team)
+        prepared = []
+        seen = set()
+        for item in candidates:
+            if not isinstance(item, dict):
+                raise TypeError("Invalid conflict candidate")
+            ids = item.get("metric_ids")
+            if not isinstance(ids, list) or len(set(ids)) < 2 or any(mid not in findings for mid in ids):
+                raise ValueError("Conflict must link at least two evaluated metrics")
+            if not isinstance(item.get("reason"), str) or not item["reason"].strip():
+                raise ValueError("Conflict needs a semantic reason")
+            evidence_ids = item.get("evidence_ids", [])
+            self.check_evidence(team, evidence_ids)
+            if not evidence_ids:
+                raise ValueError("Confirmed conflict needs original source evidence")
+            signature = tuple(sorted(set(ids)))
+            if signature in seen:
+                raise ValueError("Duplicate conflict candidate")
+            seen.add(signature)
+            prepared.append((ids, item["reason"], evidence_ids))
+        lead["phase"] = "arbitrate"
+        for ids, reason, evidence_ids in prepared:
+            cid = uid("conflict")
+            conflict = {
+                "conflict_id": cid, "signature": cid, "metric_ids": ids,
+                "description": reason[:3000], "status": "OPEN", "review": None,
+                "kind": "llm_semantic_conflict", "reported_by": agent,
+                "evidence_ids": evidence_ids,
+                "finding_ids": [findings[mid]["finding_id"] for mid in ids],
+            }
+            team["conflicts"][cid] = conflict
+            self.add_review(state, conflict)
+        if not lead["conflict_id"]:
+            lead["status"] = "COMPLETED"
+        event(team, agent, "assess_conflicts", {"count": len(prepared), "reason": args["reason"][:500]})
+        return {"confirmed_conflicts": len(prepared), "status": lead["status"]}
 
     async def execute(self, state, agent, name, args):
         team, session = state["team"], state["session"]
@@ -200,8 +256,14 @@ class TeamTools:
                 ):
                     item["related_indicators"] = sorted(set(item["related_indicators"] + related))
                     return item
+            # 全文引用与预注册共享同一个确定性 ID（e-<message_id>），子串引用保持随机 ID。
+            evidence_id = (
+                "e-" + evidence.message_id
+                if evidence.quote == message["content"]
+                else uid("evidence")
+            )
             item = {
-                "evidence_id": uid("evidence"),
+                "evidence_id": evidence_id,
                 "session_id": session["session_id"],
                 "message_id": evidence.message_id,
                 "turn_id": message["sequence"],
@@ -243,11 +305,12 @@ class TeamTools:
             return message
         if name == "request_review":
             return self.request_review(state, agent, args)
+        if name == "assess_conflicts":
+            return self.assess_conflicts(state, agent, args)
         if name == "submit_review":
-            if current["kind"] != "reviewer" or not current["skills_read"]:
-                raise ValueError(
-                    "Only an independent reviewer with loaded Skills may submit review"
-                )
+            if (current["kind"] != "team_lead" or not current["skills_read"]
+                    or current.get("phase") != "arbitrate" or not current["conflict_id"]):
+                raise ValueError("Only Team Lead with loaded Skills may submit arbitration")
             if args.get("decision") not in {"uphold", "revise", "unresolved"} or not args.get(
                 "reason"
             ):
@@ -270,21 +333,24 @@ class TeamTools:
                     {
                         "receiver": receiver,
                         "message_type": "CLARIFICATION_REQUEST",
-                        "content": f"Independent review ({args['decision']}): {args['reason']}",
+                        "content": f"Team Lead arbitration ({args['decision']}): {args['reason']}",
                         "evidence_ids": args.get("evidence_ids", []),
                         "related_indicators": conflict["metric_ids"],
                     },
                 )
-            current["status"] = "COMPLETED"
-            return {"status": "review_submitted", "score_override": False}
+            current["conflict_id"] = (
+                current["pending_conflicts"].pop(0) if current["pending_conflicts"] else None
+            )
+            current["status"] = "PENDING" if current["conflict_id"] else "COMPLETED"
+            return {"status": "arbitration_submitted", "score_override": False}
         if name == "submit_evaluation":
             return self.submit(state, agent, args)
         if name == "wait":
             current["status"] = "WAITING"
             return {"status": "WAITING"}
         if name == "finish":
-            if current["kind"] == "reviewer":
-                raise ValueError("Reviewer must submit_review")
+            if current["kind"] == "team_lead":
+                raise ValueError("Team Lead must submit_review")
             if set(current["findings"]) != set(current["metric_ids"]) or pending_messages(
                 team, agent
             ):
@@ -322,14 +388,14 @@ class TeamTools:
                 raise ValueError("Unknown manual review rule")
             if spec["status"] == "published" and "rubric_unpublished" in f.review_rule_ids:
                 raise ValueError(
-                    "metric.yaml status is published: rubric_unpublished does not apply"
+                    "SKILL.md status is published: rubric_unpublished does not apply"
                 )
-            if (
-                spec["status"] == "draft"
-                and f.status == "NOT_EVALUABLE"
-                and "rubric_unpublished" not in f.review_rule_ids
-            ):
-                raise ValueError("Draft metric needs rubric_unpublished manual review")
+            if spec["status"] == "draft" and f.status == "NOT_EVALUABLE":
+                context_rules = {"source_incomplete", "context_ambiguous", "source_conflict"}
+                if not ({"rubric_unpublished"} | context_rules).intersection(f.review_rule_ids):
+                    raise ValueError("Draft metric needs rubric_unpublished or context review")
+            if f.status == "NOT_APPLICABLE" and "rubric_unpublished" in f.review_rule_ids:
+                raise ValueError("Not-applicable metric cannot be rubric_unpublished")
             if f.score is not None:
                 if spec["status"] != "published" or spec["configuration_issues"]:
                     raise ValueError("Skill not published consistently; submit NOT_EVALUABLE")

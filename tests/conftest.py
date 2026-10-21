@@ -54,9 +54,9 @@ def catalog(tmp_path):
             "evidence": {"allowed_sources": ["current_dialogue"]},
             "required_tools": ["evidence_locator"],
         }
-        (folder / "metric.yaml").write_text(yaml.safe_dump(spec), encoding="utf-8")
         (folder / "SKILL.md").write_text(
-            "status=published; evaluate source-grounded behavior.", encoding="utf-8"
+            "---\n" + yaml.safe_dump(spec) + "---\n"
+            "Evaluate source-grounded behavior.\n", encoding="utf-8"
         )
     return SkillCatalog(root)
 
@@ -108,16 +108,26 @@ class ScriptedModel:
         tools = [o["tool"] for o in obs]
         if not task["skills_read"]:
             return self.action("read_skill")
-        if "get_dialogue" not in tools:
+        if "dialogue" not in payload:
             return self.action("get_dialogue")
-        dialogue = next(o["result"]["messages"] for o in obs if o["tool"] == "get_dialogue")
+        dialogue = payload["dialogue"]["messages"]
         doctor = next(m for m in dialogue if m["role"] == "doctor" and m["content"])
-        if task["kind"] == "reviewer":
+        if task["kind"] == "team_lead":
+            if task["phase"] == "detect":
+                return self.action(
+                    "assess_conflicts",
+                    reason="Compared all findings against the current dialogue",
+                    conflicts=[{
+                        "metric_ids": ["D1.1", "D2.1"],
+                        "reason": "Opposite assertions about the same doctor response",
+                        "evidence_ids": payload["evidence"]["sample_ids"][:1],
+                    }] if self.conflict else [],
+                )
             return self.action(
                 "submit_review",
                 decision="revise",
                 reason="Inspect source and correct claims",
-                evidence_ids=payload["shared_evidence_ids"][:1],
+                evidence_ids=payload["evidence"]["sample_ids"][:1],
             )
         if payload["inbox_pending_count"]:
             received = [o["result"] for o in obs if o["tool"] == "get_messages"]

@@ -15,9 +15,9 @@ const props = defineProps<{
   selecting: boolean
   disabled: boolean
   error: string
-  source: 'preview' | 'database' | 'access_required' | 'unavailable'
+  source: 'preview' | 'database' | 'uploaded' | 'access_required' | 'unavailable'
 }>()
-const emit = defineEmits<{ select: [id: string]; refresh: [offset: number, query: string] }>()
+const emit = defineEmits<{ select: [id: string]; evaluate: [id: string]; refresh: [offset: number, query: string] }>()
 const search = ref(props.query)
 watch(
   () => props.query,
@@ -29,15 +29,17 @@ watch(
     <div class="consultation-list-heading">
       <div>
         <h2 id="consultations-title">咨询对话</h2>
-        <p>选择咨询 ID，在下方查看咨询记录与服务质量评价。</p>
+        <p>点击整行查看详细内容；使用右侧按钮单独评估该会话。</p>
       </div>
       <StatusBadge :tone="source === 'database' ? 'success' : 'neutral'">{{
         source === 'database'
           ? '数据库记录'
+          : source === 'uploaded'
+            ? '本页上传'
           : source === 'preview'
             ? '3 条合成样例'
             : source === 'access_required'
-              ? '需要访问令牌'
+              ? '等待上传'
               : '列表暂不可用'
       }}</StatusBadge>
     </div>
@@ -88,17 +90,17 @@ watch(
           <tr
             v-for="item in items"
             :key="item.session_id"
-            :class="{ active: item.session_id === selectedId }"
+            :class="['consultation-row', { active: item.session_id === selectedId }]"
+            :tabindex="disabled || loading ? -1 : 0"
+            :aria-label="`查看咨询 ${item.session_id} 的详细内容`"
+            @click="!disabled && !loading && emit('select', item.session_id)"
+            @keydown.enter.self="!disabled && !loading && emit('select', item.session_id)"
+            @keydown.space.self.prevent="!disabled && !loading && emit('select', item.session_id)"
           >
             <td>
-              <button
-                class="consultation-id"
-                :disabled="disabled || loading"
-                :aria-pressed="item.session_id === selectedId"
-                @click="emit('select', item.session_id)"
-              >
+              <span class="consultation-id">
                 <Icon name="report" :size="17" />{{ item.session_id }}
-              </button>
+              </span>
             </td>
             <td>{{ label(item.consultation_round) }}</td>
             <td>{{ item.message_count }} 条</td>
@@ -119,12 +121,12 @@ watch(
             </td>
             <td>
               <button
-                class="text-button"
+                class="button secondary consultation-evaluate"
                 :disabled="disabled || loading"
-                @click="emit('select', item.session_id)"
+                :aria-label="`评估咨询 ${item.session_id}`"
+                @click.stop="emit('evaluate', item.session_id)"
               >
-                {{ item.session_id === selectedId ? '已选中' : '查看'
-                }}<Icon name="chevron" :size="14" />
+                <Icon name="play" :size="14" />评估
               </button>
             </td>
           </tr>
@@ -139,12 +141,14 @@ watch(
         selecting
           ? '正在加载所选咨询，请稍候…'
           : source === 'access_required'
-            ? '真实咨询受保护。请在“服务连接”中输入访问令牌；演示样例可用顶部“查看离线样例”。'
+            ? '请从上方上传 JSON 文件，或切换至离线交互样例。'
+            : source === 'uploaded'
+              ? '本页上传的内容仅在当前页面保留；点击整行查看详情。'
             : source === 'preview'
               ? '离线合成数据，用于演示 ID 切换；不代表真实咨询。'
             : source === 'database' && !total
-              ? '数据库中没有真实咨询记录。请先通过受保护接口导入会话。'
-              : '每页最多展示 5 条，点击 ID 查看已有报告。'
+              ? '数据库中没有咨询记录。请从上方上传数据。'
+              : '每页最多展示 5 条，点击整行查看已有报告。'
       }}</small>
       <div>
         <button

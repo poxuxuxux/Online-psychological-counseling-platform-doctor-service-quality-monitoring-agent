@@ -51,6 +51,12 @@ export const api = {
       },
       600000,
     ),
+  evaluateGuest: (session: Session) =>
+    request('/api/v1/guest/evaluations', ReportSchema, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session),
+    }, 600000),
   recent: () => request('/api/v1/evaluations/recent?limit=20', RecentSchema),
   health: () => request('/health', z.object({ status: z.string() })),
   ready: () => request('/ready', ReadySchema),

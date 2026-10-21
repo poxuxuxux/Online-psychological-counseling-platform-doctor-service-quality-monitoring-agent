@@ -27,7 +27,7 @@ Infrastructure 实现 Ports，由组合根注入；Domain 不导入 FastAPI、La
 每个运行拥有独立 `data`；无全局任务列表或全局消息队列。`team.tasks[agent_id]` 是独立任务上下文，
 `team.evidence` 存原文，`team.messages` 存传递状态，`context` 存当前/历史背景。
 
-Agent 只能提交 `metric_ids` 分派范围内的结果；Reviewer 无评分写权限。消息工具可以将接收任务重新激活。
+Agent 只能提交 `metric_ids` 分派范围内的结果；Team Lead 负责判断冲突并仲裁，没有评分写权限。消息工具可以将接收任务重新激活。
 每个工具动作在内存中整体成功或回滚。启用 Bucket 时，save 节点先上传加密快照，再由数据库事务提交引用和协作审计。模型不能传递任意 session_id 查询历史，
 历史范围始终来自可信 session 的患者、医生和时间。
 
@@ -44,7 +44,7 @@ checkpoint 在模型调用前记录预算，在工具成功后记录动作和消
 
 ## 测试划分
 
-`test_workflow.py`：真实 LangGraph 循环、消息唤醒、修订、Reviewer、历史、防锚定、恢复和预算。
+`test_workflow.py`：真实 LangGraph 循环、消息唤醒、修订、Team Lead 仲裁、历史、防锚定、恢复和预算。
 `test_api.py`：FastAPI 生命周期、前端兼容、身份边界、报告与审计读取、人工复核。
 `test_policies.py`：动态维度、Skill 冲突、风险保留、模型异常。
 `test_postgres.py`：可丢弃 PostgreSQL 的事务审计；CI 提供容器，默认本地没有测试地址时跳过。

@@ -38,12 +38,12 @@ async def test_late_message_wakes_completed_agent_and_revises(make_service, sess
     assert report["quality_profile"]["overall_score"] == 4.5
 
 
-async def test_dynamic_independent_reviewer_and_conflict_revision(make_service, session):
+async def test_team_lead_arbitration_and_conflict_revision(make_service, session):
     service, repo = await make_service(ScriptedModel(conflict=True))
     report = await service.evaluate(session)
     state = await repo.get_run(report["evaluation_id"])
     assert state["team"]["reviews_created"] == 1
-    assert any(t["kind"] == "reviewer" for t in state["team"]["tasks"].values())
+    assert state["team"]["tasks"]["team_lead"]["kind"] == "team_lead"
     assert report["arbitration_status"] == "resolved"
     assert all(m["status"] == "PROCESSED" for m in state["team"]["messages"])
     assert report["quality_profile"]["overall_score"] == 4

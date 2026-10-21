@@ -94,6 +94,13 @@ describe('trust display policy', () => {
     f.score = null
     expect(verdict(f).code).toBe('insufficient')
   })
+  it('shows an applicable draft as a rule awaiting approval', () => {
+    const f = finding()
+    f.applicability = 'applicable'
+    f.score = null
+    f.limitations = ['rubric_unpublished']
+    expect(verdict(f)).toMatchObject({ code: 'pending', text: '评分规则待审定' })
+  })
   it('does not approve a partial Agent result', () =>
     expect(verdict(finding(), verification(), 'partial').code).toBe('pending'))
   it('does not calculate an average in the browser', () => {

@@ -105,11 +105,16 @@ def build_report(state):
                     "attempt": min(f["revision_count"], 1),
                     "revision_count": f["revision_count"],
                     "supersedes_finding_id": f["supersedes_finding_id"],
-                    "applicability": {
-                        "EVALUATED": "applicable",
-                        "NOT_APPLICABLE": "not_applicable",
-                        "NOT_EVALUABLE": "insufficient_context",
-                    }[f["status"]],
+                    "applicability": (
+                        "applicable" if f["status"] == "NOT_EVALUABLE"
+                        and ({"rubric_unpublished", "professional_protocol_pending"}
+                             & set(f["review_rule_ids"]))
+                        else {
+                            "EVALUATED": "applicable",
+                            "NOT_APPLICABLE": "not_applicable",
+                            "NOT_EVALUABLE": "insufficient_context",
+                        }[f["status"]]
+                    ),
                     "score": f["score"] if accepted else None,
                     "proposed_score": f["score"],
                     "rationale": f["reason"],

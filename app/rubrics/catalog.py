@@ -1,5 +1,5 @@
 # 环节：指标目录层；用途：加载、校验并组织 Agent 评价规则。
-"""Load existing metric.yaml + SKILL.md packages; discover dimensions from data."""
+"""Load each metric's structured frontmatter and instructions from SKILL.md."""
 
 import hashlib
 import json
@@ -31,11 +31,17 @@ UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, uni
 class SkillCatalog:
     def __init__(self, root: Path):
         self.metrics = {}
-        for path in sorted(root.glob("*/metric.yaml")):
+        for path in sorted(root.glob("*/SKILL.md")):
             if not path.resolve().is_relative_to(root.resolve()):
                 raise ValueError("Skill outside configured directory")
-            spec = yaml.load(path.read_text(encoding="utf-8-sig"), Loader=UniqueLoader)
-            instructions = path.with_name("SKILL.md").read_text(encoding="utf-8-sig")
+            source = path.read_text(encoding="utf-8-sig")
+            match = re.match(r"\A---\s*\n(.*?)\n---\s*\n(.*)\Z", source, re.DOTALL)
+            if not match:
+                raise ValueError(f"Missing SKILL.md YAML frontmatter: {path}")
+            spec = yaml.load(match.group(1), Loader=UniqueLoader)
+            if not isinstance(spec, dict):
+                raise TypeError(f"Invalid SKILL.md YAML frontmatter: {path}")
+            instructions = match.group(2)
             mid = spec["metric_id"]
             if mid in self.metrics or not re.fullmatch(r"[A-Za-z][\w-]*\.[\w-]+", mid):
                 raise ValueError(f"Invalid/duplicate metric ID: {mid}")
@@ -55,8 +61,6 @@ class SkillCatalog:
             if len(set(rules)) != len(rules):
                 raise ValueError(f"Duplicate review rules: {mid}")
             issues = []
-            if spec["status"] == "published" and re.search(r"status\s*[:=]\s*draft", instructions):
-                issues.append("skill_publication_conflict")
             self.metrics[mid] = {
                 **spec,
                 "dimension_id": spec.get("dimension_id", mid.split(".")[0]),

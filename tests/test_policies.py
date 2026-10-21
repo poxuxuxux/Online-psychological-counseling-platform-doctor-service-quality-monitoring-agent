@@ -5,26 +5,49 @@ from dataclasses import replace
 import pytest
 
 from app.config import Settings
-from app.evaluation.scoring import classify_risk
+from app.evaluation.scoring import classify_risk, score
 from app.infrastructure.model import JsonModelGateway, ModelUnavailable
 from app.rubrics.catalog import SkillCatalog
-from app.team.conflicts import detect_fact_conflicts
+from app.rubrics.payload import metric_payload
 from app.team.state import initialize_team
 from app.team.tools import TeamTools
 
 
-def test_real_skills_keep_unapproved_d6_metrics_draft():
+def test_real_skills_publish_catalog_from_skill_frontmatter():
     catalog = SkillCatalog(Settings().skill_dir)
     assert len(catalog.metrics) == 18
     assert len(catalog.dimensions) == 6
-    assert {mid for mid, m in catalog.metrics.items() if m["status"] == "draft"} == {
-        "D6.1", "D6.2"
-    }
+    assert all(m["status"] == "published" for m in catalog.metrics.values())
+    assert all("scoring_status" not in m for m in catalog.metrics.values())
     assert not any(m["configuration_issues"] for m in catalog.metrics.values())
+    assert all(not (Settings().skill_dir / mid / "metric.yaml").exists() for mid in catalog.metrics)
+    assert "风险信号回应" in metric_payload(catalog.metrics["D6.1"])["instructions"]
+
+
+def test_nonapplicable_d6_allows_total_but_applicable_pending_d6_blocks_it():
+    catalog = SkillCatalog(Settings().skill_dir)
+    skills = catalog.snapshot()
+    team = initialize_team(skills, "run")
+    team["evidence"]["e1"] = {"evidence_id": "e1"}
+    for task in team["tasks"].values():
+        for mid in task["metric_ids"]:
+            task["findings"][mid] = {
+                "metric_id": mid,
+                "status": "NOT_APPLICABLE" if mid.startswith("D6.") else "EVALUATED",
+                "score": None if mid.startswith("D6.") else 4,
+                "review_rule_ids": [], "evidence_ids": ["e1"], "claims": [{"evidence_ids": ["e1"]}],
+            }
+    state = {"skills": skills, "team": team, "dimension_ids": catalog.dimensions,
+             "completion": {"complete": True}}
+    assert score(state)["overall_score"] == 4
+    team["tasks"]["evaluator:D4"]["findings"]["D6.1"].update(
+        status="NOT_EVALUABLE", review_rule_ids=["urgent_safety_review"]
+    )
+    assert score(state)["overall_score"] is None
 
 
 @pytest.mark.parametrize("metric_id", ["D6.1", "D6.2"])
-def test_d6_draft_scoring_requires_manual_review(metric_id):
+def test_published_d6_scores_clear_case_and_reviews_flagged_case(metric_id):
     catalog = SkillCatalog(Settings().skill_dir)
     state = {"skills": catalog.snapshot(), "team": initialize_team(catalog.snapshot(), "run")}
     agent = "evaluator:D4"
@@ -38,13 +61,30 @@ def test_d6_draft_scoring_requires_manual_review(metric_id):
                     "scope": "current_session", "statement": "Doctor replied", "evidence_ids": ["e1"]}],
         "review_rule_ids": [],
     }
-    with pytest.raises(ValueError, match="not published"):
+    assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == [metric_id]
+    finding["review_rule_ids"] = ["urgent_safety_review"]
+    with pytest.raises(ValueError, match="Unresolved review rules"):
         tools.submit(state, agent, {"findings": [finding]})
     finding.update(status="NOT_EVALUABLE", score=None)
-    with pytest.raises(ValueError, match="rubric_unpublished"):
-        tools.submit(state, agent, {"findings": [finding]})
-    finding["review_rule_ids"] = ["rubric_unpublished", "professional_protocol_pending"]
     assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == [metric_id]
+
+
+def test_d6_professional_review_distinguishes_absent_trigger_from_uncertain_trigger():
+    catalog = SkillCatalog(Settings().skill_dir)
+    state = {"skills": catalog.snapshot(), "team": initialize_team(catalog.snapshot(), "run")}
+    agent = "evaluator:D4"
+    state["team"]["tasks"][agent]["skills_read"] = True
+    tools = TeamTools(Settings(), None)
+    no_trigger = {"metric_id": "D6.1", "status": "NOT_APPLICABLE", "score": None,
+                  "reason": "Complete dialogue contains no current safety concern",
+                  "evidence_ids": [], "claims": [], "review_rule_ids": []}
+    assert tools.submit(state, agent, {"findings": [no_trigger]})["accepted"] == ["D6.1"]
+    no_trigger["review_rule_ids"] = ["rubric_unpublished"]
+    with pytest.raises(ValueError, match="Unknown manual review rule"):
+        tools.submit(state, agent, {"findings": [no_trigger]})
+    uncertain = {**no_trigger, "status": "NOT_EVALUABLE",
+                 "review_rule_ids": ["context_ambiguous"]}
+    assert tools.submit(state, agent, {"findings": [uncertain]})["accepted"] == ["D6.1"]
 
 
 def test_d2_interaction_time_does_not_require_first_response_start():
@@ -99,13 +139,61 @@ def test_standard_dimensions_are_assigned_to_three_evaluator_groups():
     ]
 
 
-def test_different_scores_are_not_fact_conflicts(catalog):
-    team = initialize_team(catalog.snapshot(), "run")
-    for index, (agent, task) in enumerate(team["tasks"].items()):
+def test_team_lead_owns_and_queues_conflict_arbitration():
+    catalog = SkillCatalog(Settings().skill_dir)
+    state = {"run_id": "run", "session": {}, "skills": catalog.snapshot(),
+             "team": initialize_team(catalog.snapshot(), "run")}
+    tools = TeamTools(Settings(), None)
+    suggestion = tools.request_review(state, "evaluator:D1", {
+        "metric_ids": ["D1.1", "D2.1"], "reason": "Conflicting source claims"
+    })
+    assert suggestion["status"] == "queued_for_team_lead"
+    assert not state["team"]["conflicts"]
+    lead = tools.ensure_team_lead(state)
+    for task in state["team"]["tasks"].values():
+        if task["kind"] == "evaluator":
+            for mid in task["metric_ids"]:
+                task["findings"][mid] = {"finding_id": "f-" + mid, "metric_id": mid, "claims": []}
+    state["team"]["evidence"]["e1"] = {"evidence_id": "e1"}
+    lead["skills_read"] = True
+    assessment = tools.assess_conflicts(state, "team_lead", {
+        "reason": "Checked source and identified two substantive conflicts",
+        "conflicts": [
+            {"metric_ids": ["D1.1", "D2.1"], "reason": "Opposite doctor behavior claims", "evidence_ids": ["e1"]},
+            {"metric_ids": ["D4.1", "D6.1"], "reason": "Incompatible safety response claims", "evidence_ids": ["e1"]},
+        ],
+    })
+    assert assessment["confirmed_conflicts"] == 2
+    first, second = list(state["team"]["conflicts"])
+    assert lead["conflict_id"] == first
+    assert lead["pending_conflicts"] == [second]
+    action = tools.execute(state, "team_lead", "submit_review", {
+        "decision": "revise", "reason": "Original text favors one claim", "evidence_ids": ["e1"]
+    })
+    with pytest.raises(StopIteration) as completed:
+        action.send(None)  # This tool path is synchronous; no event loop is needed.
+    result = completed.value.value
+    assert result["status"] == "arbitration_submitted"
+    assert lead["conflict_id"] == second
+    assert lead["status"] == "PENDING"
+    assert state["team"]["conflicts"][first]["review"]["reviewer"] == "team_lead"
+
+
+def test_team_lead_can_confirm_no_conflict_despite_different_scores(catalog):
+    state = {"run_id": "run", "skills": catalog.snapshot(),
+             "team": initialize_team(catalog.snapshot(), "run")}
+    for index, task in enumerate(state["team"]["tasks"].values()):
         mid = task["metric_ids"][0]
-        task["findings"][mid] = {"metric_id": mid, "score": index + 1, "claims": []}
-    detect_fact_conflicts(team)
-    assert not team["conflicts"]
+        task["findings"][mid] = {"finding_id": "f-" + mid, "metric_id": mid,
+                                 "score": index + 1, "claims": []}
+    tools = TeamTools(Settings(), None)
+    lead = tools.ensure_team_lead(state)
+    result = tools.assess_conflicts(state, "team_lead", {
+        "conflicts": [], "reason": "Scores differ across metrics, but factual claims do not conflict"
+    })
+    assert result["confirmed_conflicts"] == 0
+    assert lead["status"] == "COMPLETED"
+    assert not state["team"]["conflicts"]
 
 
 async def test_serious_alert_is_sticky_and_budget_bounded(catalog):

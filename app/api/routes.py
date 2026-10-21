@@ -1,5 +1,9 @@
 # 环节：API 接入层；用途：定义 HTTP 路由、鉴权及请求响应处理。
+import asyncio
 import secrets
+import tempfile
+import time
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -10,6 +14,9 @@ from app.domain.models import Session, StrictModel, now, uid
 from app.infrastructure.repository import RunBusy
 
 router = APIRouter()
+_guest_slots = asyncio.Semaphore(2)
+_guest_requests: list[float] = []
+_guest_lock = asyncio.Lock()
 
 
 def authorized(request):
@@ -108,6 +115,43 @@ async def import_session(session: Session, request: Request):
     return {"session_id": session.session_id}
 
 
+@router.post("/api/v1/guest/evaluations")
+async def evaluate_guest(session: Session, request: Request):
+    """Evaluate one browser-uploaded session without publishing or retaining its source."""
+    from app.infrastructure.repository import Repository
+    from app.rubrics.catalog import SkillKnowledgeSource
+    from app.workflow.service import EvaluationService
+
+    if session.source_id == "synthetic-demo":
+        raise HTTPException(422, "Reserved demo source is not a guest upload")
+    if len(session.model_dump_json()) > 2_000_000:
+        raise HTTPException(413, "Guest upload exceeds 2 MB")
+    container = request.app.state.container
+    if not container.model.configured:
+        raise HTTPException(503, "Evaluation model is not configured")
+    current = time.monotonic()
+    async with _guest_lock:
+        _guest_requests[:] = [stamp for stamp in _guest_requests if current - stamp < 3600]
+        if len(_guest_requests) >= 60:
+            raise HTTPException(429, "Guest evaluation capacity reached; retry later")
+        _guest_requests.append(current)
+    async with _guest_slots:
+        with tempfile.TemporaryDirectory(prefix="xin-heng-guest-") as folder:
+            repository = Repository("sqlite:///" + str(Path(folder) / "evaluation.sqlite3"))
+            await repository.initialize()
+            service = EvaluationService(
+                container.settings,
+                repository,
+                container.model,
+                container.catalog,
+                SkillKnowledgeSource(container.catalog),
+            )
+            guest_session = session.model_copy(update={"source_id": "guest-upload"})
+            report = await service.evaluate(guest_session)
+            report.get("team", {}).pop("audit_url", None)
+            return report
+
+
 @router.post("/api/v1/runs", status_code=201)
 async def create_run(session: Session, request: Request):
     check_input(request, session)
@@ -204,6 +248,35 @@ async def evaluation_overview(request: Request, days: int = Query(30, ge=1, le=9
     c = request.app.state.container
     records = await c.repository.latest_reports(not authorized(request))
     return overview(records, c.catalog, days, "postgresql" if c.repository.postgres else "sqlite")
+
+
+@router.get("/api/v1/monitoring/doctors")
+async def monitoring_doctors(request: Request, days: int = Query(180, ge=7, le=365)):
+    from app.evaluation.monitoring import doctor_profiles
+
+    c = request.app.state.container
+    payload = await c.repository.doctor_reports(not authorized(request))
+    return doctor_profiles(
+        payload, c.catalog, days, "postgresql" if c.repository.postgres else "sqlite"
+    )
+
+
+@router.get("/api/v1/monitoring/doctors/{doctor_id}")
+async def monitoring_doctor(doctor_id: str, request: Request, days: int = Query(180, ge=7, le=365)):
+    from app.evaluation.monitoring import doctor_profile
+
+    c = request.app.state.container
+    payload = await c.repository.doctor_reports(not authorized(request))
+    profile = doctor_profile(
+        payload,
+        c.catalog,
+        days,
+        "postgresql" if c.repository.postgres else "sqlite",
+        doctor_id,
+    )
+    if profile is None:
+        raise HTTPException(404, "No evaluated sessions for this doctor in the window")
+    return profile
 
 
 class ReviewInput(StrictModel):

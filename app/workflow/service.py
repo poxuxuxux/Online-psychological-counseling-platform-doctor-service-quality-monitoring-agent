@@ -150,7 +150,7 @@ class EvaluationService:
                 data["team_plan"] = {
                     "dimensions": data["dimension_ids"],
                     "required_metric_ids": list(data["skills"]["metrics"]),
-                    "policy": "owner_only_scoring_independent_review",
+                    "policy": "owner_only_scoring_team_lead_arbitration",
                 }
                 next_stage = "team_initialization"
             elif name == "team_initialization":
