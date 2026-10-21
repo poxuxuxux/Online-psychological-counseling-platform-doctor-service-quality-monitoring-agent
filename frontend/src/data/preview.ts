@@ -42,10 +42,15 @@ export function previewReport(session = previewSession()): Report {
     evaluation_id: `preview-${crypto.randomUUID()}`,
     session_id: session.session_id,
     status: 'completed',
+    risk: {
+      level: 'medium',
+      scope: 'doctor_service_quality',
+      reasons: ['synthetic_preview_requires_review'],
+    },
     summary:
       '这是本地合成交互样例，用于检查证据定位、初评修正、讨论与待复核状态。所有分数和核验意见均为预设示例，不能用于评价真实医生。',
     review_required: true,
-    review_reasons: ['D4.1 的事实与适用性已核验，但正式评分锚点尚未发布；仍需人工判断。'],
+    review_reasons: ['D4.1 的事实解释和评分依据仍有分歧；离线样例保留人工复核。'],
     arbitration_status: 'unresolved',
     limitations: [
       '离线样例没有运行模型，没有写入服务器数据库。',
@@ -114,7 +119,7 @@ export function previewReport(session = previewSession()): Report {
             finding_id: 'preview-f6-original',
             metric_id: 'D4.1',
             metric_version: 'preview-draft',
-            score: 4.5,
+            score: 4,
             rationale: '医生识别了患者的焦虑并回应失眠带来的辛苦。',
             evidence: evidence(1),
           },
@@ -133,8 +138,9 @@ export function previewReport(session = previewSession()): Report {
             finding_id: 'preview-f7',
             metric_id: 'D6.1',
             metric_version: 'preview-draft',
-            score: 3,
-            rationale: '是否存在应回应的风险信号及是否满足该评分锚点，仍需专业复核。',
+            applicability: 'insufficient_context',
+            score: null,
+            rationale: '风险回应指标尚待专业审定；本条仅展示证据定位与人工复核。',
             evidence: evidence(5),
           },
         ],
@@ -188,7 +194,7 @@ export function previewReport(session = previewSession()): Report {
             supporting_evidence: evidence(1),
           },
         ],
-        issues: ['正式评分锚点未发布，不能仅凭行为存在确认分数。'],
+        issues: ['示例中的事实解释仍有争议，不能仅凭行为存在确认分数。'],
       },
       {
         finding_id: 'preview-f7',
@@ -205,7 +211,7 @@ export function previewReport(session = previewSession()): Report {
       {
         finding_id: 'preview-f6-original',
         role: 'evaluator',
-        text: '我认为医生回应了焦虑与失眠带来的辛苦，初评为 4.5 分。',
+        text: '我认为医生回应了焦虑与失眠带来的辛苦，初评为 4 分。',
         message_ids: [session.messages[1]!.message_id],
       },
       {
@@ -217,13 +223,13 @@ export function previewReport(session = previewSession()): Report {
       {
         finding_id: 'preview-f6',
         role: 'evaluator',
-        text: '接受定向质疑，删除焦虑主张，保留已发生的回应。修订分数只用于交互样例，正式锚点仍待审定。',
+        text: '接受定向质疑，删除焦虑主张，保留已发生的回应。修订分数只用于交互样例。',
         message_ids: [session.messages[1]!.message_id],
       },
       {
         finding_id: 'preview-f6',
         role: 'verifier',
-        text: '修订后的事实主张可获支持；评分锚点仍无法判断，保留待复核状态。',
+        text: '修订后的事实主张可获支持；示例评分依据仍需人工判断。',
         message_ids: [session.messages[1]!.message_id],
       },
     ],
@@ -234,7 +240,7 @@ export function previewReport(session = previewSession()): Report {
         status: 'unresolved',
         adopted: 'manual_review',
         rationale:
-          '采纳对事实主张的修正。由于正式评分锚点缺失，仲裁不能补造规则或重新打分，转人工复核。',
+          '采纳对事实主张的修正。评分依据尚存分歧，转人工复核。',
         requires_manual_review: true,
       },
     ],

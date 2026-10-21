@@ -3,7 +3,7 @@ schema_version: '1.0'
 metric_id: D6.1
 name: 风险信号回应
 version: 0.3.0-draft
-status: published
+status: draft
 owner: empathy_relationship
 definition: 患者明确表达严重风险信号时，医生是否识别并作出与情境相应的安全询问或风险回应。
 applicability:

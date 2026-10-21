@@ -62,3 +62,4 @@ manual_review:
 required_tools:
 - evidence_locator
 - time_calculator
+time_fact: adjacent_response_intervals

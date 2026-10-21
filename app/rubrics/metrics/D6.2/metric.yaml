@@ -3,7 +3,7 @@ schema_version: '1.0'
 metric_id: D6.2
 name: 必要转介与求助提示
 version: 0.3.0-draft
-status: published
+status: draft
 owner: professional_service
 definition: 明确需要紧急处理或超出线上服务能力时，医生是否提供适当的求助或转介指引。
 applicability:

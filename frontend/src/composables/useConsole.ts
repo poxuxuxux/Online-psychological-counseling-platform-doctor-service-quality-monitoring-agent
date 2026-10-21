@@ -18,10 +18,11 @@ export type BatchRun = {
   high: number
   medium: number
   low: number
+  unknown: number
   quality_summary: string
   sessions: { session_id: string; status: string; risk_level: BatchRiskLevel; pending_count: number }[]
 }
-const batchStorageKey = 'xin-heng-batch-runs-v1'
+const batchStorageKey = 'xin-heng-batch-runs-v2'
 function savedBatchRuns(): BatchRun[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(batchStorageKey) || '[]')
@@ -245,13 +246,10 @@ export function useConsole() {
           const pendingCount = reportRowsForSession.filter(
             (row) => !['verified', 'agent_scored', 'not_applicable'].includes(row.verdict.code),
           ).length
-          const riskCandidate = /风险表达候选|合成风险情境|当前自伤|安全风险候选/.test(
-            result.review_reasons.join(' '),
-          )
           sessionOutcomes.push({
             session_id: item.session_id,
             status: result.status,
-            risk_level: result.status === 'failed' ? 'unknown' : riskCandidate ? 'high' : pendingCount ? 'medium' : 'low',
+            risk_level: result.status === 'failed' ? 'unknown' : result.risk?.level ?? 'unknown',
             pending_count: pendingCount,
           })
           if (selectedSessionId === item.session_id) report.value = result
@@ -280,6 +278,7 @@ export function useConsole() {
       const high = sessionOutcomes.filter((item) => item.risk_level === 'high').length
       const medium = sessionOutcomes.filter((item) => item.risk_level === 'medium').length
       const low = sessionOutcomes.filter((item) => item.risk_level === 'low').length
+      const unknown = sessionOutcomes.filter((item) => item.risk_level === 'unknown').length
       const totalRows = completedReports.flatMap((result) => reportRows(result))
       const scoredItems = totalRows.filter((row) => ['verified', 'agent_scored'].includes(row.verdict.code)).length
       const pendingItems = totalRows.filter((row) => !['verified', 'agent_scored', 'not_applicable'].includes(row.verdict.code)).length
@@ -290,8 +289,8 @@ export function useConsole() {
       const qualitySummary = completedReports.length === 0
         ? '本批没有会话完成评价，暂时无法判断平台服务质量。'
         : trustedScores.length === completedReports.length
-          ? `本批 ${completedReports.length} 轮均通过总分门槛，质量评分均值为 ${(trustedScores.reduce((sum, score) => sum + score, 0) / trustedScores.length * 20).toFixed(1)} 分（满分 100）。高风险候选 ${high} 轮仍需人工复核。`
-          : `本批完成 ${completedReports.length} 轮评价，${scoredItems} 项已计分，${pendingItems} 项待复核；识别到 ${high} 轮高风险候选。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到总分门槛，暂不能给出服务质量达标结论。`
+          ? `本批 ${completedReports.length} 轮均通过总分门槛，质量评分均值为 ${(trustedScores.reduce((sum, score) => sum + score, 0) / trustedScores.length * 20).toFixed(1)} 分（满分 100）。后端判定服务质量高风险 ${high} 轮，风险未知 ${unknown} 轮。`
+          : `本批完成 ${completedReports.length} 轮评价，${scoredItems} 项已计分，${pendingItems} 项待复核；后端判定服务质量高风险 ${high} 轮，风险未知 ${unknown} 轮。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到总分门槛，暂不能给出服务质量达标结论。`
       const batchRun: BatchRun = {
         batch_id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         created_at: new Date().toISOString(),
@@ -301,6 +300,7 @@ export function useConsole() {
         high,
         medium,
         low,
+        unknown,
         quality_summary: qualitySummary,
         sessions: sessionOutcomes,
       }

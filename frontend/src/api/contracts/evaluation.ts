@@ -165,6 +165,12 @@ export const ReportSchema = z
       .default([]),
     review_required: z.boolean().default(false),
     review_reasons: strings,
+    risk: z.object({
+      level: z.enum(['high', 'medium', 'low', 'unknown']),
+      scope: z.string().optional(),
+      reasons: strings,
+      requires_manual_review: z.boolean().optional(),
+    }).optional(),
     team: z.object({
       model_call_count: z.number(),
       stop_reason: z.string().nullable().optional(),

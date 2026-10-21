@@ -47,6 +47,10 @@ class SkillCatalog:
                 raise ValueError(f"Incomplete score anchors: {mid}")
             if spec.get("status") not in {"draft", "published"}:
                 raise ValueError(f"Invalid publication status: {mid}")
+            if spec.get("time_fact") not in {None, "first_response_seconds", "adjacent_response_intervals"}:
+                raise ValueError(f"Invalid required time fact: {mid}")
+            if spec.get("time_fact") and "time_calculator" not in spec.get("required_tools", []):
+                raise ValueError(f"Time fact requires time_calculator: {mid}")
             rules = [r["rule_id"] for r in spec["manual_review"]]
             if len(set(rules)) != len(rules):
                 raise ValueError(f"Duplicate review rules: {mid}")

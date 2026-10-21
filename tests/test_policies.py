@@ -13,12 +13,70 @@ from app.team.state import initialize_team
 from app.team.tools import TeamTools
 
 
-def test_real_skills_are_dynamic_and_follow_published_metric_yaml():
+def test_real_skills_keep_unapproved_d6_metrics_draft():
     catalog = SkillCatalog(Settings().skill_dir)
     assert len(catalog.metrics) == 18
     assert len(catalog.dimensions) == 6
-    assert all(m["status"] == "published" for m in catalog.metrics.values())
+    assert {mid for mid, m in catalog.metrics.items() if m["status"] == "draft"} == {
+        "D6.1", "D6.2"
+    }
     assert not any(m["configuration_issues"] for m in catalog.metrics.values())
+
+
+@pytest.mark.parametrize("metric_id", ["D6.1", "D6.2"])
+def test_d6_draft_scoring_requires_manual_review(metric_id):
+    catalog = SkillCatalog(Settings().skill_dir)
+    state = {"skills": catalog.snapshot(), "team": initialize_team(catalog.snapshot(), "run")}
+    agent = "evaluator:D4"
+    state["team"]["tasks"][agent]["skills_read"] = True
+    state["team"]["evidence"]["e1"] = {"evidence_id": "e1"}
+    tools = TeamTools(Settings(), None)
+    finding = {
+        "metric_id": metric_id, "status": "EVALUATED", "score": 3,
+        "reason": "Observed response", "evidence_ids": ["e1"],
+        "claims": [{"subject": "doctor", "behavior": "respond", "polarity": "present",
+                    "scope": "current_session", "statement": "Doctor replied", "evidence_ids": ["e1"]}],
+        "review_rule_ids": [],
+    }
+    with pytest.raises(ValueError, match="not published"):
+        tools.submit(state, agent, {"findings": [finding]})
+    finding.update(status="NOT_EVALUABLE", score=None)
+    with pytest.raises(ValueError, match="rubric_unpublished"):
+        tools.submit(state, agent, {"findings": [finding]})
+    finding["review_rule_ids"] = ["rubric_unpublished", "professional_protocol_pending"]
+    assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == [metric_id]
+
+
+def test_d2_interaction_time_does_not_require_first_response_start():
+    catalog = SkillCatalog(Settings().skill_dir)
+    state = {"skills": catalog.snapshot(), "team": initialize_team(catalog.snapshot(), "run")}
+    agent = "evaluator:D2"
+    current = state["team"]["tasks"][agent]
+    current["skills_read"] = True
+    current["time_facts"] = TeamTools.time_facts({
+        "service_context": {},
+        "messages": [
+            {"message_id": "p1", "role": "patient", "message_kind": "dialogue",
+             "modality": "text", "content": "Question", "timestamp": "2026-01-01T00:00:00+00:00"},
+            {"message_id": "d1", "role": "doctor", "message_kind": "dialogue",
+             "modality": "text", "content": "Answer", "timestamp": "2026-01-01T00:03:00+00:00"},
+        ],
+    })
+    assert not current["time_facts"]["first_response_available"]
+    assert current["time_facts"]["adjacent_response_available"]
+    state["team"]["evidence"]["e1"] = {"evidence_id": "e1"}
+    tools = TeamTools(Settings(), None)
+    finding = {
+        "metric_id": "D2.2", "status": "EVALUATED", "score": 4,
+        "reason": "Three minute interaction", "evidence_ids": ["e1"],
+        "claims": [{"subject": "doctor", "behavior": "respond", "polarity": "present",
+                    "scope": "current_session", "statement": "Doctor replied", "evidence_ids": ["e1"]}],
+        "review_rule_ids": [],
+    }
+    assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == ["D2.2"]
+    finding["metric_id"] = "D2.1"
+    with pytest.raises(ValueError, match="first-response"):
+        tools.submit(state, agent, {"findings": [finding]})
 
 
 def test_new_dimension_requires_no_runtime_code_change(catalog):

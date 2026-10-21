@@ -119,8 +119,7 @@ const toast = ref(''),
   exportConsent = ref(false)
 let toastTimer: ReturnType<typeof setTimeout> | undefined
 const draftDecision = ref(''),
-  draftReason = ref(''),
-  reviewCode = ref('')
+  draftReason = ref('')
 const drafts = ref<
   {
     evaluation_id: string
@@ -163,7 +162,7 @@ const reviewSessions = computed(() => {
   const items = latestBatch.value?.sessions || (session.value ? [{
     session_id: session.value.session_id,
     status: report.value?.status || 'partial',
-    risk_level: pending.value.length ? 'medium' as const : 'low' as const,
+    risk_level: report.value?.risk?.level ?? 'unknown' as const,
     pending_count: pending.value.length,
   }] : [])
   return items.filter((item) =>
@@ -277,7 +276,7 @@ async function saveDraft() {
   try {
     const saved = mode.value === 'preview'
       ? { ...input, created_at: new Date().toISOString() }
-      : await api.addReview(input, reviewCode.value)
+      : await api.addReview(input)
     drafts.value.push(saved)
   } catch (error) {
     notify(`复核提交失败：${(error as Error).message}`)
@@ -290,7 +289,7 @@ async function saveDraft() {
 async function loadReviews() {
   if (!report.value || mode.value !== 'service') return
   try {
-    const result = await api.reviews(report.value.evaluation_id, reviewCode.value)
+    const result = await api.reviews(report.value.evaluation_id)
     drafts.value = result.items
     notify('已读取服务器复核记录。')
   } catch (error) {
@@ -327,7 +326,7 @@ watch(
     drafts.value = []
     if (mode.value === 'service' && evaluationId) {
       try {
-        const saved = await api.reviews(evaluationId, reviewCode.value)
+        const saved = await api.reviews(evaluationId)
         if (report.value?.evaluation_id === evaluationId) drafts.value = saved.items
       } catch { /* PostgreSQL 不可用时表单提交仍会给出明确错误。 */ }
     }
@@ -408,7 +407,7 @@ onUnmounted(() => {
         <p>每个结论，都能回到原文。</p>
         <div class="sidebar-trust">
           <Icon name="shield" :size="21" />
-          <div><strong>循证评价</strong><span>原文核验与修正留痕</span></div>
+          <div><strong>循证评价</strong><span>原文引用与修正留痕</span></div>
         </div>
         <div class="operator">
           <span class="operator-avatar">检</span>
@@ -465,7 +464,7 @@ onUnmounted(() => {
                       : page === 'review'
                         ? '回到原文处理未决问题，保留原评价与修正理由。'
                         : page === 'rubrics'
-                          ? '18 项指标各有唯一主责，事实核验与评分依据分别检查。'
+                          ? '18 项指标各有唯一主责，原文引用与评分输入分别检查。'
                           : '分别检查服务存活、数据库连接和已接入能力。'
               }}
             </p>
@@ -803,9 +802,10 @@ onUnmounted(() => {
             </div>
             <div class="batch-counts">
               <div><span>检测会话</span><strong>{{ latestBatch.total }}<small> 轮</small></strong></div>
-              <div><span>高风险候选</span><strong class="risk-high">{{ latestBatch.high }}</strong></div>
-              <div><span>中风险待核查</span><strong class="risk-medium">{{ latestBatch.medium }}</strong></div>
-              <div><span>低风险常规</span><strong class="risk-low">{{ latestBatch.low }}</strong></div>
+              <div><span>服务质量高风险</span><strong class="risk-high">{{ latestBatch.high }}</strong></div>
+              <div><span>服务质量中风险</span><strong class="risk-medium">{{ latestBatch.medium }}</strong></div>
+              <div><span>服务质量低风险</span><strong class="risk-low">{{ latestBatch.low }}</strong></div>
+              <div><span>风险未知</span><strong>{{ latestBatch.unknown }}</strong></div>
               <div><span>评估失败</span><strong>{{ latestBatch.failed }}</strong></div>
             </div>
             <div class="batch-quality-summary">
@@ -818,7 +818,7 @@ onUnmounted(() => {
                 <li v-for="item in latestBatch.sessions" :key="item.session_id">
                   <button class="text-button" @click="openConsultation(item.session_id)">{{ item.session_id }}</button>
                   <StatusBadge :tone="item.risk_level === 'high' ? 'danger' : item.risk_level === 'medium' ? 'warning' : 'neutral'">
-                    {{ item.risk_level === 'unknown' ? '未完成' : `${priorityNames[item.risk_level]}风险` }}
+                    {{ item.risk_level === 'unknown' ? '风险未知' : `${priorityNames[item.risk_level]}风险` }}
                   </StatusBadge>
                   <span>{{ item.pending_count }} 项待复核</span>
                 </li>
@@ -861,7 +861,7 @@ onUnmounted(() => {
                   </div>
                 </dl>
                 <button class="button secondary" @click="navigate('workspace')">
-                  查看证据与核验详情<Icon name="arrow" :size="16" />
+                  查看证据与复核详情<Icon name="arrow" :size="16" />
                 </button>
                 <div class="export-area">
                   <label
@@ -955,14 +955,13 @@ onUnmounted(() => {
           <div class="notice review-notice">
             <Icon name="info" :size="18" />
             <p>
-              人工复核提交接口尚未接入。以下仅暂存本页草稿，刷新会丢失；导出后交由团队接入正式保存流程。不会修改
-              Agent 原结论。
+              {{ mode === 'preview' ? '离线复核意见仅保存在当前页面，刷新后会丢失。' : '人工复核意见通过现有接口保存；需使用服务访问令牌，提交后可重新读取。' }}复核记录不会修改 Agent 原结论。
             </p>
           </div>
           <div v-if="!report" class="surface empty-state">
             <Icon name="shield" :size="40" />
             <h3>先完成一次评估</h3>
-            <p>证据不足、材料冲突和未完成核验的项目将在这里集中展示。</p>
+            <p>证据不足、材料冲突和需要人工复核的项目将在这里集中展示。</p>
             <button class="button primary" @click="navigate('workspace')">前往评估工作台</button>
           </div>
           <template v-else
@@ -986,7 +985,7 @@ onUnmounted(() => {
                 @click="priorityFilter = level"
                 :aria-pressed="priorityFilter === level"
               >
-                <span>{{ priorityNames[level] }}优先级</span
+                <span>服务质量{{ priorityNames[level] }}风险</span
                 ><strong>{{ priorityCounts[level] }}</strong
                 ><small>{{
                   level === 'high'
@@ -998,8 +997,7 @@ onUnmounted(() => {
               </button>
             </section>
             <p class="priority-caption">
-              以下数量按会话统计，核查优先级用于安排审核顺序，不代表患者临床危急程度。高：风险响应 /
-              转介指标或材料冲突；中：证据、执行或评分依据不足；低：常规待核验。
+              会话分组采用后端返回的医生服务质量风险等级，不代表患者临床危急程度。单项核查优先级根据证据缺口和冲突另行显示；风险未知会话可在“全部”中查看。
             </p>
             <div class="review-toolbar">
               <label class="search-field"
@@ -1035,7 +1033,7 @@ onUnmounted(() => {
                   :aria-pressed="session?.session_id === item.session_id"
                   @click="openConsultation(item.session_id)"
                 >
-                  <span class="session-review-heading"><strong>{{ item.session_id }}</strong><StatusBadge :tone="item.risk_level === 'high' ? 'danger' : item.risk_level === 'medium' ? 'warning' : 'neutral'">{{ item.risk_level === 'unknown' ? '未完成' : `${priorityNames[item.risk_level]}风险` }}</StatusBadge></span>
+                  <span class="session-review-heading"><strong>{{ item.session_id }}</strong><StatusBadge :tone="item.risk_level === 'high' ? 'danger' : item.risk_level === 'medium' ? 'warning' : 'neutral'">{{ item.risk_level === 'unknown' ? '风险未知' : `${priorityNames[item.risk_level]}风险` }}</StatusBadge></span>
                   <span class="session-review-meta">{{ item.pending_count }} 项待复核 · {{ label(item.status) }}</span>
                 </button>
                 <p v-if="!reviewSessions.length" class="empty-note padded">当前筛选没有待复核会话。</p>
@@ -1090,8 +1088,6 @@ onUnmounted(() => {
                   @submit.prevent="saveDraft"
                 >
                   <h3>{{ mode === 'preview' ? '离线复核草稿' : '提交人工复核意见' }}</h3>
-                  <label v-if="mode === 'service'" for="review-code">复核访问码（公网部署时填写）</label>
-                  <input v-if="mode === 'service'" id="review-code" v-model="reviewCode" type="password" autocomplete="off" />
                   <button v-if="mode === 'service'" type="button" class="text-button" @click="loadReviews">读取已提交意见</button>
                   <label for="decision">处理意见</label
                   ><select id="decision" v-model="draftDecision" required>
@@ -1112,7 +1108,7 @@ onUnmounted(() => {
                     placeholder="写明所依据的原文、规则或仍缺少的信息（至少 5 字）"
                   ></textarea>
                   <div class="review-form-footer">
-                    <small>{{ mode === 'preview' ? '仅本页暂存' : '提交后写入 PostgreSQL 复核日志' }}</small
+                    <small>{{ mode === 'preview' ? '仅本页暂存' : '提交后写入服务端复核记录' }}</small
                     ><button
                       class="button primary"
                       :disabled="!draftDecision || draftReason.trim().length < 5"
@@ -1142,13 +1138,13 @@ onUnmounted(() => {
             <div>
               <h2>三组主责评价 Agent</h2>
               <p>
-                D1 与 D3、D2 与 D5、D4 与 D6 分别由同一主责 Agent 评价；核验与仲裁仍按需独立执行。
+                D1 与 D3、D2 与 D5、D4 与 D6 分别由同一主责 Agent 评价；事实冲突可触发临时 Reviewer，当前没有独立语义核验环节。
               </p>
             </div>
             <span class="rubric-total">18<small>项指标</small></span>
           </div>
           <div class="notice">
-            以下为仓库约定的指标名称与归属。正式评分锚点、权重和发布版本尚需专业审定，本页面不提供虚构的评分规则。
+            当前目录含 16 项已发布指标及 2 项待审定的 D6 风险应对指标。D6 适用案例保留证据并转人工复核，不生成数值评分。
           </div>
           <div class="rubric-grid">
             <section v-for="d in dimensionGroups" :key="d.id" class="surface rubric-section">
@@ -1169,7 +1165,7 @@ onUnmounted(() => {
                   <strong>{{ m.name }}</strong
                   ><small>{{ agentName(m.agent) }}</small>
                 </div>
-                <span class="draft-label">待发布</span>
+                <span class="draft-label">{{ m.id.startsWith('D6.') ? '待专业审定' : '已发布' }}</span>
               </div>
             </section>
           </div>
@@ -1264,8 +1260,8 @@ onUnmounted(() => {
             <div class="capability-row">
               <span
                 ><strong>修正讨论与分歧仲裁</strong
-                ><small>支持结构化记录展示；后端未返回时明确显示缺失状态。</small></span
-              ><StatusBadge tone="warning">展示已预留</StatusBadge>
+                ><small>事实冲突可触发临时 Reviewer；报告展示实际产生的记录与未解决状态。</small></span
+              ><StatusBadge>按需运行</StatusBadge>
             </div>
             <div class="capability-row">
               <span

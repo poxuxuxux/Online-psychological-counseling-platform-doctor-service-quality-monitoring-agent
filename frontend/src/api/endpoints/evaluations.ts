@@ -14,18 +14,18 @@ export const api = {
   demoSessions: () => request('/api/v1/demo/sessions', z.array(SessionSchema)),
   demoDetail: (id: string) =>
     request(`/api/v1/demo/sessions/${encodeURIComponent(id)}`, ConsultationDetailSchema),
-  reviews: (evaluationId: string, accessCode = '') =>
+  reviews: (evaluationId: string) =>
     request(`/api/v1/evaluations/${encodeURIComponent(evaluationId)}/reviews`, z.object({
       items: z.array(z.object({
         review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
         decision: z.string(), reason: z.string(), created_at: z.string(),
       })),
-    }), { headers: accessCode ? { 'X-Demo-Review-Key': accessCode } : {} }),
-  addReview: (input: { evaluation_id: string; finding_id: string; decision: string; reason: string }, accessCode = '') =>
+    })),
+  addReview: (input: { evaluation_id: string; finding_id: string; decision: string; reason: string }) =>
     request(`/api/v1/evaluations/${encodeURIComponent(input.evaluation_id)}/reviews`,
       z.object({ review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
         decision: z.string(), reason: z.string(), created_at: z.string() }),
-      { method: 'POST', headers: { 'Content-Type': 'application/json', ...(accessCode ? { 'X-Demo-Review-Key': accessCode } : {}) }, body: JSON.stringify(input) }),
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }),
   consultations: (offset = 0, query = '', limit = 5) =>
     request(
       `/api/v1/consultations?scope=private&limit=${limit}&offset=${offset}&query=${encodeURIComponent(query)}`,

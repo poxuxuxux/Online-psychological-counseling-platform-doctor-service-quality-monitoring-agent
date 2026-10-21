@@ -324,6 +324,12 @@ class TeamTools:
                 raise ValueError(
                     "metric.yaml status is published: rubric_unpublished does not apply"
                 )
+            if (
+                spec["status"] == "draft"
+                and f.status == "NOT_EVALUABLE"
+                and "rubric_unpublished" not in f.review_rule_ids
+            ):
+                raise ValueError("Draft metric needs rubric_unpublished manual review")
             if f.score is not None:
                 if spec["status"] != "published" or spec["configuration_issues"]:
                     raise ValueError("Skill not published consistently; submit NOT_EVALUABLE")
@@ -331,9 +337,19 @@ class TeamTools:
                     raise ValueError("Score needs a Skill anchor and source-grounded claims")
                 if f.review_rule_ids:
                     raise ValueError("Unresolved review rules cannot carry a score")
-                if "time_calculator" in spec.get("required_tools", []) and not current.get(
-                    "time_facts", {}
-                ).get("available"):
+                time_fact = spec.get("time_fact")
+                facts = current.get("time_facts", {})
+                if time_fact == "first_response_seconds" and not facts.get(
+                    "first_response_available"
+                ):
+                    raise ValueError("Reliable first-response time missing")
+                if time_fact == "adjacent_response_intervals" and not facts.get(
+                    "adjacent_response_available"
+                ):
+                    raise ValueError("Reliable interaction response intervals missing")
+                if not time_fact and "time_calculator" in spec.get("required_tools", []) and not facts.get(
+                    "available"
+                ):
                     raise ValueError("Required reliable time facts missing")
             prior = current["findings"].get(f.metric_id)
             revision = prior["revision_count"] + 1 if prior else 0
@@ -417,8 +433,11 @@ class TeamTools:
                             "seconds": interval,
                         }
                     )
+        first_response_available = seconds is not None and seconds >= 0
         return {
-            "available": seconds is not None and seconds >= 0,
+            "available": first_response_available,
+            "first_response_available": first_response_available,
+            "adjacent_response_available": bool(pairs),
             "first_response_seconds": seconds if seconds is not None and seconds >= 0 else None,
             "adjacent_response_intervals": pairs,
             "limitation": "Adjacent intervals do not prove semantic question/answer pairing",

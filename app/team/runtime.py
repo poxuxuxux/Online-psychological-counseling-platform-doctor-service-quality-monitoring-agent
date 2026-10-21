@@ -37,6 +37,8 @@ Use submit_evaluation with complete=true when done and no pending collaboration 
 Publication is determined ONLY by status, never a version label containing the word draft.
 Never emit rubric_unpublished when status is published. A scored finding must be EVALUATED
 with an integer score; unresolved cases must be NOT_EVALUABLE with null score.
+Draft metrics cannot receive a numeric score. If applicable, submit NOT_EVALUABLE with
+rubric_unpublished so a human can review the observed behavior.
 Lack of a behavior in a complete conversation is grounds for its appropriate low anchor,
 not automatically missing evidence. NOT_APPLICABLE is valid when the trigger is absent.
 Choose the highest anchor whose actual criteria are supported. Failure to meet a higher

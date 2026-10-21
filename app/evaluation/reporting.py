@@ -1,7 +1,7 @@
 # 环节：评价结果后处理层；用途：生成服务总结、纵向分析和评价报告。
 from app.domain.models import now
-from app.infrastructure.telemetry import usage_summary
 from app.evaluation.scoring import score_eligible
+from app.infrastructure.telemetry import usage_summary
 from app.team.state import active_findings
 
 

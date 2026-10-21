@@ -16,6 +16,7 @@ let holdEvaluation = false
 let withInvestigation = false
 let modelConfigured: boolean | undefined
 let failedReportSessionId = ''
+let highRiskSessionId = ''
 beforeEach(() => {
   requests = []
   failEvaluation = false
@@ -25,6 +26,7 @@ beforeEach(() => {
   withInvestigation = false
   modelConfigured = undefined
   failedReportSessionId = ''
+  highRiskSessionId = ''
   setPrivateAccessToken('test-private-access-token')
   location.hash = 'workspace'
   vi.stubGlobal('matchMedia', () => ({ matches: true }))
@@ -85,6 +87,11 @@ beforeEach(() => {
         if (failEvaluation || session.session_id === failSessionId)
           return new Response('{}', { status: 500 })
         const generated = previewReport(session)
+        generated.risk = {
+          level: session.session_id === highRiskSessionId ? 'high' : 'low',
+          scope: 'doctor_service_quality',
+          reasons: [],
+        }
         if (session.session_id === failedReportSessionId) {
           generated.status = 'failed'
           generated.team = { model_call_count: 0, stop_reason: 'model_not_configured' }
@@ -153,6 +160,14 @@ describe('workbench actual component interaction', () => {
     await evaluate()
     expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
     expect(app.get('.run-note').text()).toContain('成功 3 条，失败 0 条')
+  })
+  it('uses the backend service-risk level for the batch summary', async () => {
+    highRiskSessionId = 'preview-synthetic-002'
+    const app = await start()
+    await evaluate()
+    await navigate('reports')
+    expect(app.get('.batch-counts').text()).toContain('服务质量高风险1')
+    expect(app.get('.batch-counts').text()).toContain('服务质量低风险2')
   })
   it('stops batch evaluation when the backend reports no model key', async () => {
     modelConfigured = false
@@ -333,11 +348,13 @@ describe('workbench actual component interaction', () => {
     await app.get('.priority-count.priority-high').trigger('click')
     expect(app.findAll('.session-review-item')).toHaveLength(0)
     await app.get('.priority-count.priority-medium').trigger('click')
+    expect(app.findAll('.session-review-item')).toHaveLength(0)
+    await app.get('.priority-count.priority-low').trigger('click')
     expect(app.findAll('.session-review-item')).toHaveLength(3)
     expect(app.findAll('.session-finding-item').some((item) => item.text().includes('D6.1'))).toBe(true)
     expect(app.get('.priority-detail').text()).toContain('核查优先级：高')
     expect(app.get('.finding-detail .status-badge').text()).toBe('材料冲突')
-    await app.get('.priority-count.priority-low').trigger('click')
+    await app.get('.priority-count.priority-high').trigger('click')
     expect(app.findAll('.session-review-item')).toHaveLength(0)
     expect(app.get('.review-queue .empty-note').text()).toContain('当前筛选没有待复核会话')
   })
