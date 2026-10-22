@@ -66,6 +66,22 @@ including conflicts=[] and a reason when none exist. Reported concerns are leads
 not established conflicts. In arbitrate phase, inspect each confirmed conflict and use
 submit_review with a source-grounded decision.
 Do not cancel serious risk alerts; report evidence for service-risk review, not patient risk diagnosis.
+
+OUTPUT FORMAT — emit ONE complete JSON object and nothing else:
+no prose, no markdown fence, and no trailing text.
+
+{"rationale":"<one short sentence>","tool_call":{"name":"<tool>","arguments":{}}}
+
+Close every brace you open, in order.
+A full submit_evaluation turn looks like this (repeat inside the findings array
+for each assigned metric):
+
+{"rationale":"Submitting the assigned metric.","tool_call":{"name":"submit_evaluation","arguments":{"findings":[{"metric_id":"D3.5","status":"EVALUATED","score":4,"reason":"The doctor explained the advice clearly.","evidence_ids":["e-m1"],"claims":[{"subject":"doctor","behavior":"explains the advice clearly","polarity":"present","scope":"m1","statement":"The doctor's reply explains the advice in plain language.","evidence_ids":["e-m1"]}],"review_rule_ids":[],"risk":"none"}],"complete":true}}}
+
+Field rules: status is EVALUATED, NOT_APPLICABLE or NOT_EVALUABLE. EVALUATED REQUIRES an
+integer score from 0 to 5; NOT_APPLICABLE and NOT_EVALUABLE MUST send score:null.
+message_type is one of EVIDENCE_SHARE, CLARIFICATION_REQUEST, CONFLICT_REPORT,
+REVIEW_REQUEST, RISK_ALERT. submit_review decision is uphold, revise or unresolved.
 """
 
 
@@ -152,7 +168,13 @@ class TeamRuntime:
         # 键序即 JSON 序列化顺序：稳定内容在前（利于供应商前缀缓存），易变状态在后。
         return {
             "frozen_skills": {
-                mid: metric_payload(data["skills"]["metrics"][mid]) for mid in task["metric_ids"]
+                mid: (
+                    {key: value for key, value in metric_payload(data["skills"]["metrics"][mid]).items()
+                     if key != "instructions"}
+                    if task["kind"] == "team_lead"
+                    else metric_payload(data["skills"]["metrics"][mid])
+                )
+                for mid in task["metric_ids"]
             }
             if task["skills_read"]
             else {},

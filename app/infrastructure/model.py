@@ -34,6 +34,48 @@ PROVIDERS = {
 }
 
 
+def _decode_object(content):
+    if not isinstance(content, str):
+        raise TypeError("Model content must be text")
+    fenced = re.fullmatch(r"\s*```(?:json)?\s*([\s\S]*?)\s*```\s*", content)
+    if fenced:
+        content = fenced[1]
+    try:
+        return json.loads(content), bool(fenced), None
+    except json.JSONDecodeError as error:
+        # Only recover container delimiters at the end. Never edit claims, scores,
+        # quoted evidence or an error in the middle of the model's answer.
+        if error.msg == "Extra data":
+            result, end = json.JSONDecoder().raw_decode(content.lstrip())
+            if content.lstrip()[end:].strip("} \t\r\n") == "":
+                return result, bool(fenced), "extra_closing_brace"
+        if error.pos == len(content):
+            stack = []
+            quoted = escaped = False
+            for char in content:
+                if quoted:
+                    if escaped:
+                        escaped = False
+                    elif char == "\\":
+                        escaped = True
+                    elif char == '"':
+                        quoted = False
+                elif char == '"':
+                    quoted = True
+                elif char in "{[":
+                    stack.append("}" if char == "{" else "]")
+                elif char in "}]":
+                    if not stack or stack.pop() != char:
+                        break
+            else:
+                if not quoted and stack:
+                    try:
+                        return json.loads(content + "".join(reversed(stack))), bool(fenced), "missing_closing_brace"
+                    except json.JSONDecodeError:
+                        pass
+        raise
+
+
 class JsonModelGateway:
     def __init__(self, transport=None):
         self.provider = next(
@@ -119,19 +161,17 @@ class JsonModelGateway:
             if choice.get("finish_reason") != "stop":
                 raise ModelUnavailable("model_truncated_response")
             content = choice["message"]["content"]
-            # Some compatible providers wrap otherwise valid JSON despite response_format.
-            fenced = re.fullmatch(r"\s*```(?:json)?\s*([\s\S]*?)\s*```\s*", content)
-            if fenced:
-                content = fenced[1]
             try:
-                result = json.loads(content)
+                result, fenced, recovered = _decode_object(content)
             except json.JSONDecodeError as error:
                 measurement["json_error"] = {
                     "message": error.msg,
                     "position": error.pos,
-                    "fenced": bool(fenced),
+                    "content_length": len(content),
                 }
                 raise
+            if recovered:
+                measurement["json_recovered"] = recovered
             if not isinstance(result, dict):
                 measurement["json_error"] = {"type": type(result).__name__}
                 raise TypeError("Expected JSON object")

@@ -6,7 +6,7 @@ import pytest
 
 from app.config import Settings
 from app.evaluation.scoring import classify_risk, score
-from app.infrastructure.model import JsonModelGateway, ModelUnavailable
+from app.infrastructure.model import JsonModelGateway, ModelUnavailable, _decode_object
 from app.rubrics.catalog import SkillCatalog
 from app.rubrics.payload import metric_payload
 from app.team.state import initialize_team
@@ -234,6 +234,15 @@ async def test_model_http_transport_no_hidden_retry(monkeypatch):
     with pytest.raises(ModelUnavailable, match="^model_http_429$"):
         await model.json("test", {}, {})
     assert len(calls) == 1
+
+
+def test_model_json_recovers_only_terminal_container_braces():
+    assert _decode_object('{"score": 4}}') == ({"score": 4}, False, "extra_closing_brace")
+    assert _decode_object('{"items": [{"score": 4}') == (
+        {"items": [{"score": 4}]}, False, "missing_closing_brace"
+    )
+    with pytest.raises(json.JSONDecodeError):
+        _decode_object('{"score": 4 "claim": "unsupported"}')
 
 
 async def test_deepseek_provider_detection_and_reasoner_format(monkeypatch):

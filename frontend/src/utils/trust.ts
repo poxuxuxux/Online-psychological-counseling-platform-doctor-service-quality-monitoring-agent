@@ -16,6 +16,8 @@ export type Row = {
 export function verdict(f: Finding, v?: Verification, agentStatus = 'completed', mode = 'independent'): Verdict {
   if (f.applicability === 'not_applicable')
     return { code: 'not_applicable', text: '不适用', tone: 'neutral' }
+  if (f.limitations.includes('timing_policy_pending'))
+    return { code: 'pending', text: '响应时效规则待配置', tone: 'warning' }
   if (f.applicability === 'insufficient_context')
     return { code: 'insufficient', text: '证据不足', tone: 'warning' }
   if (f.limitations.some((rule) => ['source_incomplete', 'context_ambiguous', 'source_conflict'].includes(rule)))

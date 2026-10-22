@@ -94,6 +94,13 @@ describe('trust display policy', () => {
     f.score = null
     expect(verdict(f).code).toBe('insufficient')
   })
+  it('labels an unconfigured timing policy without blaming the evidence', () => {
+    const f = finding()
+    f.applicability = 'insufficient_context'
+    f.score = null
+    f.limitations = ['timing_policy_pending']
+    expect(verdict(f)).toMatchObject({ code: 'pending', text: '响应时效规则待配置' })
+  })
   it('shows an applicable draft as a rule awaiting approval', () => {
     const f = finding()
     f.applicability = 'applicable'

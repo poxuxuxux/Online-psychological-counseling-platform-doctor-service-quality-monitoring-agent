@@ -107,7 +107,7 @@ def build_report(state):
                     "supersedes_finding_id": f["supersedes_finding_id"],
                     "applicability": (
                         "applicable" if f["status"] == "NOT_EVALUABLE"
-                        and ({"rubric_unpublished", "professional_protocol_pending"}
+                        and ({"rubric_unpublished", "professional_protocol_pending", "timing_policy_pending"}
                              & set(f["review_rule_ids"]))
                         else {
                             "EVALUATED": "applicable",
@@ -124,7 +124,10 @@ def build_report(state):
                 }
             )
             if f["status"] == "NOT_EVALUABLE":
-                reasons.append(mid + ": not_evaluable")
+                reasons.append(mid + ": " + (
+                    "timing_policy_pending" if "timing_policy_pending" in f["review_rule_ids"]
+                    else "not_evaluable"
+                ))
             elif f["status"] == "EVALUATED" and not accepted:
                 reasons.append(mid + ": scoring_input_or_conflict")
             elif f["status"] == "NOT_APPLICABLE" and f["review_rule_ids"]:
