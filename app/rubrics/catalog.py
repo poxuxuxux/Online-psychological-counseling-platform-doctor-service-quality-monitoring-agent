@@ -60,12 +60,21 @@ class SkillCatalog:
             rules = [r["rule_id"] for r in spec["manual_review"]]
             if len(set(rules)) != len(rules):
                 raise ValueError(f"Duplicate review rules: {mid}")
+            scoring_blockers = spec.get("scoring_blockers", [])
+            if (
+                not isinstance(scoring_blockers, list)
+                or any(not isinstance(rule, str) for rule in scoring_blockers)
+                or len(set(scoring_blockers)) != len(scoring_blockers)
+                or any(rule not in rules for rule in scoring_blockers)
+            ):
+                raise ValueError(f"Invalid scoring blockers: {mid}")
             issues = []
             self.metrics[mid] = {
                 **spec,
                 "dimension_id": spec.get("dimension_id", mid.split(".")[0]),
                 "instructions": instructions,
                 "configuration_issues": issues,
+                "scoring_blockers": scoring_blockers,
                 "weight": float(spec.get("weight", 1)),
             }
             if self.metrics[mid]["weight"] <= 0:

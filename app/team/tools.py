@@ -396,6 +396,16 @@ class TeamTools:
                     raise ValueError("Draft metric needs rubric_unpublished or context review")
             if f.status == "NOT_APPLICABLE" and "rubric_unpublished" in f.review_rule_ids:
                 raise ValueError("Not-applicable metric cannot be rubric_unpublished")
+            scoring_blockers = set(spec.get("scoring_blockers", []))
+            if f.status == "EVALUATED" and scoring_blockers:
+                raise ValueError(
+                    "Metric scoring is blocked by configuration: "
+                    + ", ".join(sorted(scoring_blockers))
+                )
+            if f.status == "NOT_EVALUABLE" and not scoring_blockers.issubset(
+                f.review_rule_ids
+            ):
+                raise ValueError("Blocked metric needs matching manual review rules")
             if f.score is not None:
                 if spec["status"] != "published" or spec["configuration_issues"]:
                     raise ValueError("Skill not published consistently; submit NOT_EVALUABLE")

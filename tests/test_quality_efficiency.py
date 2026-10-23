@@ -18,10 +18,12 @@ async def test_provider_errors_stop_after_two_attempts_per_agent(make_service, s
     assert all(t["model_errors"] == 2 for t in state["team"]["tasks"].values())
 
 
-def test_projection_preserves_yaml_rules_and_omits_duplicate_instruction(catalog):
+def test_projection_preserves_rules_and_instructions(catalog):
     spec = catalog.metrics["D1.1"]
     projection = metric_payload(spec)
     assert projection["anchors"] == spec["anchors"]
     assert projection["manual_review"] == spec["manual_review"]
-    assert "instructions" not in projection
+    # read_skill 只返回投影：SKILL.md 正文（instructions）必须保留，Agent 才能读到完整指引。
+    assert projection["instructions"] == spec["instructions"]
+    assert "configuration_issues" not in projection
     assert len(json.dumps(projection)) < len(json.dumps(spec))

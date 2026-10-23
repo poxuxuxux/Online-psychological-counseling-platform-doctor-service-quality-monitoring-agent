@@ -63,6 +63,8 @@ required_tools:
 - evidence_locator
 - time_calculator
 time_fact: adjacent_response_intervals
+scoring_blockers:
+- timing_policy_pending
 ---
 # D2.2 交互响应及时性
 

@@ -63,6 +63,8 @@ required_tools:
 - evidence_locator
 - time_calculator
 time_fact: first_response_seconds
+scoring_blockers:
+- timing_policy_pending
 ---
 # D2.1 首次响应及时性
 

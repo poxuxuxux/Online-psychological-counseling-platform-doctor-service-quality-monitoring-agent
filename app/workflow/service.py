@@ -15,7 +15,7 @@ from app.infrastructure.repository import RunBusy
 from app.infrastructure.telemetry import model_usage
 from app.team.conflicts import finalize_conflicts
 from app.team.runtime import GraphState, TeamRuntime
-from app.team.state import active_findings, initialize_team
+from app.team.state import active_findings, close_failed_inboxes, initialize_team
 from app.team.tools import TeamTools
 
 STAGES = [
@@ -160,6 +160,8 @@ class EvaluationService:
                 if "team_runtime" not in data["completed_stages"]:
                     data["completed_stages"].append("team_runtime")
                 finalize_conflicts(data["team"])
+                # 失败任务的收件无法再被处理；超时恢复路径不再经过 schedule，这里兜底关闭。
+                close_failed_inboxes(data["team"])
                 findings = active_findings(data["team"])
                 missing = sorted(set(data["skills"]["metrics"]) - set(findings))
                 tasks_done = all(t["status"] == "COMPLETED" for t in data["team"]["tasks"].values())

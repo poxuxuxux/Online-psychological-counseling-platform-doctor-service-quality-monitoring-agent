@@ -10,6 +10,7 @@ def score_eligible(state, mid, finding):
     if (
         spec["status"] != "published"
         or spec["configuration_issues"]
+        or spec.get("scoring_blockers")
         or finding["score"] not in spec["score_values"]
         or finding["review_rule_ids"]
         or not finding["evidence_ids"]
@@ -27,7 +28,7 @@ def score_eligible(state, mid, finding):
 def score(state):
     metrics = state["skills"]["metrics"]
     findings = active_findings(state["team"])
-    dimensions, total_weight, weighted, required, accepted = [], 0, 0, 0, 0
+    dimensions, total_weight, weighted, required, accepted, exclusions = [], 0, 0, 0, 0, []
     for dimension in state["dimension_ids"]:
         items = []
         for mid, spec in metrics.items():
@@ -35,6 +36,20 @@ def score(state):
                 continue
             f = findings.get(mid)
             if f and f["status"] == "NOT_APPLICABLE" and not f["review_rule_ids"]:
+                continue
+            if spec["status"] != "published" or spec.get("scoring_blockers"):
+                # 配置上永远无法数值计分的指标不参与覆盖门控，单独披露而不是拖垮总分。
+                exclusions.append(
+                    {
+                        "metric_id": mid,
+                        "reason": (
+                            "rubric_not_published"
+                            if spec["status"] != "published"
+                            else "scoring_blocked_by_configuration"
+                        ),
+                        "scoring_blockers": sorted(spec.get("scoring_blockers", [])),
+                    }
+                )
                 continue
             value = f["score"] if score_eligible(state, mid, f) else None
             items.append((value, spec["weight"]))
@@ -66,6 +81,7 @@ def score(state):
         "scale": [0, 5],
         "evaluated_count": accepted,
         "required_count": required,
+        "score_exclusions": exclusions,
     }
 
 

@@ -7,10 +7,21 @@ model_usage = ContextVar("evaluation_model_usage", default=None)
 
 
 def usage_summary(records):
+    json_errors = [
+        {
+            "provider": record.get("provider"),
+            "model": record.get("model"),
+            "stage": record.get("failure_stage"),
+            **record["json_error"],
+        }
+        for record in records
+        if isinstance(record.get("json_error"), dict)
+    ]
     return {
         "requests": len(records),
         "input_characters": sum(r["input_characters"] for r in records),
         "prompt_tokens": sum(r.get("prompt_tokens", 0) for r in records),
         "completion_tokens": sum(r.get("completion_tokens", 0) for r in records),
         "usage_reported_requests": sum(r.get("usage_reported", False) for r in records),
+        "json_errors": json_errors,
     }

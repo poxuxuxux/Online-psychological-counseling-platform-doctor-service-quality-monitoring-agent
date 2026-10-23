@@ -87,3 +87,31 @@ def pending_messages(team, receiver):
         for m in team["messages"]
         if m["receiver"] == receiver and m["status"] in {"PENDING", "DELIVERED"}
     ]
+
+
+def close_inbox(team, agent, reason):
+    """系统关闭无法再被代理处理的收件消息，避免失败/超预算任务的孤儿消息阻塞完成门控。"""
+    closed = []
+    for message in team["messages"]:
+        if message["receiver"] == agent and message["status"] in {"PENDING", "DELIVERED"}:
+            message.update(
+                status="PROCESSED",
+                disposition="system_closed",
+                processing_reason=reason,
+                processed_at=now(),
+            )
+            closed.append(message["message_id"])
+    if closed:
+        event(
+            team,
+            "system",
+            "close_inbox",
+            {"receiver": agent, "message_ids": closed, "reason": reason},
+        )
+    return closed
+
+
+def close_failed_inboxes(team):
+    for agent, current in team["tasks"].items():
+        if current["status"] == "FAILED":
+            close_inbox(team, agent, "receiver_agent_failed")

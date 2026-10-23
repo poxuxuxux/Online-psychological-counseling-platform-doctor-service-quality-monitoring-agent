@@ -145,6 +145,7 @@ class JsonModelGateway:
                     json=body,
                 )
                 response.raise_for_status()
+            measurement["failure_stage"] = "provider_response_json"
             response_data = response.json()
             usage = response_data.get("usage") or {}
             measurement.update(
@@ -157,10 +158,12 @@ class JsonModelGateway:
             measurement["usage_reported"] = all(
                 k in measurement for k in ("prompt_tokens", "completion_tokens")
             )
+            measurement["failure_stage"] = "provider_response_shape"
             choice = response_data["choices"][0]
             if choice.get("finish_reason") != "stop":
                 raise ModelUnavailable("model_truncated_response")
             content = choice["message"]["content"]
+            measurement["failure_stage"] = "model_content_json"
             try:
                 result, fenced, recovered = _decode_object(content)
             except json.JSONDecodeError as error:
@@ -182,7 +185,8 @@ class JsonModelGateway:
             raise ModelUnavailable(f"model_http_{error.response.status_code}") from None
         except httpx.RequestError:
             raise ModelUnavailable("model_connection_failed") from None
-        except (ValueError, KeyError, IndexError, TypeError):
+        except (ValueError, KeyError, IndexError, TypeError) as error:
+            measurement.setdefault("json_error", {"type": type(error).__name__})
             raise ModelUnavailable("model_invalid_json") from None
         finally:
             measurement["seconds"] = round(time.monotonic() - started, 3)

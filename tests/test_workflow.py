@@ -5,8 +5,13 @@ from datetime import UTC, datetime
 import pytest
 from langgraph.errors import NodeCancelledError
 
+from app.config import Settings
 from app.context.service import SessionContextManager, preprocess
-from app.domain.models import Session
+from app.domain.models import Session, now
+from app.domain.ports import ModelUnavailable
+from app.rubrics.catalog import SkillCatalog
+from app.team.runtime import TeamRuntime
+from app.team.state import initialize_team
 from app.team.tools import TeamTools
 from tests.conftest import ScriptedModel
 
@@ -36,6 +41,78 @@ async def test_late_message_wakes_completed_agent_and_revises(make_service, sess
     assert result["score"] == 4
     assert len(team["finding_history"]) == 3
     assert report["quality_profile"]["overall_score"] == 4.5
+
+
+def inbox_message(receiver, status="PENDING"):
+    return {
+        "message_id": "msg-1",
+        "evaluation_run_id": "run",
+        "sender": "evaluator:D1",
+        "receiver": receiver,
+        "message_type": "EVIDENCE_SHARE",
+        "evidence_ids": [],
+        "related_indicators": [],
+        "content": "Please recheck the source",
+        "status": status,
+        "created_at": now(),
+    }
+
+
+async def test_schedule_closes_unreachable_inboxes_instead_of_stalling():
+    settings = Settings()
+    runtime = TeamRuntime(settings, ScriptedModel(), TeamTools(settings, None), None)
+    skills = SkillCatalog(settings.skill_dir).snapshot()
+    team = initialize_team(skills, "run")
+    team["messages"].append(inbox_message("evaluator:D2"))
+    state = {
+        "data": {
+            "run_id": "run",
+            "skills": skills,
+            "dimension_ids": ["D1", "D2"],
+            "team": team,
+        }
+    }
+
+    # 失败任务的收件由系统关闭并留痕。
+    team["tasks"]["evaluator:D2"]["status"] = "FAILED"
+    await runtime.schedule(state)
+    assert team["messages"][0]["status"] == "PROCESSED"
+    assert team["messages"][0]["disposition"] == "system_closed"
+    assert team["messages"][0]["processing_reason"] == "receiver_agent_failed"
+
+    # 已完成但预算耗尽的代理收到迟到消息：保留 COMPLETED，消息系统关闭。
+    team["messages"][0].update(status="PENDING", disposition=None, processing_reason=None)
+    team["tasks"]["evaluator:D2"].update(status="COMPLETED", steps=settings.max_steps)
+    await runtime.schedule(state)
+    assert team["tasks"]["evaluator:D2"]["status"] == "COMPLETED"
+    assert team["messages"][0]["disposition"] == "system_closed"
+
+    # 未完成且预算耗尽：任务失败，收件关闭，不再留孤儿消息。
+    team["messages"][0].update(status="PENDING", disposition=None, processing_reason=None)
+    team["tasks"]["evaluator:D2"].update(status="PENDING", findings={})
+    await runtime.schedule(state)
+    assert team["tasks"]["evaluator:D2"]["status"] == "FAILED"
+    assert team["messages"][0]["status"] == "PROCESSED"
+
+
+class FailingD2Model(ScriptedModel):
+    async def json(self, system, payload, schema):
+        if payload.get("task", {}).get("assigned_agent") == "evaluator:D2":
+            raise ModelUnavailable("model_unavailable_for_test")
+        return await super().json(system, payload, schema)
+
+
+async def test_failed_agent_inbox_is_closed_by_system(make_service, session):
+    service, repo = await make_service(FailingD2Model(collaboration=True))
+    report = await service.evaluate(session)
+    state = await repo.get_run(report["evaluation_id"])
+    team = state["team"]
+    assert team["tasks"]["evaluator:D2"]["status"] == "FAILED"
+    assert team["tasks"]["evaluator:D2"]["error"] == "model_unavailable_for_test"
+    assert all(m["status"] == "PROCESSED" for m in team["messages"])
+    assert all(m["disposition"] == "system_closed" for m in team["messages"])
+    assert report["team"]["stop_reason"] == "stalled_or_failed"
+    assert "unprocessed_collaboration_messages" not in report["review_reasons"]
 
 
 async def test_team_lead_arbitration_and_conflict_revision(make_service, session):

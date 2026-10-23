@@ -5,8 +5,9 @@ from dataclasses import replace
 import pytest
 
 from app.config import Settings
-from app.evaluation.scoring import classify_risk, score
+from app.evaluation.scoring import classify_risk, score, score_eligible
 from app.infrastructure.model import JsonModelGateway, ModelUnavailable, _decode_object
+from app.infrastructure.telemetry import model_usage, usage_summary
 from app.rubrics.catalog import SkillCatalog
 from app.rubrics.payload import metric_payload
 from app.team.state import initialize_team
@@ -27,6 +28,8 @@ def test_real_skills_publish_catalog_from_skill_frontmatter():
 def test_nonapplicable_d6_allows_total_but_applicable_pending_d6_blocks_it():
     catalog = SkillCatalog(Settings().skill_dir)
     skills = catalog.snapshot()
+    for mid in ("D2.1", "D2.2"):
+        skills["metrics"][mid]["scoring_blockers"] = []
     team = initialize_team(skills, "run")
     team["evidence"]["e1"] = {"evidence_id": "e1"}
     for task in team["tasks"].values():
@@ -44,6 +47,33 @@ def test_nonapplicable_d6_allows_total_but_applicable_pending_d6_blocks_it():
         status="NOT_EVALUABLE", review_rule_ids=["urgent_safety_review"]
     )
     assert score(state)["overall_score"] is None
+
+
+def test_config_blocked_metrics_excluded_from_gate_and_disclosed():
+    catalog = SkillCatalog(Settings().skill_dir)
+    skills = catalog.snapshot()
+    assert skills["metrics"]["D2.1"]["scoring_blockers"]
+    team = initialize_team(skills, "run")
+    team["evidence"]["e1"] = {"evidence_id": "e1"}
+    for task in team["tasks"].values():
+        for mid in task["metric_ids"]:
+            blocked = mid in {"D2.1", "D2.2"}
+            task["findings"][mid] = {
+                "metric_id": mid,
+                "status": "NOT_EVALUABLE" if blocked else "EVALUATED",
+                "score": None if blocked else 4,
+                "review_rule_ids": ["timing_policy_pending"] if blocked else [],
+                "evidence_ids": [] if blocked else ["e1"],
+                "claims": [] if blocked else [{"evidence_ids": ["e1"]}],
+            }
+    state = {"skills": skills, "team": team, "dimension_ids": catalog.dimensions,
+             "completion": {"complete": True}}
+    profile = score(state)
+    assert profile["overall_score"] == 4
+    assert [e["metric_id"] for e in profile["score_exclusions"]] == ["D2.1", "D2.2"]
+    assert all(
+        e["reason"] == "scoring_blocked_by_configuration" for e in profile["score_exclusions"]
+    )
 
 
 @pytest.mark.parametrize("metric_id", ["D6.1", "D6.2"])
@@ -113,10 +143,50 @@ def test_d2_interaction_time_does_not_require_first_response_start():
                     "scope": "current_session", "statement": "Doctor replied", "evidence_ids": ["e1"]}],
         "review_rule_ids": [],
     }
-    assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == ["D2.2"]
-    finding["metric_id"] = "D2.1"
-    with pytest.raises(ValueError, match="first-response"):
+    with pytest.raises(ValueError, match="blocked by configuration"):
         tools.submit(state, agent, {"findings": [finding]})
+    finding["metric_id"] = "D2.1"
+    with pytest.raises(ValueError, match="blocked by configuration"):
+        tools.submit(state, agent, {"findings": [finding]})
+
+
+@pytest.mark.parametrize(
+    ("metric_id", "time_fact"),
+    [("D2.1", "first_response_seconds"), ("D2.2", "adjacent_response_intervals")],
+)
+def test_unconfigured_timing_policy_blocks_scores_at_submission_and_scoring(metric_id, time_fact):
+    catalog = SkillCatalog(Settings().skill_dir)
+    state = {"skills": catalog.snapshot(), "team": initialize_team(catalog.snapshot(), "run")}
+    agent = "evaluator:D2"
+    task = state["team"]["tasks"][agent]
+    task["skills_read"] = True
+    task["time_facts"] = {
+        "first_response_available": True,
+        "adjacent_response_available": True,
+    }
+    state["team"]["evidence"]["e1"] = {"evidence_id": "e1"}
+    finding = {
+        "metric_id": metric_id, "status": "EVALUATED", "score": 4,
+        "reason": "A response time was measured", "evidence_ids": ["e1"],
+        "claims": [{"subject": "doctor", "behavior": "responds", "polarity": "present",
+                    "scope": "current_session", "statement": "A response was measured",
+                    "evidence_ids": ["e1"]}],
+        "review_rule_ids": [],
+    }
+
+    assert catalog.metrics[metric_id]["time_fact"] == time_fact
+    assert not score_eligible(state, metric_id, finding)
+    with pytest.raises(ValueError, match="blocked by configuration"):
+        TeamTools(Settings(), None).submit(state, agent, {"findings": [finding]})
+
+    finding.update(
+        status="NOT_EVALUABLE",
+        score=None,
+        review_rule_ids=["timing_policy_pending"],
+    )
+    assert TeamTools(Settings(), None).submit(state, agent, {"findings": [finding]})[
+        "accepted"
+    ] == [metric_id]
 
 
 def test_new_dimension_requires_no_runtime_code_change(catalog):
@@ -234,6 +304,33 @@ async def test_model_http_transport_no_hidden_retry(monkeypatch):
     with pytest.raises(ModelUnavailable, match="^model_http_429$"):
         await model.json("test", {}, {})
     assert len(calls) == 1
+
+
+async def test_invalid_model_json_exposes_safe_parse_diagnostics(monkeypatch):
+    import httpx
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    records = []
+
+    def respond(request):
+        return httpx.Response(
+            200,
+            json={"choices": [{"finish_reason": "stop", "message": {"content": '{"score":}'}}]},
+        )
+
+    token = model_usage.set(records)
+    try:
+        with pytest.raises(ModelUnavailable, match="^model_invalid_json$"):
+            await JsonModelGateway(httpx.MockTransport(respond)).json("test", {}, {})
+    finally:
+        model_usage.reset(token)
+
+    diagnostic = usage_summary(records)["json_errors"][0]
+    assert diagnostic["stage"] == "model_content_json"
+    assert diagnostic["message"] == "Expecting value"
+    assert diagnostic["content_length"] == len('{"score":}')
+    assert "content" not in diagnostic
 
 
 def test_model_json_recovers_only_terminal_container_braces():

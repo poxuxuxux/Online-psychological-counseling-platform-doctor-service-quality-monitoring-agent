@@ -150,6 +150,11 @@ export const ReportSchema = z
         overall_score: score,
         overall_coverage: coverage,
         coverage_gate_passed: z.boolean().default(false),
+        score_exclusions: z.array(z.object({
+          metric_id: z.string(),
+          reason: z.string(),
+          scoring_blockers: z.array(z.string()),
+        })).optional(),
       })
       .nullable()
       .optional(),
@@ -180,6 +185,15 @@ export const ReportSchema = z
         prompt_tokens: z.number(),
         completion_tokens: z.number(),
         usage_reported_requests: z.number(),
+        json_errors: z.array(z.object({
+          provider: z.string().nullable(),
+          model: z.string().nullable(),
+          stage: z.string().nullable(),
+          type: z.string().optional(),
+          message: z.string().optional(),
+          position: z.number().optional(),
+          content_length: z.number().optional(),
+        })).optional(),
       }).optional(),
     }).optional(),
     investigation: z.object({

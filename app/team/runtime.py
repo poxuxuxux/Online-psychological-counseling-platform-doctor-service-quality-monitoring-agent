@@ -17,7 +17,7 @@ from app.domain.models import Decision, FindingInput, now
 from app.domain.ports import ModelUnavailable
 from app.infrastructure.telemetry import model_usage
 from app.rubrics.payload import metric_payload, task_payload
-from app.team.state import active_findings, event, pending_messages
+from app.team.state import active_findings, close_inbox, event, pending_messages
 from app.team.tools import TOOL_HELP
 
 
@@ -41,6 +41,8 @@ Never emit rubric_unpublished when status is published. A scored finding must be
 with an integer score; unresolved cases must be NOT_EVALUABLE with null score.
 Draft metrics cannot receive a numeric score. If applicable, submit NOT_EVALUABLE with
 rubric_unpublished so a human can review the observed behavior.
+Any scoring_blockers in a metric's Skill require NOT_EVALUABLE and every named review rule;
+never submit a numeric score for a blocked metric.
 If the trigger is absent in a complete observation, submit NOT_APPLICABLE without
 rubric_unpublished. If applicability cannot be determined, submit NOT_EVALUABLE with
 source_incomplete or context_ambiguous, without rubric_unpublished.
@@ -121,13 +123,19 @@ class TeamRuntime:
             team["stop_reason"] = "model_not_configured"
         for agent, task in team["tasks"].items():
             if task["status"] == "FAILED":
+                close_inbox(team, agent, "receiver_agent_failed")
                 continue
             if (
                 task["steps"] >= self.settings.max_steps
                 or task["model_seconds"] >= self.settings.agent_timeout
             ):
-                if task["status"] != "COMPLETED" or pending_messages(team, agent):
+                if task["status"] != "COMPLETED":
                     task.update(status="FAILED", error="agent_budget_exhausted")
+                    close_inbox(team, agent, "receiver_agent_failed")
+                elif pending_messages(team, agent):
+                    # 已完成任务无法再处理迟到消息：系统关闭收件，保留其评分结果，
+                    # 不再把任务误判为 FAILED。
+                    close_inbox(team, agent, "receiver_budget_exhausted")
             elif pending_messages(team, agent):
                 task["status"] = "PENDING"
         agents = list(team["tasks"])
