@@ -6,5 +6,6 @@ import './styles/theme.css'
 import './styles/reference.css'
 import './styles/consultations.css'
 import './styles/overview-glass.css'
+import './styles/apple-glass.css'
 
 createApp(App).mount('#app')
