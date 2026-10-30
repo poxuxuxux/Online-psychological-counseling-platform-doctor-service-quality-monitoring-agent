@@ -95,6 +95,10 @@ beforeEach(() => {
         if (session.session_id === failedReportSessionId) {
           generated.status = 'failed'
           generated.team = { model_call_count: 0, stop_reason: 'model_not_configured' }
+          generated.review_reasons = ['metric_submission_rejected', 'leader_planning_incomplete', 'insufficient_scored_coverage']
+          generated.execution_issues = [{ agent_id: 'evaluator:effectiveness', stage: 'initial_evaluation',
+            metric_id: 'D1.1', error: 'Score needs a Skill anchor and source-grounded claims',
+            fields: [], attempt: 3, transport: null }]
         }
         if (withInvestigation) generated.investigation = {
           stop_reason: 'agent_finished', uncovered_metric_ids: [], attempts: { 'D2.1': 1 },
@@ -267,6 +271,18 @@ describe('workbench actual component interaction', () => {
     expect(app.get('.run-note').text()).toContain('成功 2 条，失败 1 条')
     expect(app.text()).toContain('model_not_configured')
   })
+  it('shows the six-dimension result and translated validation details when evaluation fails', async () => {
+    failedReportSessionId = 'preview-synthetic-001'
+    const app = await start()
+    await evaluate()
+    expect(app.get('.results-panel .result-status.failed').text()).toContain('评估失败')
+    expect(app.get('.workspace-result-failure').text()).toContain('未生成可信总分')
+    expect(app.findAll('.workspace-result-groups .metric-group')).toHaveLength(6)
+    expect(app.findAll('.workspace-result-groups .metric-row')).toHaveLength(18)
+    expect(app.get('.report-limitations').text()).toContain('指标结果连续未通过后端校验')
+    expect(app.get('.execution-issues').text()).toContain('评分缺少量表依据或原文证据')
+    expect(app.text()).not.toContain('Leader 组织与协商')
+  })
   it('continues the remaining sessions when one evaluation fails', async () => {
     failSessionId = 'preview-synthetic-002'
     const app = await start()
@@ -285,7 +301,8 @@ describe('workbench actual component interaction', () => {
   it('renders a report and does not average initial scores', async () => {
     const app = await start()
     await evaluate()
-    expect(app.findAll('.finding-row')).toHaveLength(7)
+    expect(app.findAll('.workspace-result-groups .metric-group')).toHaveLength(6)
+    expect(app.findAll('.workspace-result-groups .metric-row')).toHaveLength(18)
     expect(app.get('.summary-counts').text()).toContain('—')
     expect(app.get('.summary-counts').text()).toContain('待核查')
   })
@@ -293,20 +310,23 @@ describe('workbench actual component interaction', () => {
     const app = await start()
     await evaluate()
     await app.get('.filter-toolbar select').setValue('pending')
-    expect(app.findAll('.finding-row')).toHaveLength(5)
+    expect(app.findAll('.workspace-result-groups .metric-row')).toHaveLength(5)
   })
   it('focuses referenced source messages', async () => {
     const app = await start()
     await evaluate()
+    const evidencedMetric = app.findAll('.workspace-result-groups .metric-row').find((row) => row.text().includes('D5.4'))
+    if (!evidencedMetric) throw new Error('Unable to find a scored metric row')
+    await evidencedMetric.trigger('click')
     await app.get('.finding-detail .evidence-actions button').trigger('click')
     await flushPromises()
-    expect(app.get('#message-preview-m2').classes()).toContain('highlighted')
-    expect(document.activeElement?.id).toBe('message-preview-m2')
+    expect(app.get('#message-preview-m4').classes()).toContain('highlighted')
+    expect(document.activeElement?.id).toBe('message-preview-m4')
   })
   it('keeps both revisions and real discussion records', async () => {
     const app = await start()
     await evaluate()
-    const row = app.findAll('.finding-row').find((r) => r.text().includes('D4.1'))!
+    const row = app.findAll('.workspace-result-groups .metric-row').find((r) => r.text().includes('D4.1'))!
     await row.trigger('click')
     expect(app.findAll('.revision-compare article')).toHaveLength(2)
     expect(app.findAll('.discussion-list li')).toHaveLength(4)

@@ -20,7 +20,7 @@ import OfflineReportsPage from './pages/OfflineReportsPage.vue'
 import ServiceReportsPage from './pages/ServiceReportsPage.vue'
 import OfflineReviewPage from './pages/OfflineReviewPage.vue'
 import { useConsole } from './composables/useConsole'
-import { agentName, dimensions, label, metricName, metrics, time } from './utils/catalog'
+import { agentName, dimensions, label, metrics, time } from './utils/catalog'
 import { overallScore } from './utils/trust'
 import { downloadJson } from './utils/export'
 import { api } from './api/endpoints/evaluations'
@@ -191,18 +191,6 @@ const drafts = ref<
 const selected = computed(
   () => rows.value.find((r) => r.finding.finding_id === selectedId.value) || rows.value[0],
 )
-const visibleRows = computed(() =>
-  rows.value.filter(
-    (r) =>
-      (filter.value === 'all' ||
-        (filter.value === 'pending'
-          ? pending.value.includes(r)
-          : r.finding.metric_id.startsWith(filter.value))) &&
-      `${r.finding.metric_id} ${metricName(r.finding.metric_id)} ${r.finding.rationale}`.includes(
-        query.value,
-      ),
-  ),
-)
 const queue = computed(() =>
   pending.value
     .sort(comparePriority),
@@ -263,6 +251,22 @@ const serviceReviewGroups = computed(() => dimensions.map((dimension) => {
     average: scored.length ? scored.reduce((sum, value) => sum + value, 0) / scored.length : null,
   }
 }))
+const workspaceResultGroups = computed(() => serviceReviewGroups.value.map((group) => {
+  const items = group.items.filter((item) => {
+    const matchesDimension = filter.value === 'all' || filter.value === 'pending' || filter.value === group.id
+    const matchesPending = filter.value !== 'pending' || (item.row
+      ? pending.value.some((row) => row.finding.metric_id === item.id)
+      : report.value?.status === 'failed')
+    const text = `${item.id} ${item.name} ${item.row?.finding.rationale || ''}`.toLowerCase()
+    return matchesDimension && matchesPending && text.includes(query.value.trim().toLowerCase())
+  })
+  const scored = items.flatMap((item) => item.score === null ? [] : [item.score])
+  return {
+    ...group,
+    items,
+    average: scored.length ? scored.reduce((sum, value) => sum + value, 0) / scored.length : null,
+  }
+}).filter((group) => group.items.length))
 const visibleServiceReviewGroups = computed(() => serviceReviewGroups.value.map((group) => {
   const items = group.items.filter((item) =>
     serviceMetricFilter.value === 'all' || (item.score !== null && item.score < 3),
@@ -285,6 +289,36 @@ function toggleServiceMetricGroup(id: string) {
 }
 function selectServiceMetric(id: string) {
   activeServiceMetricCode.value = activeServiceMetricCode.value === id ? null : id
+}
+function selectWorkspaceMetric(id: string) {
+  selectServiceMetric(id)
+  const row = rows.value.find((item) => item.finding.metric_id === id)
+  if (row) select(row.finding.finding_id)
+}
+const resultIssueLabels: Record<string, string> = {
+  metric_submission_rejected: '指标结果连续未通过后端校验',
+  leader_planning_incomplete: '评价计划未完成，未能进入完整评分流程',
+  insufficient_scored_coverage: '有效计分项不足，无法生成总分',
+  finding_schema_error: '指标结果的数据格式不符合要求',
+  'Score needs a Skill anchor and source-grounded claims': '评分缺少量表依据或原文证据',
+  'Risk flag requires original evidence': '风险判断缺少原文证据',
+  'Required reliable time facts missing': '缺少可靠的响应时间数据',
+}
+function resultIssueLabel(issue: string) {
+  return resultIssueLabels[issue] || issue
+}
+function executionIssueLabel(issue: string) {
+  return resultIssueLabels[issue] || issue.replaceAll('_', ' ')
+}
+function executionStageLabel(stage: string) {
+  const labels: Record<string, string> = {
+    leader_plan: '评价规划',
+    initial_evaluation: '指标初评',
+    leader_weight_scenario: '权重情境分析',
+    leader_weight_distribution: '权重分布分析',
+    leader_weight_relevance: '指标相关性分析',
+  }
+  return labels[stage] || stage.replaceAll('_', ' ')
 }
 const reviewOverallScore = computed(() => {
   const score = report.value?.quality_profile?.overall_score
@@ -839,14 +873,10 @@ onUnmounted(() => {
                 <div>
                   <h2 id="results-title">AI 评价结果</h2>
                   <p>
-                    {{
-                      report
-                        ? `${rows.length} 项服务质量指标 · ${scoredCount} 项已计分`
-                        : '18 项服务质量指标'
-                    }}
+                    {{ report ? `18 项服务质量指标 · ${scoredCount} 项已计分` : '18 项服务质量指标' }}
                   </p>
                 </div>
-                <span :class="['result-status', report ? 'completed' : 'pending']"><Icon :name="report ? 'check' : 'clock'" :size="13" />{{ report ? '待复核' : '等待评估' }}</span>
+                <span :class="['result-status', report ? report.status : 'pending']"><Icon :name="!report ? 'clock' : report.status === 'failed' ? 'alert' : 'check'" :size="13" />{{ !report ? '等待评估' : report.status === 'failed' ? '评估失败' : report.status === 'partial' ? '部分完成' : '待复核' }}</span>
               </div>
               <div v-if="!report" class="empty-state report-empty">
                 <div class="empty-illustration">
@@ -869,29 +899,25 @@ onUnmounted(() => {
                   ><span><Icon name="check" :size="15" />未决问题保留</span>
                 </div>
               </div>
-              <template v-else
-                ><div class="report-summary">
-                  <p>{{ report.summary }}</p>
-                  <div class="summary-counts">
-                    <span
-                      ><strong>{{ scoredCount }}</strong
-                      >已计分</span
-                    ><span
-                      ><strong>{{ pending.length }}</strong
-                      >待核查</span
-                    ><span
-                      ><strong>{{ finalScore === null ? '—' : finalScore.toFixed(1) }}</strong
-                      >综合总分（满分100）</span
-                    >
+              <template v-else>
+                <div class="result-summary">
+                  <div class="overall-score">
+                    <span class="score-icon"><Icon name="medal" :size="20" /></span>
+                    <div><small>综合得分</small><strong>{{ finalScore === null ? '—' : finalScore.toFixed(1) }}<em>/ 100</em></strong></div>
                   </div>
-                  <p class="small">
-                    {{
-                      finalScore === null
-                        ? '尚不满足综合评分展示条件；前端不自行平均 Agent 分数。'
-                        : '总分由后端按 SKILL.md 规则权重汇总 Agent 评分；未经过独立语义校验。'
-                    }}
-                  </p>
+                  <div class="ai-conclusion"><strong>AI 评价结论</strong><p>{{ report.summary || '本次评价未提供总结。' }}</p></div>
                 </div>
+                <div class="summary-counts workspace-result-counts">
+                  <span><strong>{{ scoredCount }} / 18</strong>已计分指标</span>
+                  <span><strong>{{ pending.length }}</strong>待核查指标</span>
+                  <span><strong>{{ finalScore === null ? '—' : finalScore.toFixed(1) }}</strong>综合总分（满分 100）</span>
+                </div>
+                <p v-if="report.status === 'failed'" class="workspace-result-failure" role="status">
+                  <Icon name="alert" :size="15" />本次评价未完成，未生成可信总分。请查看下方校验原因后重试。
+                </p>
+                <p v-else-if="finalScore === null" class="small score-gate-note">
+                  尚不满足综合评分展示条件；前端不会自行平均 Agent 分数。
+                </p>
                 <p v-if="isDemoMapping" class="mapping-note">
                   当前后端包含维度级演示条目，不能视为 18 项正式指标已全部实现。
                 </p>
@@ -902,61 +928,42 @@ onUnmounted(() => {
                       aria-label="搜索评价指标"
                       placeholder="搜索指标或评价理由" /></label
                   ><select v-model="filter" aria-label="筛选评价维度">
-                    <option value="all">全部结果</option>
+                    <option value="all">全部指标</option>
                     <option value="pending">待核查</option>
-                    <option v-for="d in dimensions" :key="d.id" :value="d.id">{{ d.name }}</option>
+                    <option v-for="d in dimensions" :key="d.id" :value="d.id">{{ d.id }} {{ d.name }}</option>
                   </select>
                 </div>
-                <div class="finding-list" aria-label="评价结果列表">
-                  <button
-                    v-for="r in visibleRows"
-                    :key="r.finding.finding_id"
-                    :class="[
-                      'finding-row',
-                      { selected: selected?.finding.finding_id === r.finding.finding_id },
-                    ]"
-                    :aria-pressed="selected?.finding.finding_id === r.finding.finding_id"
-                    @click="select(r.finding.finding_id)"
-                  >
-                    <span class="finding-row-main"
-                      ><span class="finding-code">{{ r.finding.metric_id }}</span
-                      ><strong>{{ metricName(r.finding.metric_id) }}</strong
-                      ><span class="finding-agent">{{ agentName(r.agentId) }}</span></span
-                    ><span class="finding-row-end"
-                      ><StatusBadge :tone="r.verdict.tone">{{ r.verdict.text }}</StatusBadge
-                      ><span class="list-score"
-                        >{{
-                          r.finding.applicability === 'applicable' && r.finding.score !== null
-                            ? r.finding.score.toFixed(1)
-                            : '—'
-                        }}<small
-                          v-if="
-                            r.finding.applicability === 'applicable' && r.finding.score !== null
-                          "
-                          >{{ ['verified', 'agent_scored'].includes(r.verdict.code) ? '分' : '初评' }}</small
-                        ></span
-                      ><Icon name="chevron" :size="16"
-                    /></span>
-                  </button>
-                  <p v-if="!visibleRows.length" class="empty-note padded">
-                    没有匹配的结果，请调整搜索或筛选条件。
-                  </p>
+                <div class="metric-groups workspace-result-groups" aria-label="六维评价结果">
+                  <section v-for="group in workspaceResultGroups" :key="group.id" :class="['metric-group', `group-${group.id.toLowerCase()}`]">
+                    <button class="metric-group-heading" type="button" :aria-expanded="!collapsedServiceMetricGroups.includes(group.id)" @click="toggleServiceMetricGroup(group.id)">
+                      <span class="group-icon"><Icon :name="group.id === 'D1' ? 'shield' : group.id === 'D2' ? 'clock' : group.id === 'D3' ? 'message' : group.id === 'D4' ? 'heart' : group.id === 'D5' ? 'workspace' : 'alert'" :size="15" /></span>
+                      <strong>{{ group.id }} {{ group.name }}<small>（{{ group.items.length }} 项）</small></strong>
+                      <b>{{ group.average === null ? '—' : group.average.toFixed(1) }}</b><Icon class="group-chevron" name="chevron" :size="13" />
+                    </button>
+                    <div v-show="!collapsedServiceMetricGroups.includes(group.id)" class="metric-list">
+                      <button v-for="item in group.items" :key="item.id" :class="['metric-row', { active: activeServiceMetricCode === item.id }]" type="button" :aria-pressed="activeServiceMetricCode === item.id" :aria-label="`${item.id} ${item.name}，${item.score === null ? '本次未返回评分' : `评分 ${item.score.toFixed(1)} 分`}`" @click="selectWorkspaceMetric(item.id)">
+                        <span>{{ item.id }}</span><span class="metric-name">{{ item.name }}</span>
+                        <i aria-hidden="true"><b :style="{ width: `${(item.score ?? 0) * 20}%` }"></b></i>
+                        <strong>{{ item.score === null ? '—' : item.score.toFixed(1) }}</strong>
+                      </button>
+                    </div>
+                  </section>
+                  <p v-if="!workspaceResultGroups.length" class="empty-note padded">没有匹配的指标，请调整搜索或筛选条件。</p>
                 </div>
-                <FindingDetail
-                  v-if="selected"
-                  :row="selected"
-                  :report="report"
-                  :session="session"
-                  @focus="focusEvidence"
-                />
+                <div v-if="activeServiceMetric" class="metric-detail">
+                  <div><span>{{ activeServiceMetric.id }}</span><strong>{{ activeServiceMetric.name }}</strong><b>{{ activeServiceMetric.score === null ? '未评分' : `${activeServiceMetric.score.toFixed(1)} / 5` }}</b></div>
+                  <p>{{ activeServiceMetric.row?.finding.rationale || '本次运行未返回该指标的有效评价。' }}</p>
+                  <button v-if="activeServiceMetric.row" type="button" :disabled="!activeServiceMetric.row.finding.evidence.length" @click="focusEvidence(activeServiceMetric.row.finding.evidence.flatMap((evidence) => evidence.message_ids))"><Icon name="link" :size="13" />查看原文证据</button>
+                </div>
+                <details v-if="activeServiceMetric?.row" class="service-review-evidence"><summary>查看完整核查详情</summary><FindingDetail :row="activeServiceMetric.row" :report="report" :session="session" @focus="focusEvidence" /></details>
                 <details class="report-limitations">
-                  <summary>报告限制与待复核原因</summary>
+                  <summary>评价说明与待核查原因</summary>
                   <ul>
                     <li
                       v-for="(item, i) in [...report.limitations, ...report.review_reasons]"
                       :key="i"
                     >
-                      {{ item }}
+                      {{ resultIssueLabel(item) }}
                     </li>
                     <li v-if="!report.limitations.length && !report.review_reasons.length">
                       后端没有返回限制项，不代表全部核验已经完成。
@@ -966,69 +973,14 @@ onUnmounted(() => {
                     {{ agentName(a.agent_id) }}：{{ a.error }}
                   </p>
                 </details>
-                <details v-if="report.collaboration" class="report-limitations collaboration-audit">
-                  <summary>
-                    Leader 组织与协商 · 已选 {{ report.collaboration.selected_metric_ids.length }} 项 ·
-                    {{ report.collaboration.round_count }}/3 轮
-                  </summary>
-                  <p>{{ report.collaboration.context_summary }}</p>
-                  <p v-if="report.collaboration.protocol === 'leader-review-v2'" class="small">
-                    三个视角先独立初评全部指标，再由 Leader 依情境、评分与证据分布、核心需求相关性决定保留项。
-                    每阶段先归一化，未入选补 0，三阶段固定平均；无等权起点或 ±20% 限幅。
-                  </p>
-                  <p v-else class="small">
-                    三个视角独立评价同一组所选指标；讨论由 Leader 组织。历史协议权重在评分前冻结，最终份额相对等权最多浮动
-                    {{ ((report.collaboration.weight_deviation ?? 0.2) * 100).toFixed(0) }}%。
-                  </p>
-                  <details v-for="stage in report.collaboration.weighting_stages" :key="stage.stage">
-                    <summary>{{ stage.stage === 'scenario' ? '阶段1 · 情境分析' : stage.stage === 'distribution' ? '阶段2 · 评分与证据分布' : '阶段3 · 核心需求相关性' }}</summary>
-                    <p>{{ stage.context_summary }}</p>
-                    <p>{{ stage.task_analysis }}</p>
-                    <p>{{ stage.relevance_analysis }}</p>
-                    <p>{{ stage.consistency_check }}</p>
-                    <p v-for="item in stage.selected" :key="item.metric_id">
-                      {{ item.metric_id }} · {{ ((stage.weights[item.metric_id] ?? 0) * 100).toFixed(2) }}%：{{ item.reason }}
-                    </p>
-                  </details>
-                  <div class="table-scroll">
-                    <table>
-                      <thead><tr><th>所选指标</th><th>{{ report.collaboration.protocol === 'leader-review-v2' ? '三阶段平均权重' : '初评前权重' }}</th><th>最终计分权重</th></tr></thead>
-                      <tbody>
-                        <tr v-for="mid in report.collaboration.selected_metric_ids" :key="mid">
-                          <td>{{ mid }} · {{ metricName(mid) }}</td>
-                          <td>{{ ((report.collaboration.weights[mid] ?? 0) * 100).toFixed(2) }}%</td>
-                          <td>{{ report.quality_profile?.weights?.[mid] === undefined ? '未计入' : `${(report.quality_profile.weights[mid]! * 100).toFixed(2)}%` }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <details>
-                    <summary>Leader 未选择的指标（不属于本次缺项）</summary>
-                    <p v-for="item in report.collaboration.excluded" :key="item.metric_id">
-                      {{ item.metric_id }} · {{ metricName(item.metric_id) }}：{{ item.reason }}
-                    </p>
-                  </details>
-                  <details v-for="initial in report.collaboration.initial_evaluations" :key="initial.agent_id">
-                    <summary>{{ agentName(initial.agent_id) }} · 独立初评</summary>
-                    <p>{{ initial.perspective }}</p>
-                    <p v-for="finding in initial.findings" :key="finding.metric_id">
-                      <strong>{{ finding.metric_id }} · {{ finding.score === null ? '无数值分' : `${finding.score}/5` }}</strong>：{{ finding.reason }}
-                    </p>
-                  </details>
-                  <details v-for="version in report.collaboration.reports" :key="version.version">
-                    <summary>报告 P{{ version.version }}{{ version.final ? ' · 最终裁决' : ' · 候选报告' }}</summary>
-                    <article v-for="finding in version.findings" :key="finding.metric_id">
-                      <p><strong>{{ finding.metric_id }} · {{ finding.score === null ? '无数值分' : `${finding.score}/5` }}</strong>：{{ finding.reason }}</p>
-                      <p class="small">Leader 核对问题：{{ finding.question }}</p>
-                      <p v-for="reply in report.collaboration.feedback.filter((item) => item.report_version === version.version && item.metric_id === finding.metric_id)" :key="reply.feedback_id">
-                        {{ agentName(reply.agent_id) }} · {{ reply.decision === 'agree' ? '同意' : reply.decision === 'disagree' ? '提出异议' : '仍无法判断' }}：{{ reply.reason }}
-                      </p>
-                      <p v-for="response in finding.responses" :key="response.feedback_id" class="small">
-                        Leader {{ response.disposition === 'accepted' ? '采纳反馈' : response.disposition === 'rejected' ? '未采纳反馈' : '部分采纳反馈' }}：{{ response.reason }}
-                      </p>
-                    </article>
-                  </details>
-                  <p class="small">独立初评不等于三方一致；有据裁决保留不同意见，也不代表独立专业核验。</p>
+                <details v-if="report.execution_issues?.length" class="report-limitations execution-issues">
+                  <summary>运行校验详情 · {{ report.execution_issues.length }} 项</summary>
+                  <ul>
+                    <li v-for="(issue, index) in report.execution_issues" :key="`${issue.stage}-${issue.metric_id}-${index}`">
+                      <strong>{{ executionStageLabel(issue.stage) }}<template v-if="issue.metric_id"> · {{ issue.metric_id }}</template></strong>：{{ executionIssueLabel(issue.error) }}
+                      <small v-if="issue.fields.length">字段 {{ issue.fields.map((field) => `${field.path.join('.') || '输入'} (${field.type})`).join('、') }}</small>
+                    </li>
+                  </ul>
                 </details>
               </template>
             </section>
@@ -1364,6 +1316,58 @@ onUnmounted(() => {
 .service-workspace-layout > .results-panel > .empty-state { flex: 1; min-height: 0; }
 .service-workspace-layout > .results-panel .finding-list { max-height: none; }
 .service-workspace-layout > .results-panel .report-summary { margin-top: 14px; }
+.service-workspace-layout > .results-panel .result-status.partial { background: #fff2db; color: #9c6b1d; }
+.service-workspace-layout > .results-panel .result-status.failed { background: #fbe9e9; color: #a94b53; }
+.service-workspace-layout > .results-panel .result-summary { margin: 13px 13px 0; }
+.service-workspace-layout > .results-panel .workspace-result-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 9px 13px 0;
+}
+.service-workspace-layout > .results-panel .workspace-result-counts > span {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  width: auto;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid #e5eee8;
+  border-radius: 7px;
+  background: #f7fbf8;
+  color: #687d6e;
+  font-size: 11.5px;
+}
+.service-workspace-layout > .results-panel .workspace-result-counts > span + span { border-right: 1px solid #e5eee8; }
+.service-workspace-layout > .results-panel .workspace-result-counts strong {
+  color: #1d7550;
+  font-size: 16px;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+.workspace-result-failure {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 9px 13px 0;
+  padding: 8px 10px;
+  border: 1px solid #f0d8d9;
+  border-radius: 7px;
+  background: #fff5f5;
+  color: #a34f56;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.workspace-result-failure :deep(svg) { flex: 0 0 auto; margin-top: 1px; }
+.service-workspace-layout > .results-panel .score-gate-note { margin: 8px 13px 0; font-size: 12px; }
+.service-workspace-layout > .results-panel .workspace-result-groups {
+  flex: 0 0 auto;
+  max-height: min(46vh, 440px);
+  overflow-y: auto;
+}
+.service-workspace-layout > .results-panel .workspace-result-groups .metric-row { grid-template-columns: 42px minmax(0, 1fr) 62px 36px; }
+.service-workspace-layout > .results-panel .execution-issues li { margin-bottom: 8px; }
+.service-workspace-layout > .results-panel .execution-issues small { display: block; margin-top: 3px; color: #6d8173; overflow-wrap: anywhere; }
 @media (max-width: 1350px) {
   .service-workspace-layout {
     grid-template-columns: minmax(250px, 0.76fr) minmax(360px, 1.24fr);
@@ -1372,6 +1376,7 @@ onUnmounted(() => {
     gap: 16px;
   }
   .service-workspace-layout > .results-panel { height: auto; min-height: 540px; max-height: none; }
+  .service-workspace-layout > .results-panel .workspace-result-groups { max-height: min(62vh, 560px); }
   .service-process-panel { align-items: stretch; flex-direction: column; gap: 13px; }
   .service-process-panel .process-progress { display: grid; grid-template-columns: 160px minmax(100px, 1fr) 190px; align-items: center; flex: none; gap: 12px; padding: 11px 0 0; border-top: 1px solid #dfe9e2; border-left: 0; }
   .service-process-panel .process-progress > div,
@@ -1404,6 +1409,12 @@ onUnmounted(() => {
   .service-workspace-layout > .service-workspace-list { height: auto; }
   .service-workspace-content :deep(.service-conversation-panel) { height: auto; min-height: 0; max-height: none; }
   .service-workspace-layout > .results-panel { min-height: 0; }
+  .service-workspace-layout > .results-panel .result-summary { grid-template-columns: 1fr; }
+  .service-workspace-layout > .results-panel .overall-score { padding: 0 0 9px; border-right: 0; border-bottom: 1px solid #d9e8dc; }
+  .service-workspace-layout > .results-panel .workspace-result-counts { grid-template-columns: 1fr; }
+  .service-workspace-layout > .results-panel .workspace-result-counts > span { border-right: 0; }
+  .service-workspace-layout > .results-panel .workspace-result-groups { max-height: 60vh; }
+  .service-workspace-layout > .results-panel .workspace-result-groups .metric-row { grid-template-columns: 40px minmax(0, 1fr) 48px 34px; }
 }
 @media (max-width: 560px) {
   .service-workspace-title h1 { font-size: 28.5px; }

@@ -32,7 +32,7 @@ describe('Leader protocol actual API compatibility', () => {
     expect(overallScore(report)).toBe(4)
   })
 
-  it.each([['v1', fixture], ['v2', postFixture]] as const)('renders %s protocol stages and evaluation history', async (version, source) => {
+  it.each([['v1', fixture], ['v2', postFixture]] as const)('renders %s results in the six-dimension user interface', async (_version, source) => {
     setPrivateAccessToken('test-private-access-token')
     const session = SessionSchema.parse({ session_id: source.session_id, source_id: 'test-only',
       messages: [{ message_id: 'm1', role: 'doctor', content: '听起来你很难受，我们一起看看。', sequence: 0 }] })
@@ -54,22 +54,12 @@ describe('Leader protocol actual API compatibility', () => {
       await flushPromises()
       await wrapper.get('.nav-item[href="#workspace"]').trigger('click')
       await flushPromises()
-      if (version === 'v1') {
-        expect(wrapper.text()).toContain('3/3 轮')
-        expect(wrapper.text()).toContain('初评前权重')
-        expect(wrapper.text()).toContain('Leader 有据裁决')
-        expect(wrapper.text()).toContain('Leader 未采纳反馈')
-      } else {
-        expect(wrapper.text()).toContain('三阶段平均权重')
-        expect(wrapper.text()).toContain('阶段1 · 情境分析')
-        expect(wrapper.text()).toContain('阶段2 · 评分与证据分布')
-        expect(wrapper.text()).toContain('阶段3 · 核心需求相关性')
-        expect(wrapper.text()).toContain('70.00%')
-        expect(wrapper.text()).toContain('三方共识评分')
-        expect(wrapper.text()).not.toContain('初评前权重')
-      }
-      expect(wrapper.text()).toContain('独立初评')
-      expect(wrapper.text()).toContain('不等于三方一致')
+      expect(wrapper.findAll('.workspace-result-groups .metric-group')).toHaveLength(6)
+      expect(wrapper.findAll('.workspace-result-groups .metric-row').length).toBeGreaterThan(0)
+      expect(wrapper.text()).toContain('AI 评价结论')
+      expect(wrapper.text()).toContain('综合得分')
+      expect(wrapper.text()).not.toContain('Leader 组织与协商')
+      expect(wrapper.text()).not.toContain('三阶段平均权重')
     } finally { wrapper.unmount() }
   })
 })
