@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Icon from '../components/base/Icon.vue'
 import { createQualityReports, reportStatusText, type QualityReport, type QualityReportStatus } from '../data/reportsPreview'
 import { isDateInRange, useDateRange } from '../composables/dateRange'
@@ -15,8 +15,6 @@ const endDate = ref('')
 const descending = ref(true)
 const currentPage = ref(1)
 const pageSize = 8
-const activeReportId = ref(latestReport.value.id)
-const detailOpen = ref(false)
 
 const filteredReports = computed(() => {
   const keyword = query.value.trim().toLowerCase()
@@ -33,7 +31,6 @@ const filteredReports = computed(() => {
 })
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredReports.value.length / pageSize)))
 const visibleReports = computed(() => filteredReports.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
-const activeReport = computed(() => reports.value.find((report) => report.id === activeReportId.value) || latestReport.value)
 const completedReports = computed(() => reports.value.filter((report) => report.status === 'completed').sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
 
 function percent(value: number, total: number) {
@@ -59,12 +56,6 @@ function areaPath(values: number[]) {
   const line = sparkPath(values)
   return line ? `${line} L116 36 L4 36 Z` : ''
 }
-async function openReport(report: QualityReport) {
-  activeReportId.value = report.id
-  detailOpen.value = true
-  await nextTick()
-  document.getElementById('report-detail')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'nearest' })
-}
 function resetFilters() {
   query.value = ''
   statusFilter.value = 'all'
@@ -73,11 +64,11 @@ function resetFilters() {
   currentPage.value = 1
 }
 function exportReport() {
-  const content = JSON.stringify({ dataType: 'offline-synthetic-demo', exportedAt: new Date().toISOString(), report: activeReport.value }, null, 2)
+  const content = JSON.stringify({ dataType: 'offline-synthetic-demo', exportedAt: new Date().toISOString(), report: latestReport.value }, null, 2)
   const url = URL.createObjectURL(new Blob([content], { type: 'application/json;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `心衡-${activeReport.value.id}-离线质检报告.json`
+  anchor.download = `心衡-${latestReport.value.id}-离线质检报告.json`
   anchor.click()
   URL.revokeObjectURL(url)
   emit('notify', '离线质检报告已导出为 JSON 文件。')
@@ -98,7 +89,6 @@ watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value 
         <h2 id="latest-report-title">最近批次报告</h2>
         <div class="latest-report-controls">
           <span :class="['report-status', latestReport.status]"><Icon name="check" :size="13" />{{ reportStatusText[latestReport.status] }}</span>
-          <button class="reports-action primary" type="button" @click="openReport(latestReport)">查看完整报告<Icon name="arrow" :size="15" /></button>
         </div>
       </div>
       <div class="latest-report-body">
@@ -107,7 +97,6 @@ watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value 
           <div>
             <h3>{{ latestReport.id }}</h3>
             <time>{{ latestReport.createdAt }} 生成</time>
-            <div class="report-summary-box"><strong>本批次质检摘要</strong><p>{{ latestReport.summary }}</p></div>
           </div>
         </div>
         <div class="risk-cards" aria-label="批次风险统计">
@@ -127,23 +116,6 @@ watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value 
       </div>
     </section>
 
-    <section v-if="detailOpen" id="report-detail" class="report-detail-panel" tabindex="-1" aria-labelledby="report-detail-title">
-      <div class="report-detail-heading">
-        <div><h2 id="report-detail-title">完整报告 · {{ activeReport.id }}</h2><p>{{ activeReport.title }} · {{ activeReport.createdAt }}</p></div>
-        <button class="detail-close" type="button" aria-label="关闭完整报告" @click="detailOpen = false"><Icon name="close" :size="16" /></button>
-      </div>
-      <div class="detail-grid">
-        <article class="detail-score"><span>综合质量分</span><strong>{{ activeReport.status === 'completed' ? (activeReport.qualityScore * 20).toFixed(1) : '—' }}<small>/ 100</small></strong><p class="detail-summary">{{ activeReport.summary }}</p><p>{{ activeReport.improvement }}</p></article>
-        <article class="detail-dimensions"><h3>维度表现</h3><div v-for="item in activeReport.dimensions" :key="item.name" class="dimension-row"><span>{{ item.name }}</span><i><b :style="{ width: `${item.score * 20}%` }"></b></i><strong>{{ activeReport.status === 'completed' ? item.score.toFixed(1) : '—' }}</strong><small :class="{ negative: item.change.startsWith('-') }">{{ item.change }}</small></div></article>
-        <article class="detail-findings"><h3>关键发现</h3><ul v-if="activeReport.findings.length"><li v-for="item in activeReport.findings" :key="item">{{ item }}</li></ul><p v-else class="detail-empty">本批次正在处理，暂无关键发现。</p></article>
-        <article class="detail-findings"><h3>改进建议</h3><ul v-if="activeReport.recommendations.length"><li v-for="item in activeReport.recommendations" :key="item">{{ item }}</li></ul><p v-else class="detail-empty">待批次完成后生成建议。</p></article>
-      </div>
-      <div v-if="activeReport.samples.length" class="sample-sessions">
-        <h3>样本会话</h3>
-        <div class="sample-list"><span v-for="item in activeReport.samples" :key="item.sessionId" :class="['sample-item', item.level]"><strong>{{ item.sessionId }}</strong><small>{{ item.doctor }} · {{ item.pending }} 项待复核</small></span></div>
-      </div>
-    </section>
-
     <section class="history-panel" aria-labelledby="history-title">
       <div class="history-heading"><h2 id="history-title">历史质检报告</h2><span>{{ filteredReports.length }} 份报告</span></div>
       <div class="history-filters">
@@ -154,9 +126,9 @@ watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value 
       </div>
       <div class="history-table-wrap">
         <table class="history-table">
-          <thead><tr><th>报告编号 / 批次名称</th><th><button type="button" @click="descending = !descending">生成时间<Icon name="chevron" :size="12" :class="{ ascending: !descending }" /></button></th><th>检测会话数</th><th>高风险</th><th>中风险</th><th>低风险</th><th>状态</th><th>操作</th></tr></thead>
+          <thead><tr><th>报告编号 / 批次名称</th><th><button type="button" @click="descending = !descending">生成时间<Icon name="chevron" :size="12" :class="{ ascending: !descending }" /></button></th><th>检测会话数</th><th>高风险</th><th>中风险</th><th>低风险</th><th>状态</th></tr></thead>
           <tbody>
-            <tr v-for="report in visibleReports" :key="report.id" :class="{ selected: detailOpen && report.id === activeReportId }">
+            <tr v-for="report in visibleReports" :key="report.id">
               <td><strong>{{ report.id }}</strong><span>{{ report.title }}</span></td>
               <td><time>{{ report.createdAt }}</time></td>
               <td>{{ report.status === 'completed' ? formatNumber(report.total) : '—' }}</td>
@@ -164,17 +136,15 @@ watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value 
               <td class="medium-count">{{ report.status === 'completed' ? formatNumber(report.medium) : '—' }} <small v-if="report.total">({{ percent(report.medium, report.total) }})</small></td>
               <td class="low-count">{{ report.status === 'completed' ? formatNumber(report.low) : '—' }} <small v-if="report.total">({{ percent(report.low, report.total) }})</small></td>
               <td><span :class="['table-status', report.status]"><i aria-hidden="true"></i>{{ reportStatusText[report.status] }}</span></td>
-              <td><button class="view-report" type="button" :disabled="report.status !== 'completed'" @click="openReport(report)">查看报告</button></td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="history-cards">
-        <article v-for="report in visibleReports" :key="report.id" :class="['history-card', { selected: detailOpen && report.id === activeReportId }]">
+        <article v-for="report in visibleReports" :key="report.id" class="history-card">
           <div><strong>{{ report.id }}</strong><span :class="['table-status', report.status]"><i aria-hidden="true"></i>{{ reportStatusText[report.status] }}</span></div>
           <p>{{ report.title }}</p>
           <dl><div><dt>生成时间</dt><dd>{{ report.createdAt }}</dd></div><div><dt>检测会话</dt><dd>{{ report.status === 'completed' ? formatNumber(report.total) : '—' }}</dd></div><div><dt>高 / 中 / 低风险</dt><dd>{{ report.status === 'completed' ? `${report.high} / ${report.medium} / ${report.low}` : '—' }}</dd></div></dl>
-          <button class="view-report" type="button" :disabled="report.status !== 'completed'" @click="openReport(report)">查看报告</button>
         </article>
       </div>
       <div v-if="!visibleReports.length" class="history-empty"><Icon name="search" :size="26" /><strong>没有找到匹配报告</strong><p>请调整编号、状态或日期范围。</p><button type="button" @click="resetFilters">清除筛选</button></div>

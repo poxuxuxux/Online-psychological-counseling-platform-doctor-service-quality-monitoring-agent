@@ -31,6 +31,22 @@
   color: var(--reports-muted);
   font-size: 15.5px;
 }
+.reports-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-export-consent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--reports-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.report-export-consent input { accent-color: var(--reports-green); }
 .reports-offline {
   display: inline-flex;
   align-items: center;
@@ -754,6 +770,9 @@
   .reports-heading h1 {
     font-size: 28.5px;
   }
+  .reports-heading-actions { justify-content: stretch; width: 100%; }
+  .reports-heading-actions > .reports-action { flex: 1 1 auto; }
+  .report-export-consent { flex: 1 0 100%; }
   .reports-heading > .reports-action {
     width: 100%;
   }

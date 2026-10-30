@@ -2292,7 +2292,7 @@ main.overview-main .page-footer p {
 .service-review-stats > button.low strong { color: #208157; }
 .service-review-page .risk-badge.unknown,
 .service-review-page .result-risk.unknown { background: #edf3ef; color: #64776a; }
-.service-review-page .metric-toolbar > span { color: #829287; font-size: 12px; text-align: right; }
+.service-review-page .metric-toolbar > select { max-width: 205px; }
 .service-review-page .service-metric-groups .metric-row { min-height: 40px; }
 .service-review-page .service-metric-groups .metric-row > span:first-child { font-size: 12.5px; }
 .service-review-page .service-metric-groups .metric-row .metric-name { font-size: 13px; }
@@ -2318,6 +2318,46 @@ main.overview-main .page-footer p {
   min-height: 0;
   overflow: hidden;
 }
+.service-review-grid > .service-conversation-panel .message-avatar {
+  flex-basis: 34px;
+  width: 34px;
+  height: 34px;
+  font-size: 13px;
+}
+.service-review-grid > .service-conversation-panel > .panel-title-row {
+  min-height: 70px;
+  padding: 16px 18px;
+}
+.service-review-grid > .service-conversation-panel > .panel-title-row h2 { font-size: 19px; }
+.service-review-grid > .service-conversation-panel > .panel-title-row p { font-size: 14px; }
+.service-review-grid > .service-conversation-panel .view-tabs button { min-height: 34px; font-size: 13px; }
+.service-review-grid > .service-conversation-panel .conversation-list { padding: 20px 18px 12px; }
+.service-review-grid > .service-conversation-panel .structured-view table { min-width: 0; table-layout: fixed; font-size: 14px; }
+.service-review-grid > .service-conversation-panel .structured-view th,
+.service-review-grid > .service-conversation-panel .structured-view td { padding: 12px; font-size: 14px; overflow-wrap: anywhere; }
+.service-review-grid > .service-conversation-panel .conversation-footer { min-height: 48px; flex-basis: 48px; font-size: 13px; }
+.service-review-grid > .service-conversation-panel .message-meta strong { font-size: 14px; }
+.service-review-grid > .service-conversation-panel .message-meta time { font-size: 13px; }
+.service-review-grid > .service-conversation-panel .message-bubble {
+  padding: 13px 15px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+.service-review-grid > .service-conversation-panel .evidence-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 9px;
+  border: 1px solid #e0e9e2;
+  border-radius: 6px;
+  background: #fff;
+  color: #62766a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.service-review-grid > .service-conversation-panel .evidence-tag:hover { border-color: #8eb9a0; color: var(--jade-deep); }
 .service-review-grid > .conversation-panel .conversation-list,
 .service-review-grid > .conversation-panel .structured-view {
   flex: 1 1 auto;
@@ -2348,7 +2388,7 @@ main.overview-main .page-footer p {
   .service-review-page .review-heading { align-items: flex-start; flex-direction: column; }
   .service-review-page .review-heading > button { width: 100%; }
   .service-review-page .metric-toolbar { align-items: flex-start; flex-direction: column; }
-  .service-review-page .metric-toolbar > span { text-align: left; }
+  .service-review-page .metric-toolbar > select { max-width: 100%; }
 }
 
 /* Welcome banner follows the supplied full-width composition. */

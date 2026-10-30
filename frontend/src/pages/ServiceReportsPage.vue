@@ -11,9 +11,6 @@ const props = defineProps<{
   recent: Recent | null
   recentError: string
   connected: boolean
-  scoredCount: number
-  pendingCount: number
-  finalScore: number | null
   lastRun: string | null
 }>()
 
@@ -32,23 +29,15 @@ const endDate = ref('')
 const descending = ref(true)
 const currentPage = ref(1)
 const pageSize = 8
-const detailOpen = ref(false)
 const showExportConsent = ref(false)
 
 const statusText = { completed: '已完成', partial: '部分完成', failed: '失败' } as const
-const riskText = { high: '高风险', medium: '中风险', low: '低风险', unknown: '风险待确认' } as const
-const dimensions = computed(() => props.report?.quality_profile?.dimensions || [])
 const reportRisk = computed(() => props.report?.risk?.level || 'unknown')
-const reportScore = computed(() => {
-  const score = props.report?.quality_profile?.overall_score
-  return score === null || score === undefined ? props.finalScore : score * 20
-})
 const reportCreatedAt = computed(() => {
   const id = props.report?.evaluation_id
   return props.recent?.items.find((item) => item.evaluation_id === id)?.created_at || props.lastRun
 })
 const titleText = computed(() => props.latestBatch?.batch_id || props.report?.evaluation_id || '等待生成')
-const summaryText = computed(() => props.latestBatch?.quality_summary || props.report?.summary || '')
 const summaryTime = computed(() => props.latestBatch ? props.latestBatch.created_at : reportCreatedAt.value)
 const summaryStatusClass = computed(() => {
   if (props.latestBatch) return props.latestBatch.failed ? 'processing' : 'completed'
@@ -78,23 +67,6 @@ const summaryStats = computed(() => {
     { key: 'low', label: '低风险', value: riskKnown ? Number(reportRisk.value === 'low') : '—', icon: 'check', tone: 'low', note: riskKnown ? '当前评估结果' : '暂无风险统计' },
   ]
 })
-const detailFindings = computed(() => [...new Set([
-  ...(props.report?.risk?.reasons || []),
-  ...(props.report?.review_reasons || []),
-  ...(props.report?.limitations || []),
-])])
-const detailImprovements = computed(() => props.report?.improvements.map((item) => item.suggestion).filter(Boolean) || [])
-const sampleSessions = computed(() => {
-  if (props.latestBatch?.sessions.length) return props.latestBatch.sessions
-  if (!props.report) return []
-  return [{
-    session_id: props.report.session_id,
-    status: props.report.status,
-    risk_level: reportRisk.value,
-    pending_count: props.pendingCount,
-  }]
-})
-
 const filteredItems = computed(() => {
   const keyword = query.value.trim().toLowerCase()
   return [...(props.recent?.items || [])]
@@ -133,9 +105,6 @@ function resetFilters() {
   endDate.value = ''
   currentPage.value = 1
 }
-function openDetail() {
-  detailOpen.value = true
-}
 watch([query, statusFilter, startDate, endDate, () => dateRange.value.start, () => dateRange.value.end], () => { currentPage.value = 1 })
 watch(totalPages, (value) => { if (currentPage.value > value) currentPage.value = value })
 watch(() => props.report?.evaluation_id, () => { showExportConsent.value = false })
@@ -153,7 +122,11 @@ watch(() => props.report?.evaluation_id, () => { showExportConsent.value = false
         </div>
         <p>查看最近批次质检结果与历史批次报告。</p>
       </div>
-      <button class="reports-action secondary" type="button" @click="emit('refresh')"><Icon name="refresh" :size="16" />刷新记录</button>
+      <div class="reports-heading-actions">
+        <label class="report-export-consent"><input v-model="showExportConsent" type="checkbox" :disabled="!report" />确认有权限保存报告数据</label>
+        <button class="reports-action secondary" type="button" :disabled="!showExportConsent || !report" @click="emit('exportReport')"><Icon name="download" :size="16" />导出当前报告</button>
+        <button class="reports-action secondary" type="button" @click="emit('refresh')"><Icon name="refresh" :size="16" />刷新记录</button>
+      </div>
     </header>
 
     <section class="latest-report-panel" aria-labelledby="service-latest-title">
@@ -163,7 +136,6 @@ watch(() => props.report?.evaluation_id, () => { showExportConsent.value = false
           <span :class="['report-status', summaryStatusClass]">
             <Icon :name="summaryStatusClass === 'completed' ? 'check' : summaryStatusClass === 'failed' ? 'alert' : 'refresh'" :size="13" />{{ summaryStatusText }}
           </span>
-          <button class="reports-action primary" type="button" :disabled="!latestBatch && !report" @click="openDetail">查看完整报告<Icon name="arrow" :size="15" /></button>
         </div>
       </div>
       <div class="latest-report-body">
@@ -172,7 +144,6 @@ watch(() => props.report?.evaluation_id, () => { showExportConsent.value = false
           <div>
             <h3>{{ titleText }}</h3>
             <time>{{ formatTime(summaryTime) }} 生成</time>
-            <div class="report-summary-box"><strong>本批次质检摘要</strong><p>{{ summaryText || '后端暂未返回文字摘要。' }}</p></div>
           </div>
         </div>
         <div v-else class="latest-report-copy service-latest-empty">
@@ -187,54 +158,6 @@ watch(() => props.report?.evaluation_id, () => { showExportConsent.value = false
             <small>{{ card.note }}</small>
           </article>
         </div>
-      </div>
-    </section>
-
-    <section v-if="detailOpen" id="report-detail" class="report-detail-panel" tabindex="-1" aria-labelledby="report-detail-title">
-      <div class="report-detail-heading">
-        <div><h2 id="report-detail-title">完整报告 · {{ titleText }}</h2><p>{{ formatTime(summaryTime) }} · {{ report?.session_id || '批次汇总' }}</p></div>
-        <button class="detail-close" type="button" aria-label="关闭完整报告" @click="detailOpen = false"><Icon name="close" :size="16" /></button>
-      </div>
-      <div class="detail-grid service-detail-grid">
-        <article class="detail-score">
-          <span>综合质量分</span>
-          <strong>{{ reportScore === null ? '—' : reportScore.toFixed(1) }}<small>/ 100</small></strong>
-          <p class="detail-summary">{{ report?.summary || latestBatch?.quality_summary || '后端尚未返回综合评价。' }}</p>
-          <p>已计分 {{ formatNumber(scoredCount) }} 项 · 待复核 {{ formatNumber(pendingCount) }} 项</p>
-        </article>
-        <article class="detail-dimensions">
-          <h3>维度表现</h3>
-          <div v-if="dimensions.length">
-            <div v-for="item in dimensions" :key="item.dimension_id" class="dimension-row service-dimension-row">
-              <span>{{ item.name }}</span><i><b :style="{ width: item.score === null ? '0%' : `${item.score * 20}%` }"></b></i>
-              <strong>{{ item.score === null ? '—' : item.score.toFixed(1) }}</strong><small>{{ (item.coverage * 100).toFixed(0) }}%</small>
-            </div>
-          </div>
-          <p v-else class="detail-empty">后端尚未返回维度得分。</p>
-        </article>
-        <article class="detail-findings">
-          <h3>关键发现</h3>
-          <ul v-if="detailFindings.length"><li v-for="item in detailFindings" :key="item">{{ item }}</li></ul>
-          <p v-else class="detail-empty">后端尚未返回风险原因或报告限制。</p>
-        </article>
-        <article class="detail-findings">
-          <h3>改进建议</h3>
-          <ul v-if="detailImprovements.length"><li v-for="item in detailImprovements" :key="item">{{ item }}</li></ul>
-          <p v-else class="detail-empty">后端尚未返回改进建议。</p>
-        </article>
-      </div>
-      <div v-if="sampleSessions.length" class="sample-sessions">
-        <h3>样本会话</h3>
-        <div class="sample-list">
-          <div v-for="item in sampleSessions" :key="item.session_id" :class="['sample-item', item.risk_level]">
-            <strong>{{ item.session_id }}</strong><small>{{ riskText[item.risk_level] }} · {{ item.pending_count }} 项待复核</small>
-            <button class="view-report" type="button" @click="emit('openSession', item.session_id)">在评估工作台查看</button>
-          </div>
-        </div>
-      </div>
-      <div v-if="report" class="service-report-actions">
-        <label><input v-model="showExportConsent" type="checkbox" />我确认可将报告及证据引文保存到此电脑</label>
-        <button class="reports-action primary" type="button" :disabled="!showExportConsent" @click="emit('exportReport')"><Icon name="download" :size="16" />导出当前报告</button>
       </div>
     </section>
 

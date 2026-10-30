@@ -245,6 +245,10 @@ const reviewScoreMetrics = computed(() => metrics.map((metric) => ({
 const reviewMetricQuery = ref('')
 const collapsedServiceMetricGroups = ref<string[]>([])
 const activeServiceMetricCode = ref<string | null>(null)
+const serviceMetricFilter = ref<'all' | 'attention'>('all')
+const serviceReviewEvidenceIds = computed(() => [...new Set(
+  rows.value.flatMap((row) => row.finding.evidence.flatMap((evidence) => evidence.message_ids)),
+)])
 const serviceReviewGroups = computed(() => dimensions.map((dimension) => {
   const items = metrics
     .filter((metric) => metric.id.startsWith(dimension.id))
@@ -259,6 +263,17 @@ const serviceReviewGroups = computed(() => dimensions.map((dimension) => {
     average: scored.length ? scored.reduce((sum, value) => sum + value, 0) / scored.length : null,
   }
 }))
+const visibleServiceReviewGroups = computed(() => serviceReviewGroups.value.map((group) => {
+  const items = group.items.filter((item) =>
+    serviceMetricFilter.value === 'all' || (item.score !== null && item.score < 3),
+  )
+  const scored = items.flatMap((item) => item.score === null ? [] : [item.score])
+  return {
+    ...group,
+    items,
+    average: scored.length ? scored.reduce((sum, value) => sum + value, 0) / scored.length : null,
+  }
+}).filter((group) => group.items.length))
 const activeServiceMetric = computed(() =>
   serviceReviewGroups.value.flatMap((group) => group.items)
     .find((metric) => metric.id === activeServiceMetricCode.value) || null,
@@ -967,9 +982,6 @@ onUnmounted(() => {
           :recent="recent"
           :recent-error="errors.recent"
           :connected="connected"
-          :scored-count="scoredCount"
-          :pending-count="pending.length"
-          :final-score="finalScore"
           :last-run="lastRun"
           @open-session="openReportSession"
           @export-report="exportReport"
@@ -1015,7 +1027,7 @@ onUnmounted(() => {
                 <footer class="review-pagination"><span>{{ reviewSessions.length }} 个会话 · {{ reviewSessions.reduce((sum, item) => sum + item.pending_count, 0) }} 项待核查</span></footer>
               </section>
 
-              <ConversationPanel :session="session" :highlighted-ids="highlightedIds" :show-view-toggle="true" />
+              <ConversationPanel :session="session" :highlighted-ids="highlightedIds" :show-view-toggle="true" :initial-message-count="6" :evidence-message-ids="serviceReviewEvidenceIds" @locate-evidence="focusEvidence([$event])" />
 
               <aside class="review-side">
                 <section class="review-panel result-panel" aria-labelledby="service-review-result-title">
@@ -1024,9 +1036,9 @@ onUnmounted(() => {
                     <div class="overall-score"><span class="score-icon"><Icon name="medal" :size="20" /></span><div><small>综合得分</small><strong>{{ reviewOverallScore === null ? '—' : reviewOverallScore.toFixed(1) }}<em>/ 100</em></strong></div></div>
                     <div class="ai-conclusion"><strong>AI 评价结论</strong><p>{{ report.summary || report.review_reasons.join('；') || '当前报告没有返回文字结论，可结合各项指标与原文证据核对。' }}</p></div>
                   </div>
-                  <div class="metric-toolbar"><strong>18 项评价指标</strong><span>指标满分 5 分 · 综合得分满分 100 分</span></div>
+                  <div class="metric-toolbar"><strong>18 项评价指标</strong><select v-model="serviceMetricFilter" aria-label="筛选评价指标"><option value="all">全部指标</option><option value="attention">重点关注（低于 3 分）</option></select></div>
                   <div class="metric-groups service-metric-groups">
-                    <section v-for="group in serviceReviewGroups" :key="group.id" :class="['metric-group', `group-${group.id.toLowerCase()}`]">
+                    <section v-for="group in visibleServiceReviewGroups" :key="group.id" :class="['metric-group', `group-${group.id.toLowerCase()}`]">
                       <button class="metric-group-heading" type="button" :aria-expanded="!collapsedServiceMetricGroups.includes(group.id)" @click="toggleServiceMetricGroup(group.id)"><span class="group-icon"><Icon :name="group.id === 'D1' ? 'shield' : group.id === 'D2' ? 'clock' : group.id === 'D3' ? 'message' : group.id === 'D4' ? 'heart' : group.id === 'D5' ? 'workspace' : 'alert'" :size="15" /></span><strong>{{ group.id }} {{ group.name }}</strong><b>{{ group.average === null ? '—' : group.average.toFixed(1) }}</b><Icon class="group-chevron" name="chevron" :size="13" /></button>
                       <div v-show="!collapsedServiceMetricGroups.includes(group.id)" class="metric-list">
                         <button v-for="item in group.items" :key="item.id" :class="['metric-row', { active: activeServiceMetricCode === item.id }]" type="button" :aria-pressed="activeServiceMetricCode === item.id" @click="selectServiceMetric(item.id)"><span>{{ item.id }}</span><span class="metric-name">{{ item.name }}</span><i><b :style="{ width: `${(item.score ?? 0) * 20}%` }"></b></i><strong :class="{ low: item.score !== null && item.score < 3 }">{{ item.score === null ? '—' : item.score.toFixed(1) }}</strong></button>

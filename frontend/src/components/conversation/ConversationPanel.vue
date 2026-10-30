@@ -4,13 +4,28 @@ import { computed, ref } from 'vue'
 import type { Session } from '../../api/contracts/evaluation'
 import Icon from '../base/Icon.vue'
 import { label, time } from '../../utils/catalog'
-const props = withDefaults(defineProps<{ session: Session | null; highlightedIds: string[]; showViewToggle?: boolean }>(), {
+const props = withDefaults(defineProps<{
+  session: Session | null
+  highlightedIds: string[]
+  showViewToggle?: boolean
+  initialMessageCount?: number
+  evidenceMessageIds?: string[]
+}>(), {
   showViewToggle: false,
+  initialMessageCount: 0,
+  evidenceMessageIds: () => [],
 })
+const emit = defineEmits<{ locateEvidence: [messageId: string] }>()
 const search = ref('')
 const viewMode = ref<'original' | 'structured'>('original')
+const showAllMessages = ref(false)
 const messages = computed(() =>
   [...(props.session?.messages || [])].sort((a, b) => a.sequence - b.sequence),
+)
+const visibleMessages = computed(() =>
+  props.initialMessageCount > 0 && !showAllMessages.value
+    ? messages.value.slice(0, props.initialMessageCount)
+    : messages.value,
 )
 const roles: Record<string, string> = {
   doctor: '咨询医生',
@@ -63,7 +78,7 @@ function matches(content: string) {
         没有匹配的消息。清空搜索可查看完整上下文。
       </p>
       <article
-        v-for="message in messages"
+        v-for="message in visibleMessages"
         v-show="matches(message.content) || highlightedIds.includes(message.message_id)"
         :key="message.message_id"
         :id="`message-${message.message_id}`"
@@ -94,7 +109,8 @@ function matches(content: string) {
           <p class="message-bubble">{{ message.content }}</p>
           <div class="message-foot">
             <span>{{ message.message_id }}</span>
-            <span v-if="highlightedIds.includes(message.message_id)" class="evidence-marker">当前引用证据</span>
+            <button v-if="evidenceMessageIds.includes(message.message_id)" class="evidence-tag" type="button" @click="viewMode = 'original'; showAllMessages = true; emit('locateEvidence', message.message_id)"><Icon name="link" :size="12" />查看证据</button>
+            <span v-else-if="highlightedIds.includes(message.message_id)" class="evidence-marker">当前引用证据</span>
             <span v-else-if="message.modality !== 'text'">{{ message.modality === 'audio' ? '语音转写' : '视频转写' }}</span>
           </div>
         </template>
@@ -111,7 +127,11 @@ function matches(content: string) {
         </tbody>
       </table>
     </div>
-    <footer v-if="showViewToggle && session" class="conversation-footer"><span>消息 {{ messages.length }} / {{ messages.length }}</span><span>记录已加载</span></footer>
+    <footer v-if="showViewToggle && session" class="conversation-footer">
+      <button v-if="initialMessageCount > 0 && messages.length > initialMessageCount" type="button" @click="showAllMessages = !showAllMessages"><Icon name="chevron" :size="13" :class="{ 'rotate-icon': showAllMessages }" />消息 {{ visibleMessages.length }} / {{ messages.length }}</button>
+      <span v-else>消息 {{ messages.length }} / {{ messages.length }}</span>
+      <span>{{ initialMessageCount > 0 ? '查看证据定位' : '记录已加载' }}</span>
+    </footer>
     <div v-else-if="session" class="panel-footer">仅展示本次轮次；历史背景不能作为本次行为的评分证据。</div>
   </section>
 </template>
