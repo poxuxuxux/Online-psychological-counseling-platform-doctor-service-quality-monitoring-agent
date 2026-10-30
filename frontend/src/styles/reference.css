@@ -12,7 +12,7 @@
 }
 body {
   background: #f4f6f5;
-  font-size: 16px;
+  font-size: 17.5px;
   line-height: 1.75;
 }
 .sidebar {
@@ -33,16 +33,16 @@ body {
   box-shadow: none;
 }
 .brand strong {
-  font-size: 27px;
+  font-size: 28.5px;
   letter-spacing: 2px;
 }
 .brand small {
-  font-size: 13px;
+  font-size: 14.5px;
   line-height: 1.6;
 }
 .workspace-label {
   padding: 34px 14px 12px;
-  font-size: 13px;
+  font-size: 14.5px;
   letter-spacing: 1px;
 }
 .sidebar nav {
@@ -51,7 +51,7 @@ body {
 .nav-item {
   border-radius: 0;
   padding: 13px 14px;
-  font-size: 16px;
+  font-size: 17.5px;
   color: #4c6058;
 }
 .nav-item.active {
@@ -78,7 +78,7 @@ body {
 }
 .sidebar-bottom > p,
 .operator small {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .sidebar-trust {
   border: 0;
@@ -88,10 +88,10 @@ body {
   padding: 18px 0 0;
 }
 .sidebar-trust strong {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .sidebar-trust span {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .operator-avatar {
   border-radius: 4px;
@@ -113,7 +113,7 @@ body {
   color: #087f73;
 }
 .breadcrumb {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .breadcrumb strong {
   font-weight: 600;
@@ -128,13 +128,13 @@ main {
 h1,
 .page-heading h1,
 .overview-main .page-heading h1 {
-  font-size: 30px;
+  font-size: 31.5px;
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.4;
 }
 .page-heading p {
-  font-size: 16px;
+  font-size: 17.5px;
   color: var(--muted);
   margin-top: 8px;
 }
@@ -148,12 +148,12 @@ h1,
   padding: 24px;
 }
 .panel-header h2 {
-  font-size: 20px;
+  font-size: 21.5px;
   font-weight: 600;
   color: var(--ink);
 }
 .panel-header p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
 }
 .panel-footer,
@@ -172,7 +172,7 @@ textarea,
 }
 .button {
   min-height: 44px;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   padding: 10px 18px;
 }
@@ -196,7 +196,7 @@ textarea,
 .mini-label,
 .metric-code {
   border-radius: 3px;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 500;
 }
 .status-badge.tone-success {
@@ -216,14 +216,14 @@ textarea,
   background: #fcf8ee;
   border-left: 3px solid #a97724;
   border-radius: 0;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .notice {
   background: #eff5f2;
   border-color: #dce7e1;
   color: #3f5c50;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .alert {
   border-radius: 4px;
@@ -234,7 +234,7 @@ textarea,
   min-height: 42px;
 }
 .search-field input {
-  font-size: 14px;
+  font-size: 15.5px;
   height: 40px;
 }
 .search-field:focus-within {
@@ -251,14 +251,14 @@ textarea,
 }
 .session-identity > span,
 .session-property > span {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .session-identity > strong {
-  font-size: 18px;
+  font-size: 19.5px;
   font-weight: 600;
 }
 .session-property strong {
-  font-size: 15px;
+  font-size: 16.5px;
 }
 .run-track {
   padding-block: 28px;
@@ -266,35 +266,35 @@ textarea,
 .track-step > span {
   border-color: #d7e2da;
   background: #f0f3f1;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .track-step.complete > span {
   background: #edf5f1;
   border-color: #b4cfc2;
 }
 .track-step strong {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .track-step small {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .workspace-grid {
   grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.25fr);
   gap: 22px;
 }
 .message-meta strong {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--ink);
 }
 .message-meta time,
 .message-foot {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 .speaker-mark {
   background: #eef0f2;
   color: #536268;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .doctor .speaker-mark {
   background: #e7efe9;
@@ -303,7 +303,7 @@ textarea,
 .message-bubble {
   border-radius: 4px;
   background: #f3f5f4;
-  font-size: 16px;
+  font-size: 17.5px;
   line-height: 1.85;
   padding: 16px;
 }
@@ -327,23 +327,23 @@ textarea,
 .claim-row p,
 .discussion-list p,
 .arbitration-record p {
-  font-size: 16px;
+  font-size: 17.5px;
   line-height: 1.85;
 }
 .summary-counts > span {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .summary-counts strong {
-  font-size: 30px;
+  font-size: 31.5px;
 }
 .finding-row-main > strong,
 .review-queue .queue-item > strong {
-  font-size: 15px;
+  font-size: 16.5px;
 }
 .finding-code,
 .finding-agent,
 .detail-meta {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .finding-row.selected,
 .queue-item.selected {
@@ -351,11 +351,11 @@ textarea,
   border-left-color: #087f73;
 }
 .detail-title h3 {
-  font-size: 20px;
+  font-size: 21.5px;
 }
 .detail-section h4,
 .discussion-list strong {
-  font-size: 16px;
+  font-size: 17.5px;
   font-weight: 600;
 }
 .evidence-quote {
@@ -365,14 +365,14 @@ textarea,
   padding: 18px 20px;
 }
 .evidence-quote blockquote {
-  font-size: 16px;
+  font-size: 17.5px;
   color: #2f4439;
   line-height: 1.85;
 }
 .evidence-quote > p,
 .evidence-quote > small,
 .claim-row small {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .verification-grid {
   border-radius: 0;
@@ -387,26 +387,26 @@ textarea,
   background: #fbf8ef;
 }
 .data-table {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .data-table th {
   background: #f6f8f7;
   color: #52645b;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 500;
 }
 .data-table td {
   border-color: var(--line);
 }
 .review-form h3 {
-  font-size: 18px;
+  font-size: 19.5px;
 }
 .review-form > label {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .review-form-footer small,
 .page-footer {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .rubric-intro {
   border-radius: 6px;
@@ -414,16 +414,16 @@ textarea,
   border-color: #dce6de;
 }
 .rubric-item strong {
-  font-size: 16px;
+  font-size: 17.5px;
 }
 .rubric-item small {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .toast {
   border-radius: 4px;
   background: #173f35;
   box-shadow: 0 4px 16px #142d3520;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .overview-layout {
   display: grid;
@@ -470,7 +470,7 @@ textarea,
   align-items: center;
   gap: 9px;
   color: #065e56;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   letter-spacing: 1px;
 }
@@ -482,13 +482,13 @@ textarea,
 .hero-copy h2 {
   margin-top: 13px;
   color: #1f3b30;
-  font-size: 32px;
+  font-size: 33.5px;
   font-weight: 600;
   line-height: 1.5;
   letter-spacing: 0;
 }
 .hero-copy > p {
-  font-size: 16px;
+  font-size: 17.5px;
   color: #465e50;
   margin-top: 10px;
   line-height: 1.8;
@@ -510,7 +510,7 @@ textarea,
   color: #3d5f4c;
   background: transparent;
   padding: 8px 0;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .hero-secondary:hover {
   color: #065e56;
@@ -530,7 +530,7 @@ textarea,
   align-items: center;
   gap: 6px;
   color: #445c4d;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .hero-features svg {
   color: #087f73;
@@ -542,11 +542,11 @@ textarea,
 }
 .overview-toolbar strong {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 17.5px;
 }
 .overview-toolbar p {
   margin-top: 5px;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .overview-controls select {
   background: #fff;
@@ -582,7 +582,7 @@ textarea,
 .stat-top,
 .overview-stat.teal .stat-top {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .stat-icon,
 .overview-stat.teal .stat-icon {
@@ -608,7 +608,7 @@ textarea,
 .overview-stat > strong,
 .overview-stat.teal > strong {
   margin: 14px 0 9px;
-  font-size: 36px;
+  font-size: 37.5px;
   color: var(--ink);
   line-height: 1.2;
   font-weight: 600;
@@ -617,7 +617,7 @@ textarea,
 .overview-stat strong small,
 .overview-stat.teal strong small {
   margin-left: 6px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   font-weight: 400;
 }
@@ -628,7 +628,7 @@ textarea,
   min-height: 0;
   padding: 0;
   border: 0;
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 .score-ring {
@@ -638,7 +638,7 @@ textarea,
   padding: 0;
   gap: 14px;
   margin: 20px 0;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .overview-charts {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -683,22 +683,22 @@ textarea,
   padding: 0;
   border-radius: 0;
   background: transparent;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .chart-type svg {
   color: #087f73;
 }
 .chart-label {
   fill: #52645b;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .chart-tick {
   fill: #687970;
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .trend-chart .chart-label,
 .trend-chart .chart-tick {
-  font-size: 18px;
+  font-size: 19.5px;
 }
 .chart-grid,
 .radar-grid {
@@ -745,7 +745,7 @@ textarea,
   border-color: #087f73;
 }
 .chart-caption {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   text-align: left;
   line-height: 1.7;
@@ -759,7 +759,7 @@ textarea,
   border-radius: 0;
 }
 .dimension-score strong {
-  font-size: 16px;
+  font-size: 17.5px;
   color: #065e56;
 }
 .quality-distribution {
@@ -772,10 +772,10 @@ textarea,
   height: 120px;
 }
 .distribution-donut span {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 .distribution-details dt small {
-  font-size: 13px;
+  font-size: 14.5px;
   margin-left: 4px;
 }
 .distribution-details dd span {
@@ -821,19 +821,19 @@ textarea,
   gap: 12px;
 }
 .rail-heading h2 {
-  font-size: 18px;
+  font-size: 19.5px;
   font-weight: 600;
 }
 .rail-heading > svg {
   color: #087f73;
 }
 .rail-heading > span {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 .rail-intro {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
   margin-top: 12px;
 }
@@ -872,11 +872,11 @@ textarea,
 }
 .quality-journey li strong {
   display: block;
-  font-size: 15px;
+  font-size: 16.5px;
   color: var(--ink);
 }
 .quality-journey li p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-top: 4px;
 }
@@ -884,7 +884,7 @@ textarea,
   border-top: 1px solid var(--line);
   padding-top: 16px;
   margin-top: 20px;
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -905,21 +905,21 @@ textarea,
   color: #087f73;
 }
 .evidence-invitation h2 {
-  font-size: 22px;
+  font-size: 23.5px;
   font-weight: 600;
   line-height: 1.6;
   margin-top: 14px;
   color: #254536;
 }
 .evidence-invitation p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: #4d6556;
   line-height: 1.8;
   margin-top: 12px;
 }
 .evidence-invitation .button {
   margin-top: 20px;
-  font-size: 14px;
+  font-size: 15.5px;
   gap: 10px;
 }
 .rule-summary {
@@ -935,7 +935,7 @@ textarea,
 .rule-summary strong {
   display: block;
   color: #087f73;
-  font-size: 30px;
+  font-size: 31.5px;
   line-height: 1.2;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -945,7 +945,7 @@ textarea,
 }
 .rule-summary strong small {
   display: block;
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
   font-weight: 400;
   margin-top: 6px;
@@ -953,11 +953,11 @@ textarea,
 .rule-summary span {
   display: block;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   margin-top: 10px;
 }
 .rules-card > p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.8;
 }
@@ -975,7 +975,7 @@ textarea,
   padding: 12px 0;
   background: transparent;
   color: #465f50;
-  font-size: 14px;
+  font-size: 15.5px;
   text-align: left;
 }
 .rail-links button > span {
@@ -1019,7 +1019,7 @@ textarea,
     grid-row: span 2;
   }
   .brand small {
-    font-size: 13px;
+    font-size: 14.5px;
   }
   .hero-copy {
     max-width: 580px;
@@ -1088,16 +1088,16 @@ textarea,
   h1,
   .page-heading h1,
   .overview-main .page-heading h1 {
-    font-size: 26px;
+    font-size: 27.5px;
   }
   .page-heading p {
-    font-size: 16px;
+    font-size: 17.5px;
   }
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .panel-header h2 {
-    font-size: 20px;
+    font-size: 21.5px;
   }
   .consultation-hero {
     min-height: 320px;
@@ -1113,10 +1113,10 @@ textarea,
     padding: 24px;
   }
   .hero-copy h2 {
-    font-size: 28px;
+    font-size: 29.5px;
   }
   .hero-copy > p {
-    font-size: 16px;
+    font-size: 17.5px;
     max-width: 260px;
   }
   .hero-actions {
@@ -1137,7 +1137,7 @@ textarea,
   }
   .overview-controls label {
     display: inline;
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .overview-stat,
   .overview-stat.teal {
@@ -1146,7 +1146,7 @@ textarea,
   }
   .overview-stat > strong,
   .overview-stat.teal > strong {
-    font-size: 32px;
+    font-size: 33.5px;
   }
   .stat-icon,
   .overview-stat.teal .stat-icon {
@@ -1185,13 +1185,13 @@ textarea,
     padding: 20px;
   }
   .message-bubble {
-    font-size: 16px;
+    font-size: 17.5px;
   }
   .detail-title h3 {
-    font-size: 20px;
+    font-size: 21.5px;
   }
   .evidence-quote blockquote {
-    font-size: 16px;
+    font-size: 17.5px;
   }
   .consultation-table {
     min-width: 780px;
@@ -1207,7 +1207,7 @@ textarea,
     gap: 5px;
   }
   .hero-copy h2 {
-    font-size: 26px;
+    font-size: 27.5px;
   }
 }
 @media print {
@@ -1237,7 +1237,7 @@ textarea,
     padding: 16px;
   }
   .hero-copy h2 {
-    font-size: 24px;
+    font-size: 25.5px;
   }
   .overview-stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));

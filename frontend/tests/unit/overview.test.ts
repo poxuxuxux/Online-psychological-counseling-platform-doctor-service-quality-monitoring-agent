@@ -6,7 +6,7 @@ import OverviewPage from '../../src/pages/OverviewPage.vue'
 import RadarChart from '../../src/components/charts/RadarChart.vue'
 import TrendChart from '../../src/components/charts/TrendChart.vue'
 import ScoreRing from '../../src/components/base/ScoreRing.vue'
-import { overviewPreview } from '../../src/data/overviewPreview'
+import { overviewPreview, overviewPreviewRange } from '../../src/data/overviewPreview'
 import { OverviewSchema } from '../../src/api/contracts/overview'
 let wrapper: VueWrapper | undefined
 afterEach(() => {
@@ -21,7 +21,9 @@ describe('statistics overview', () => {
     await flushPromises()
     const data = overviewPreview()
     expect(wrapper.findAll('.overview-stat')).toHaveLength(4)
-    expect(wrapper.get('.overview-stat.success').text()).toContain(String(data.counts.high_quality))
+    expect(wrapper.get('.overview-stat.success').text()).toContain(
+      data.counts.high_quality!.toLocaleString('zh-CN'),
+    )
     expect(wrapper.get('.overview-stat.danger').text()).toContain(String(data.counts.risk))
     expect(wrapper.find('.radar-chart').exists()).toBe(true)
     expect(wrapper.find('.trend-chart').exists()).toBe(true)
@@ -34,10 +36,22 @@ describe('statistics overview', () => {
   it('changes the range and exports no fabricated reports', async () => {
     wrapper = mount(OverviewPage, { props: { mode: 'preview', refreshKey: '' } })
     await flushPromises()
-    await wrapper.get('select').setValue('7')
+    await wrapper.find('.segmented button').trigger('click')
     await flushPromises()
-    expect(wrapper.get('.overview-stat').text()).toContain('10')
     expect(wrapper.findComponent(TrendChart).props('trend')).toHaveLength(7)
+    expect(wrapper.text()).toContain('2024-06-24 至 2024-06-30')
+  })
+  it('filters synthetic totals and trend points to exact dates', () => {
+    const full = overviewPreviewRange('2024-06-01', '2024-06-30')
+    const week = overviewPreviewRange('2024-06-24', '2024-06-30')
+    const empty = overviewPreviewRange('2024-07-01', '2024-07-07')
+    expect(full.days).toBe(30)
+    expect(full.average_total).toBe(84)
+    expect(week.period_start).toBe('2024-06-24')
+    expect(week.trend).toHaveLength(7)
+    expect(week.counts.evaluated).toBeLessThan(full.counts.evaluated!)
+    expect(empty.counts.evaluated).toBe(0)
+    expect(empty.trend.every((point) => point.average === null)).toBe(true)
   })
   it('keeps disconnected database counts unknown instead of zero', async () => {
     const data = overviewPreview()
@@ -169,7 +183,9 @@ describe('statistics overview', () => {
     expect(point.attributes('tabindex')).toBe('0')
     await point.trigger('focus')
     expect(wrapper.get('.chart-caption').text()).toContain(data.dimensions[0]!.name)
-    expect(wrapper.get('.chart-caption').text()).toContain('87.2')
+    expect(wrapper.get('.chart-caption').text()).toContain(
+      data.dimensions[0]!.average!.toFixed(1),
+    )
   })
   it('exposes trend dates and sample counts on keyboard focus', async () => {
     wrapper = mount(TrendChart, {

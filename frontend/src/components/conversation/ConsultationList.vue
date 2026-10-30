@@ -3,7 +3,6 @@
 import { ref, watch } from 'vue'
 import type { ConsultationItem } from '../../api/contracts/consultations'
 import Icon from '../base/Icon.vue'
-import StatusBadge from '../base/StatusBadge.vue'
 import { label, time } from '../../utils/catalog'
 const props = defineProps<{
   items: ConsultationItem[]
@@ -25,147 +24,39 @@ watch(
 )
 </script>
 <template>
-  <section class="surface consultation-browser" aria-labelledby="consultations-title">
-    <div class="consultation-list-heading">
-      <div>
-        <h2 id="consultations-title">咨询对话</h2>
-        <p>点击整行查看详细内容；使用右侧按钮单独评估该会话。</p>
-      </div>
-      <StatusBadge :tone="source === 'database' ? 'success' : 'neutral'">{{
-        source === 'database'
-          ? '数据库记录'
-          : source === 'uploaded'
-            ? '本页上传'
-          : source === 'preview'
-            ? '3 条合成样例'
-            : source === 'access_required'
-              ? '等待上传'
-              : '列表暂不可用'
-      }}</StatusBadge>
+  <section class="workspace-panel session-panel service-session-panel" aria-labelledby="consultations-title">
+    <div class="panel-title-row">
+      <div><h2 id="consultations-title">咨询会话列表</h2><p>{{ total }} 条{{ source === 'database' ? '后端' : source === 'uploaded' ? '已上传' : '可用' }}会话</p></div>
+      <span class="panel-count">{{ loading ? '…' : total }}</span>
     </div>
-    <form class="consultation-list-tools" @submit.prevent="emit('refresh', 0, search)">
-      <label class="search-field"
-        ><Icon name="search" :size="17" /><input
-          v-model="search"
-          aria-label="搜索咨询 ID"
-          placeholder="输入咨询 ID"
-          maxlength="120"
-      /></label>
-      <button class="button secondary" :disabled="loading || disabled">查询</button>
-      <button
-        type="button"
-        class="text-button"
-        :disabled="loading || disabled"
-        @click="emit('refresh', offset, query)"
-      >
-        <Icon name="refresh" :size="16" />刷新列表
-      </button>
-      <span class="consultation-count">{{
-        loading ? '正在读取…' : error ? '读取失败' : `共 ${total} 条`
-      }}</span>
+    <form class="service-session-filters consultation-list-tools" @submit.prevent="emit('refresh', 0, search)">
+      <label class="workspace-search search-field"><Icon name="search" :size="16" /><input v-model="search" aria-label="搜索咨询 ID" placeholder="搜索会话 ID" maxlength="120" /></label>
+      <button class="service-refresh-button" type="submit" :disabled="loading || disabled" aria-label="查询会话"><Icon name="search" :size="16" /></button>
+      <button class="service-refresh-button" type="button" :disabled="loading || disabled" aria-label="刷新列表" @click="emit('refresh', offset, query)"><Icon name="refresh" :size="16" /></button>
     </form>
-    <div v-if="error" class="alert danger" role="alert">
+    <div v-if="error" class="service-list-error" role="alert">
       <p>{{ error }}</p>
-      <button
-        class="text-button"
-        :disabled="loading || disabled"
-        @click="emit('refresh', offset, query)"
-      >
-        重新读取列表
-      </button>
+      <button type="button" class="text-button" :disabled="loading || disabled" @click="emit('refresh', offset, query)">重新读取列表</button>
     </div>
-    <div v-else class="consultation-table-wrap" :aria-busy="loading">
-      <table class="consultation-table">
-        <thead>
-          <tr>
-            <th scope="col">咨询 ID</th>
-            <th scope="col">会话类型</th>
-            <th scope="col">消息数</th>
-            <th scope="col">更新时间</th>
-            <th scope="col">评价状态</th>
-            <th scope="col">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in items"
-            :key="item.session_id"
-            :class="['consultation-row', { active: item.session_id === selectedId }]"
-            :tabindex="disabled || loading ? -1 : 0"
-            :aria-label="`查看咨询 ${item.session_id} 的详细内容`"
-            @click="!disabled && !loading && emit('select', item.session_id)"
-            @keydown.enter.self="!disabled && !loading && emit('select', item.session_id)"
-            @keydown.space.self.prevent="!disabled && !loading && emit('select', item.session_id)"
-          >
-            <td>
-              <span class="consultation-id">
-                <Icon name="report" :size="17" />{{ item.session_id }}
-              </span>
-            </td>
-            <td>{{ label(item.consultation_round) }}</td>
-            <td>{{ item.message_count }} 条</td>
-            <td>{{ time(item.updated_at) }}</td>
-            <td>
-              <StatusBadge
-                :tone="
-                  item.evaluation_status === 'failed'
-                    ? 'danger'
-                    : item.evaluation_status
-                      ? 'neutral'
-                      : 'warning'
-                "
-                >{{
-                  item.evaluation_status ? label(item.evaluation_status) : '未评价'
-                }}</StatusBadge
-              >
-            </td>
-            <td>
-              <button
-                class="button secondary consultation-evaluate"
-                :disabled="disabled || loading"
-                :aria-label="`评估咨询 ${item.session_id}`"
-                @click.stop="emit('evaluate', item.session_id)"
-              >
-                <Icon name="play" :size="14" />评估
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-if="!items.length && !loading" class="empty-note padded">
-        {{ query ? '没有匹配的咨询 ID，请修改查询条件。' : '暂无可查看的咨询记录。' }}
-      </p>
-    </div>
-    <div class="consultation-list-footer">
-      <small>{{
-        selecting
-          ? '正在加载所选咨询，请稍候…'
-          : source === 'access_required'
-            ? '请从上方上传 JSON 文件，或切换至离线交互样例。'
-            : source === 'uploaded'
-              ? '本页上传的内容仅在当前页面保留；点击整行查看详情。'
-            : source === 'preview'
-              ? '离线合成数据，用于演示 ID 切换；不代表真实咨询。'
-            : source === 'database' && !total
-              ? '数据库中没有咨询记录。请从上方上传数据。'
-              : '每页最多展示 5 条，点击整行查看已有报告。'
-      }}</small>
-      <div>
-        <button
-          class="text-button"
-          :disabled="offset === 0 || loading || disabled"
-          @click="emit('refresh', Math.max(0, offset - 5), query)"
-        >
-          上一页</button
-        ><span>{{ Math.floor(offset / 5) + 1 }} / {{ Math.max(1, Math.ceil(total / 5)) }}</span
-        ><button
-          class="text-button"
-          :disabled="offset + 5 >= total || loading || disabled"
-          @click="emit('refresh', offset + 5, query)"
-        >
-          下一页
+    <div v-else class="service-session-list" :aria-busy="loading" aria-label="咨询会话">
+      <article v-for="item in items" :key="item.session_id" :class="['service-session-item', 'consultation-row', { selected: item.session_id === selectedId }]">
+        <button class="service-session-select" type="button" :disabled="disabled || loading" :aria-pressed="item.session_id === selectedId" :aria-label="`查看咨询 ${item.session_id} 的详细内容`" @click="emit('select', item.session_id)">
+          <span class="session-item-top"><strong class="consultation-id">{{ item.session_id }}</strong><span :class="['session-status', item.evaluation_status || 'pending']">{{ item.evaluation_status ? label(item.evaluation_status) : '未评价' }}</span></span>
+          <span class="session-item-meta"><span>{{ label(item.consultation_round) }}</span><time>{{ time(item.updated_at) }}</time></span>
+          <span class="session-item-bottom"><span>{{ item.message_count }} 条消息</span><Icon name="chevron" :size="14" /></span>
         </button>
+        <button class="service-session-evaluate consultation-evaluate" type="button" :disabled="disabled || loading || selecting" :aria-label="`评估咨询 ${item.session_id}`" @click="emit('evaluate', item.session_id)"><Icon name="play" :size="14" />评估</button>
+      </article>
+      <div v-if="!items.length && !loading" class="session-empty">
+        <Icon name="search" :size="26" /><strong>{{ query ? '没有找到匹配会话' : '暂无可查看的咨询记录' }}</strong>
+        <p>{{ query ? '请调整关键词后重新查询。' : source === 'access_required' ? '上传 JSON 文件，或切换到离线数据。' : '可通过上方按钮上传咨询数据。' }}</p>
       </div>
+      <div v-if="loading" class="service-session-loading" role="status">正在读取会话…</div>
     </div>
+    <footer class="session-pagination">
+      <button type="button" aria-label="上一页" :disabled="offset === 0 || loading || disabled" @click="emit('refresh', Math.max(0, offset - 5), query)"><Icon class="flip-icon" name="chevron" :size="15" /></button>
+      <span>{{ Math.floor(offset / 5) + 1 }} / {{ Math.max(1, Math.ceil(total / 5)) }}</span>
+      <button type="button" aria-label="下一页" :disabled="offset + 5 >= total || loading || disabled" @click="emit('refresh', offset + 5, query)"><Icon name="chevron" :size="15" /></button>
+    </footer>
   </section>
 </template>

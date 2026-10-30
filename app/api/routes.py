@@ -3,6 +3,7 @@ import asyncio
 import secrets
 import tempfile
 import time
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -223,11 +224,23 @@ async def consultations(
     offset: int = Query(0, ge=0, le=100000),
     query: str = Query("", max_length=120),
     scope: str = Query("visible", pattern="^(visible|private)$"),
+    start_date: date | None = None,
+    end_date: date | None = None,
 ):
+    if (start_date is None) != (end_date is None):
+        raise HTTPException(422, "start_date and end_date must be provided together")
+    if start_date is not None and start_date > end_date:
+        raise HTTPException(422, "start_date must not be after end_date")
     if scope == "private":
         require_auth(request)
     return await request.app.state.container.repository.consultations(
-        limit, offset, query, not authorized(request), scope == "private"
+        limit,
+        offset,
+        query,
+        not authorized(request),
+        scope == "private",
+        start_date,
+        end_date,
     )
 
 
@@ -242,29 +255,75 @@ async def consultation(session_id: str, request: Request):
 
 
 @router.get("/api/v1/evaluations/overview")
-async def evaluation_overview(request: Request, days: int = Query(30, ge=1, le=90)):
+async def evaluation_overview(
+    request: Request,
+    days: int = Query(30, ge=1, le=90),
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     from app.evaluation.analytics import overview
 
+    if (start_date is None) != (end_date is None):
+        raise HTTPException(422, "start_date and end_date must be provided together")
+    if start_date is not None:
+        days = (end_date - start_date).days + 1
+        if days < 1 or days > 365:
+            raise HTTPException(422, "The date range must be between 1 and 365 days")
     c = request.app.state.container
     records = await c.repository.latest_reports(not authorized(request))
-    return overview(records, c.catalog, days, "postgresql" if c.repository.postgres else "sqlite")
+    return overview(
+        records,
+        c.catalog,
+        days,
+        "postgresql" if c.repository.postgres else "sqlite",
+        start_date,
+        end_date,
+    )
 
 
 @router.get("/api/v1/monitoring/doctors")
-async def monitoring_doctors(request: Request, days: int = Query(180, ge=7, le=365)):
+async def monitoring_doctors(
+    request: Request,
+    days: int = Query(180, ge=7, le=365),
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     from app.evaluation.monitoring import doctor_profiles
 
+    if (start_date is None) != (end_date is None):
+        raise HTTPException(422, "start_date and end_date must be provided together")
+    if start_date is not None:
+        days = (end_date - start_date).days + 1
+        if days < 1 or days > 365:
+            raise HTTPException(422, "The date range must be between 1 and 365 days")
     c = request.app.state.container
     payload = await c.repository.doctor_reports(not authorized(request))
     return doctor_profiles(
-        payload, c.catalog, days, "postgresql" if c.repository.postgres else "sqlite"
+        payload,
+        c.catalog,
+        days,
+        "postgresql" if c.repository.postgres else "sqlite",
+        start_date,
+        end_date,
     )
 
 
 @router.get("/api/v1/monitoring/doctors/{doctor_id}")
-async def monitoring_doctor(doctor_id: str, request: Request, days: int = Query(180, ge=7, le=365)):
+async def monitoring_doctor(
+    doctor_id: str,
+    request: Request,
+    days: int = Query(180, ge=7, le=365),
+    start_date: date | None = None,
+    end_date: date | None = None,
+):
     from app.evaluation.monitoring import doctor_profile
 
+    if (start_date is None) != (end_date is None):
+        raise HTTPException(422, "start_date and end_date must be provided together")
+    if start_date is not None:
+        days = (end_date - start_date).days + 1
+        if days < 1 or days > 365:
+            raise HTTPException(422, "The date range must be between 1 and 365 days")
     c = request.app.state.container
     payload = await c.repository.doctor_reports(not authorized(request))
     profile = doctor_profile(
@@ -273,6 +332,8 @@ async def monitoring_doctor(doctor_id: str, request: Request, days: int = Query(
         days,
         "postgresql" if c.repository.postgres else "sqlite",
         doctor_id,
+        start_date,
+        end_date,
     )
     if profile is None:
         raise HTTPException(404, "No evaluated sessions for this doctor in the window")

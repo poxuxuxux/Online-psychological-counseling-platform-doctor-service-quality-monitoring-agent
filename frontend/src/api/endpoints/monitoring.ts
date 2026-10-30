@@ -3,10 +3,14 @@ import { request } from '../client/http'
 import { DoctorProfileSchema, MonitoringListSchema } from '../contracts/monitoring'
 
 export const monitoringApi = {
-  doctors: (days = 180) => request(`/api/v1/monitoring/doctors?days=${days}`, MonitoringListSchema),
-  profile: (doctorId: string, days = 180) =>
+  doctors: (startDate: string, endDate: string) =>
     request(
-      `/api/v1/monitoring/doctors/${encodeURIComponent(doctorId)}?days=${days}`,
+      `/api/v1/monitoring/doctors?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
+      MonitoringListSchema,
+    ),
+  profile: (doctorId: string, startDate: string, endDate: string) =>
+    request(
+      `/api/v1/monitoring/doctors/${encodeURIComponent(doctorId)}?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`,
       DoctorProfileSchema,
     ),
 }

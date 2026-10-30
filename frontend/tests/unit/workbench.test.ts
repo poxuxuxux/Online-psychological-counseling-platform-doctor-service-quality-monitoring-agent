@@ -118,6 +118,8 @@ afterEach(() => {
 async function start() {
   wrapper = mount(App, { attachTo: document.body })
   await flushPromises()
+  await wrapper.get('.mode-switch-button').trigger('click')
+  await flushPromises()
   return wrapper
 }
 async function evaluate() {
@@ -128,7 +130,74 @@ async function navigate(page: string) {
   await wrapper!.get(`.nav-item[href="#${page}"]`).trigger('click')
   await flushPromises()
 }
+async function setDateRange(app: VueWrapper, start: string, end: string) {
+  await app.get('.top-date').trigger('click')
+  const dates = app.findAll('.date-range-popover input[type="date"]')
+  await dates[0]!.setValue(start)
+  await dates[1]!.setValue(end)
+  await app.get('.date-range-apply').trigger('click')
+  await flushPromises()
+}
+async function setTodayRange(app: VueWrapper) {
+  const today = new Date().toISOString().slice(0, 10)
+  await setDateRange(app, today, today)
+}
 describe('workbench actual component interaction', () => {
+  it('opens the offline workspace by default without backend requests', async () => {
+    wrapper = mount(App, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.get('.evaluation-workspace').text()).toContain('离线演示')
+    expect(wrapper.findAll('.metric-item')).toHaveLength(18)
+    expect(requests).toHaveLength(0)
+  })
+  it('opens offline quality reports without backend requests', async () => {
+    location.hash = 'reports'
+    wrapper = mount(App, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.get('.quality-reports-page').text()).toContain('ZJ-20240628-001')
+    expect(wrapper.findAll('.risk-card')).toHaveLength(4)
+    expect(wrapper.findAll('.history-table tbody tr')).toHaveLength(4)
+    expect(requests).toHaveLength(0)
+  })
+  it('filters report history and opens a local report detail', async () => {
+    location.hash = 'reports'
+    const app = mount(App, { attachTo: document.body })
+    wrapper = app
+    await flushPromises()
+    await setDateRange(app, '2024-05-10', '2024-05-10')
+    await app.get('.history-search input').setValue('5月第二周')
+    expect(app.findAll('.history-table tbody tr')).toHaveLength(1)
+    await app.get('.view-report').trigger('click')
+    await flushPromises()
+    expect(app.get('.report-detail-panel').text()).toContain('ZJ-20240510-001')
+    expect(app.get('.report-detail-panel').text()).toContain('近八周最佳表现')
+    expect(requests).toHaveLength(0)
+  })
+  it('opens the offline review queue without backend requests', async () => {
+    location.hash = 'review'
+    wrapper = mount(App, { attachTo: document.body })
+    await flushPromises()
+    expect(wrapper.get('.review-page').text()).toContain('人工复核')
+    expect(wrapper.findAll('.stat-card')).toHaveLength(4)
+    expect(wrapper.findAll('.review-item')).toHaveLength(6)
+    expect(wrapper.findAll('.metric-row')).toHaveLength(18)
+    expect(wrapper.get('.review-item').text()).toContain('C202406010001')
+    expect(requests).toHaveLength(0)
+  })
+  it('filters review sessions and submits a local review opinion', async () => {
+    location.hash = 'review'
+    const app = mount(App, { attachTo: document.body })
+    wrapper = app
+    await flushPromises()
+    await app.get('.review-search input').setValue('C202406010001')
+    expect(app.findAll('.review-item')).toHaveLength(1)
+    await app.get('.review-form textarea').setValue('证据不足，建议补充风险来源与随访安排。')
+    await app.get('.review-form').trigger('submit')
+    await flushPromises()
+    expect(app.get('.toast').text()).toContain('复核结果已在本页保存')
+    expect(app.get('.stat-card.total strong').text()).toBe('13')
+    expect(requests).toHaveLength(0)
+  })
   it('shows the bounded investigation trace returned by the backend', async () => {
     withInvestigation = true
     const app = await start()
@@ -165,9 +234,10 @@ describe('workbench actual component interaction', () => {
     highRiskSessionId = 'preview-synthetic-002'
     const app = await start()
     await evaluate()
+    await setTodayRange(app)
     await navigate('reports')
-    expect(app.get('.batch-counts').text()).toContain('服务质量高风险1')
-    expect(app.get('.batch-counts').text()).toContain('服务质量低风险2')
+    expect(app.get('.service-batch-panel .risk-cards').text()).toContain('高风险1')
+    expect(app.get('.service-batch-panel .risk-cards').text()).toContain('低风险2')
   })
   it('stops batch evaluation when the backend reports no model key', async () => {
     modelConfigured = false
@@ -232,9 +302,9 @@ describe('workbench actual component interaction', () => {
     const app = await start()
     await evaluate()
     await navigate('reports')
-    expect(app.get('.export-area button').attributes('disabled')).toBeDefined()
-    await app.get('.export-area input').setValue(true)
-    expect(app.get('.export-area button').attributes('disabled')).toBeUndefined()
+    expect(app.get('.service-report-actions .primary').attributes('disabled')).toBeDefined()
+    await app.get('.service-report-actions input').setValue(true)
+    expect(app.get('.service-report-actions .primary').attributes('disabled')).toBeUndefined()
   })
   it('switches to an unresolved item and submits a review decision', async () => {
     const app = await start()
@@ -311,12 +381,12 @@ describe('workbench actual component interaction', () => {
   })
   it('explicit offline mode never makes a server evaluation request', async () => {
     const app = await start()
-    await app.get('.mode-button').trigger('click')
+    await app.get('.mode-switch-button').trigger('click')
     await flushPromises()
     const count = requests.length
-    await evaluate()
+    await app.get('.workspace-actions .primary').trigger('click')
     expect(requests.length).toBe(count)
-    expect(app.get('.mode-notice').text()).toContain('预设合成数据')
+    expect(app.get('.workspace-data-note').text()).toContain('合成离线数据')
   })
   it('mobile navigation closes after choosing a page', async () => {
     const app = await start()
@@ -325,26 +395,31 @@ describe('workbench actual component interaction', () => {
     await navigate('rubrics')
     expect(app.get('.sidebar').classes()).not.toContain('open')
   })
-  it('switches among three offline consultation IDs and matches their source evidence', async () => {
+  it('switches offline consultation IDs and matches their source evidence without requests', async () => {
     const app = await start()
-    await app.get('.mode-button').trigger('click')
+    await app.get('.mode-switch-button').trigger('click')
     await flushPromises()
-    expect(app.findAll('.consultation-id')).toHaveLength(3)
+    await setDateRange(app, '2024-05-30', '2024-06-01')
+    await flushPromises()
+    expect(app.findAll('.session-item')).toHaveLength(6)
     const before = requests.length
-    await app.findAll('.consultation-row')[2]!.trigger('click')
+    await app.findAll('.session-item')[2]!.trigger('click')
     await flushPromises()
-    expect(app.get('.session-identity').text()).toContain('preview-synthetic-003')
-    expect(app.findAll('.conversation-message')[0]!.text()).toContain('最近加班')
-    expect(app.findAll('.finding-row')).toHaveLength(7)
-    expect(app.get('.finding-detail .evidence-quote').text()).toContain('本次原文可定位')
+    expect(app.get('.conversation-heading').text()).toContain('C202405310089')
+    expect(app.findAll('.conversation-message')[0]!.text()).toContain('情绪一直很低落')
+    expect(app.get('.result-empty').text()).toContain('等待开始评价')
     expect(requests.length).toBe(before)
-    await evaluate()
-    expect(app.get('.session-identity').text()).toContain('preview-synthetic-003')
-    expect(app.findAll('.finding-row')).toHaveLength(7)
+    await app.findAll('.session-item')[0]!.trigger('click')
+    await app.findAll('.metric-item')[0]!.trigger('click')
+    await app.get('.metric-detail button').trigger('click')
+    await flushPromises()
+    expect(app.get('.conversation-message.highlighted').text()).toContain('我理解这让你感到很困扰')
+    expect(requests.length).toBe(before)
   })
   it('sorts and filters review priorities without hiding the verification status', async () => {
     const app = await start()
     await evaluate()
+    await setTodayRange(app)
     await navigate('review')
     expect(app.findAll('.session-review-item')).toHaveLength(3)
     await app.get('.priority-count.priority-high').trigger('click')

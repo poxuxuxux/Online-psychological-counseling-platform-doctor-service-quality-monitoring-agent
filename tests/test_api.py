@@ -1,5 +1,7 @@
 # 环节：后端测试层；用途：验证接口、工作流、规则策略或数据持久化行为。
 from dataclasses import replace
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi.testclient import TestClient
@@ -39,6 +41,17 @@ def test_private_consultation_catalog_requires_token_and_excludes_demo(tmp_path,
         listing = client.get("/api/v1/consultations?scope=private", headers=headers).json()
         assert listing["total"] == 1
         assert [item["session_id"] for item in listing["items"]] == [session.session_id]
+        today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+        in_range = client.get(
+            f"/api/v1/consultations?scope=private&start_date={today}&end_date={today}",
+            headers=headers,
+        ).json()
+        assert in_range["total"] == 1
+        outside_range = client.get(
+            "/api/v1/consultations?scope=private&start_date=2020-01-01&end_date=2020-01-01",
+            headers=headers,
+        ).json()
+        assert outside_range["total"] == 0
 
 
 async def test_cors_allows_only_configured_frontend_origin():
@@ -103,6 +116,35 @@ def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session)
         overview = client.get("/api/v1/evaluations/overview?days=7", headers=headers).json()
         assert overview["counts"]["scored"] == 1
         assert len(overview["trend"]) == 7
+        today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+        exact_overview_response = client.get(
+            f"/api/v1/evaluations/overview?start_date={today}&end_date={today}",
+            headers=headers,
+        )
+        assert exact_overview_response.status_code == 200, exact_overview_response.text
+        exact_overview = exact_overview_response.json()
+        assert exact_overview["period_start"] == exact_overview["period_end"] == today
+        assert exact_overview["days"] == len(exact_overview["trend"]) == 1
+        exact_doctors = client.get(
+            f"/api/v1/monitoring/doctors?start_date={today}&end_date={today}",
+            headers=headers,
+        )
+        assert exact_doctors.status_code == 200, exact_doctors.text
+        assert exact_doctors.json()["doctor_count"] == 1
+        exact_profile = client.get(
+            f"/api/v1/monitoring/doctors/d1?start_date={today}&end_date={today}",
+            headers=headers,
+        )
+        assert exact_profile.status_code == 200, exact_profile.text
+        assert exact_profile.json()["period_start"] == exact_profile.json()["period_end"] == today
+        assert exact_profile.json()["counts"]["in_window"] == 1
+        assert client.get(
+            f"/api/v1/evaluations/overview?start_date={today}", headers=headers
+        ).status_code == 422
+        assert client.get(
+            f"/api/v1/evaluations/overview?start_date={today}&end_date=2020-01-01",
+            headers=headers,
+        ).status_code == 422
         payload = {
             "evaluation_id": run,
             "finding_id": report["agent_results"][0]["findings"][0]["finding_id"],

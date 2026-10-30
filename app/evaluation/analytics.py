@@ -3,10 +3,11 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 
-def overview(records, catalog, days, source):
+def overview(records, catalog, days, source, start_date=None, end_date=None):
     current = datetime.now(ZoneInfo("Asia/Shanghai"))
-    end = current.date()
-    start = end - timedelta(days=days - 1)
+    end = end_date or current.date()
+    start = start_date or end - timedelta(days=days - 1)
+    days = (end - start).days + 1
     dated = [
         (r, datetime.fromisoformat(r["created_at"]).astimezone(current.tzinfo).date())
         for r in records

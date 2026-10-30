@@ -4,8 +4,11 @@ import { computed, ref } from 'vue'
 import type { Session } from '../../api/contracts/evaluation'
 import Icon from '../base/Icon.vue'
 import { label, time } from '../../utils/catalog'
-const props = defineProps<{ session: Session | null; highlightedIds: string[] }>()
+const props = withDefaults(defineProps<{ session: Session | null; highlightedIds: string[]; showViewToggle?: boolean }>(), {
+  showViewToggle: false,
+})
 const search = ref('')
+const viewMode = ref<'original' | 'structured'>('original')
 const messages = computed(() =>
   [...(props.session?.messages || [])].sort((a, b) => a.sequence - b.sequence),
 )
@@ -20,8 +23,8 @@ function matches(content: string) {
 }
 </script>
 <template>
-  <section class="conversation-panel surface" aria-labelledby="conversation-title">
-    <div class="panel-header">
+  <section :class="['conversation-panel surface', { 'service-conversation-panel': showViewToggle }]" aria-labelledby="conversation-title">
+    <div :class="showViewToggle ? 'panel-title-row conversation-heading' : 'panel-header'">
       <div>
         <h2 id="conversation-title">本次咨询记录</h2>
         <p>
@@ -32,9 +35,13 @@ function matches(content: string) {
           }}
         </p>
       </div>
-      <span class="mini-label">合成数据</span>
+      <div v-if="showViewToggle" class="view-tabs" role="group" aria-label="记录视图">
+        <button type="button" :class="{ active: viewMode === 'original' }" :aria-pressed="viewMode === 'original'" @click="viewMode = 'original'">原文</button>
+        <button type="button" :class="{ active: viewMode === 'structured' }" :aria-pressed="viewMode === 'structured'" @click="viewMode = 'structured'">结构化</button>
+      </div>
+      <span v-else class="mini-label">合成数据</span>
     </div>
-    <label class="search-field"
+    <label v-if="!showViewToggle" class="search-field"
       ><Icon name="search" :size="17" /><input
         v-model="search"
         aria-label="搜索会话内容"
@@ -46,7 +53,7 @@ function matches(content: string) {
       >
         <Icon name="close" :size="16" /></button
     ></label>
-    <div class="conversation-list">
+    <div v-if="!showViewToggle || viewMode === 'original'" class="conversation-list">
       <div v-if="!session" class="empty-state compact">
         <Icon name="list" :size="32" />
         <h3>先加载一轮咨询</h3>
@@ -67,26 +74,44 @@ function matches(content: string) {
           { highlighted: highlightedIds.includes(message.message_id) },
         ]"
       >
-        <div class="message-meta">
-          <span class="speaker-mark">{{
-            message.role === 'doctor' ? '医' : message.role === 'patient' ? '咨' : '系'
-          }}</span
-          ><strong>{{ roles[message.role] }}</strong
-          ><time>{{ time(message.timestamp) }}</time>
-        </div>
-        <p class="message-bubble">{{ message.content }}</p>
-        <div class="message-foot">
-          <span>{{ message.message_id }}</span
-          ><span v-if="highlightedIds.includes(message.message_id)" class="evidence-marker"
-            >当前引用证据</span
-          ><span v-else-if="message.modality !== 'text'">{{
-            message.modality === 'audio' ? '语音转写' : '视频转写'
-          }}</span>
-        </div>
+        <template v-if="showViewToggle">
+          <span class="message-avatar" aria-hidden="true">{{ message.role === 'doctor' ? '医' : message.role === 'patient' ? '访' : '系' }}</span>
+          <div class="message-content">
+            <div class="message-meta"><strong>{{ roles[message.role] }}</strong><time>{{ time(message.timestamp) }}</time></div>
+            <p class="message-bubble">{{ message.content }}</p>
+            <div class="message-foot">
+              <span>{{ message.message_id }}</span>
+              <span v-if="highlightedIds.includes(message.message_id)" class="evidence-marker">当前引用证据</span>
+              <span v-else-if="message.modality !== 'text'">{{ message.modality === 'audio' ? '语音转写' : '视频转写' }}</span>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="message-meta">
+            <span class="speaker-mark">{{ message.role === 'doctor' ? '医' : message.role === 'patient' ? '咨' : '系' }}</span>
+            <strong>{{ roles[message.role] }}</strong><time>{{ time(message.timestamp) }}</time>
+          </div>
+          <p class="message-bubble">{{ message.content }}</p>
+          <div class="message-foot">
+            <span>{{ message.message_id }}</span>
+            <span v-if="highlightedIds.includes(message.message_id)" class="evidence-marker">当前引用证据</span>
+            <span v-else-if="message.modality !== 'text'">{{ message.modality === 'audio' ? '语音转写' : '视频转写' }}</span>
+          </div>
+        </template>
       </article>
     </div>
-    <div v-if="session" class="panel-footer">
-      仅展示本次轮次；历史背景不能作为本次行为的评分证据。
+    <div v-else class="structured-view">
+      <table>
+        <thead><tr><th>序号</th><th>角色</th><th>时间</th><th>消息内容</th></tr></thead>
+        <tbody>
+          <tr v-for="(message, index) in messages" :key="message.message_id" :id="`message-${message.message_id}`" tabindex="-1">
+            <td>{{ index + 1 }}</td><td>{{ roles[message.role] }}</td><td>{{ time(message.timestamp) }}</td>
+            <td :class="{ 'structured-evidence': highlightedIds.includes(message.message_id) }">{{ message.content }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
+    <footer v-if="showViewToggle && session" class="conversation-footer"><span>消息 {{ messages.length }} / {{ messages.length }}</span><span>记录已加载</span></footer>
+    <div v-else-if="session" class="panel-footer">仅展示本次轮次；历史背景不能作为本次行为的评分证据。</div>
   </section>
 </template>

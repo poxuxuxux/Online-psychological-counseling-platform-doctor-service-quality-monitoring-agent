@@ -378,13 +378,23 @@ class Repository:
             for r in rows
         ]
 
-    async def consultations(self, limit, offset, query, public=True, private_only=False):
+    async def consultations(
+        self, limit, offset, query, public=True, private_only=False, start_date=None, end_date=None
+    ):
         # 私有工作台只列真实导入记录；公开查询仍只能看合成演示记录。
         if private_only and public:
             raise ValueError("Private consultation listing requires authorization")
         source_filter = "COALESCE(s.source_id,'')!='synthetic-demo'" if private_only else "(?=0 OR s.source_id='synthetic-demo')"
         where = f"{source_filter} AND s.session_id LIKE ?"
         params = ("%" + query + "%",) if private_only else (int(public), "%" + query + "%")
+        if start_date is not None and end_date is not None:
+            local_date = (
+                "(s.updated_at::timestamptz AT TIME ZONE 'Asia/Shanghai')::date"
+                if self.postgres
+                else "date(s.updated_at, '+8 hours')"
+            )
+            where += f" AND {local_date} BETWEEN ? AND ?"
+            params = (*params, start_date.isoformat(), end_date.isoformat())
         count, rows = await self._transaction(
             [
                 (f"SELECT COUNT(*) FROM team_sessions s WHERE {where}", params),

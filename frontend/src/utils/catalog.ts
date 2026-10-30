@@ -8,12 +8,12 @@ export const agents: Record<string, string> = {
   'evaluator:D4': '主责评价 Agent · D4+D6',
 }
 export const dimensions = [
-  { id: 'D1', name: '服务履行' },
-  { id: 'D2', name: '响应及时性' },
-  { id: 'D3', name: '专业信息与回应' },
-  { id: 'D4', name: '共情与关系' },
-  { id: 'D5', name: '协作与建议' },
-  { id: 'D6', name: '风险回应与转介' },
+  { id: 'D1', name: '服务可靠性' },
+  { id: 'D2', name: '服务响应性' },
+  { id: 'D3', name: '专业信息沟通' },
+  { id: 'D4', name: '情感共情性' },
+  { id: 'D5', name: '咨询协作性' },
+  { id: 'D6', name: '心理风险应对' },
 ]
 export const dimensionGroups = [
   { id: 'D1+D3', name: '服务履行与专业信息探询', dimensionIds: ['D1', 'D3'] },
@@ -40,14 +40,10 @@ export const metrics = [
   ['D6.1', '风险信号回应', 'empathy_relationship'],
   ['D6.2', '必要转介与求助提示', 'professional_service'],
 ].map(([id, name, agent]) => ({ id: id!, name: name!, agent: agent! }))
-// The deployed demo uses dimension IDs with a different, provisional mapping. Never relabel these as formal metrics.
-const demoNames: Record<string, string> = {
-  D1: '专业信息采集（演示）',
-  D2: '响应与咨询节奏（演示）',
-  D3: '方案与专业支持（演示）',
-  D4: '共情与关系建立（演示）',
-  D5: '流程说明与跟进（演示）',
-}
+// Bare IDs are dimension-level labels; metric-level names are resolved from the catalog above.
+const demoNames: Record<string, string> = Object.fromEntries(
+  dimensions.map((dimension) => [dimension.id, dimension.name]),
+)
 export function metricName(id: string): string {
   return metrics.find((m) => m.id === id)?.name || demoNames[id] || id
 }

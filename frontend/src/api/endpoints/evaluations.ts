@@ -26,11 +26,19 @@ export const api = {
       z.object({ review_id: z.string(), evaluation_id: z.string(), finding_id: z.string(),
         decision: z.string(), reason: z.string(), created_at: z.string() }),
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }),
-  consultations: (offset = 0, query = '', limit = 5) =>
-    request(
-      `/api/v1/consultations?scope=private&limit=${limit}&offset=${offset}&query=${encodeURIComponent(query)}`,
-      ConsultationListSchema,
-    ),
+  consultations: (offset = 0, query = '', limit = 5, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams({
+      scope: 'private',
+      limit: String(limit),
+      offset: String(offset),
+      query,
+    })
+    if (startDate && endDate) {
+      params.set('start_date', startDate)
+      params.set('end_date', endDate)
+    }
+    return request(`/api/v1/consultations?${params.toString()}`, ConsultationListSchema)
+  },
   consultation: (id: string) =>
     request(`/api/v1/consultations/${encodeURIComponent(id)}`, ConsultationDetailSchema),
   importSession: (session: Session) =>

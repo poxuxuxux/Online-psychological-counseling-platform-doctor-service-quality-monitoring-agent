@@ -3,7 +3,7 @@ import type { MonitoringList, DoctorProfile } from '../api/contracts/monitoring'
 
 const DAYS = 180
 const iso = (offset: number) =>
-  new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10)
+  new Date(Date.parse('2024-06-30T00:00:00Z') - offset * 86400000).toISOString().slice(0, 10)
 const scale = (value: number) => Math.round(value * 20 * 100) / 100
 const DIMENSIONS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6']
 
@@ -171,14 +171,68 @@ function summary(profile: DoctorProfile): MonitoringList['doctors'][number] {
   }
 }
 
-export function monitoringPreviewList(): MonitoringList {
-  const doctors = [PROFILES['dr-1087']!, PROFILES['dr-2091']!, PROFILES['dr-3050']!].map(summary)
+function profileForRange(profile: DoctorProfile, start: string, end: string): DoctorProfile | null {
+  const sessions = profile.sessions.filter((session) => session.date >= start && session.date <= end)
+  if (!sessions.length) return null
+  const scored = sessions.filter((session) => session.overall_score !== null)
+  const average = scored.length
+    ? scale(scored.reduce((sum, session) => sum + session.overall_score!, 0) / scored.length)
+    : null
+  const latestScored = scored[0]
+  const latest = sessions[0]
+  const sessionIds = new Set(sessions.map((session) => session.session_id).filter((id): id is string => !!id))
+  const alerts = profile.alerts
+    .map((alert) => ({
+      ...alert,
+      related_sessions: alert.related_sessions.filter((id) => sessionIds.has(id)),
+    }))
+    .filter((alert) => alert.related_sessions.length > 0 || (!!alert.last_seen && alert.last_seen >= start && alert.last_seen <= end))
+  const days = Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1
+  const byDate = new Map(scored.map((session) => [session.date, session.overall_score! * 20]))
+  const trend = Array.from({ length: days }, (_, offset) => {
+    const date = new Date(Date.parse(`${start}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10)
+    const value = byDate.get(date)
+    return { date, average: value ?? null, sample_count: value === undefined ? 0 : 1 }
+  })
+  return {
+    ...profile,
+    days,
+    period_start: start,
+    period_end: end,
+    counts: {
+      in_window: sessions.length,
+      comparable: sessions.length,
+      scored: scored.length,
+      pending_review: sessions.length - scored.length,
+      other_version: 0,
+    },
+    average_total: average,
+    latest_score: latestScored ? scale(latestScored.overall_score!) : null,
+    latest_date: latestScored?.date ?? null,
+    latest_risk: latest?.risk_level ?? null,
+    dimensions: profile.dimensions.map((dimension) => ({
+      ...dimension,
+      average: scored.length ? dimension.average : null,
+      sample_count: scored.length,
+    })),
+    trend,
+    sessions,
+    alerts,
+  }
+}
+
+export function monitoringPreviewList(start = iso(DAYS - 1), end = iso(0)): MonitoringList {
+  const profiles = [PROFILES['dr-1087']!, PROFILES['dr-2091']!, PROFILES['dr-3050']!]
+    .map((profile) => profileForRange(profile, start, end))
+    .filter((profile): profile is DoctorProfile => profile !== null)
+  const doctors = profiles.map(summary)
+  const days = Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1
   return {
     available: true,
     source: 'offline-preview',
-    days: DAYS,
-    period_start: iso(DAYS - 1),
-    period_end: iso(0),
+    days,
+    period_start: start,
+    period_end: end,
     timezone: 'Asia/Shanghai',
     generated_at: new Date().toISOString(),
     rubric_version: 'offline-preview',
@@ -194,11 +248,12 @@ export function monitoringPreviewList(): MonitoringList {
         0,
       ),
     },
-    excluded_missing_doctor_id: 1,
+    excluded_missing_doctor_id: 0,
     doctors,
   }
 }
 
-export function monitoringPreviewProfile(doctorId: string): DoctorProfile | null {
-  return PROFILES[doctorId] ?? null
+export function monitoringPreviewProfile(doctorId: string, start = iso(DAYS - 1), end = iso(0)): DoctorProfile | null {
+  const profile = PROFILES[doctorId]
+  return profile ? profileForRange(profile, start, end) : null
 }

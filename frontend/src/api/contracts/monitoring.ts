@@ -23,7 +23,7 @@ export const MonitoringListSchema = z
   .object({
     available: z.boolean(),
     source: z.enum(['postgresql', 'sqlite', 'offline-preview']),
-    days: z.number().int().min(7).max(365),
+    days: z.number().int().min(1).max(365),
     period_start: date,
     period_end: date,
     timezone: z.literal('Asia/Shanghai'),
@@ -55,7 +55,7 @@ export const DoctorProfileSchema = z
   .object({
     available: z.boolean(),
     source: z.enum(['postgresql', 'sqlite', 'offline-preview']),
-    days: z.number().int().min(7).max(365),
+    days: z.number().int().min(1).max(365),
     period_start: date,
     period_end: date,
     timezone: z.literal('Asia/Shanghai'),

@@ -10,6 +10,7 @@ import { overallScore } from '../utils/trust'
 
 export type BatchRiskLevel = 'high' | 'medium' | 'low' | 'unknown'
 export type BatchRun = {
+  mode?: 'service' | 'preview'
   batch_id: string
   created_at: string
   total: number
@@ -39,8 +40,8 @@ function persistBatchRuns(runs: BatchRun[]) {
   }
 }
 
-export function useConsole() {
-  const mode = ref<'service' | 'preview'>(location.protocol === 'file:' ? 'preview' : 'service')
+export function useConsole(initialMode?: 'service' | 'preview') {
+  const mode = ref<'service' | 'preview'>(initialMode || (location.protocol === 'file:' ? 'preview' : 'service'))
   const session = ref<Session | null>(null),
     report = ref<Report | null>(null),
     ready = ref<Ready | null>(null),
@@ -136,15 +137,28 @@ export function useConsole() {
       if (token === epoch && selectionToken === selectionEpoch) loading.value = false
     }
   }
-  async function refreshConsultations(offset = 0, query = listQuery.value) {
+  async function refreshConsultations(
+    offset = 0,
+    query = listQuery.value,
+    startDate?: string,
+    endDate?: string,
+  ) {
     if (running.value) return
     const token = epoch,
       listToken = ++listEpoch
     listing.value = true
     listError.value = ''
     try {
+      const matchesRange = (value: string | null | undefined) => {
+        if (!startDate || !endDate) return true
+        const day = value?.slice(0, 10) || ''
+        return day >= startDate && day <= endDate
+      }
       if (mode.value === 'preview') {
-        const data = previewData().filter((d) => d.session.session_id.includes(query.trim()))
+        const data = previewData().filter((d) =>
+          d.session.session_id.includes(query.trim()) &&
+          matchesRange(d.session.messages[0]?.timestamp),
+        )
         consultations.value = data.slice(offset, offset + 5).map((d) => ({
           session_id: d.session.session_id,
           consultation_round: d.session.consultation_round,
@@ -156,7 +170,8 @@ export function useConsole() {
         listSource.value = 'preview'
       } else if (uploadedDetails.size) {
         const data = [...uploadedDetails.values()].filter((d) =>
-          d.session.session_id.toLowerCase().includes(query.trim().toLowerCase()),
+          d.session.session_id.toLowerCase().includes(query.trim().toLowerCase()) &&
+          matchesRange(d.session.imported_at || d.session.messages[0]?.timestamp),
         )
         consultations.value = data.slice(offset, offset + 5).map((d) => ({
           session_id: d.session.session_id,
@@ -168,7 +183,7 @@ export function useConsole() {
         totalConsultations.value = data.length
         listSource.value = 'uploaded'
       } else if (hasPrivateAccessToken()) {
-        const result = await api.consultations(offset, query)
+        const result = await api.consultations(offset, query, 5, startDate, endDate)
         if (token !== epoch || listToken !== listEpoch) return
         consultations.value = result.items
         totalConsultations.value = result.total
@@ -320,6 +335,7 @@ export function useConsole() {
           ? `本批 ${completedReports.length} 轮均通过总分门槛，质量评分均值为 ${(trustedScores.reduce((sum, score) => sum + score, 0) / trustedScores.length * 20).toFixed(1)} 分（满分 100）。后端判定服务质量高风险 ${high} 轮，风险未知 ${unknown} 轮。`
           : `本批完成 ${completedReports.length} 轮评价，${scoredItems} 项已计分，${pendingItems} 项待复核；后端判定服务质量高风险 ${high} 轮，风险未知 ${unknown} 轮。${hasDemoFallback ? '当前含固定演示规则评分，只用于流程演示。' : ''}由于本批未达到总分门槛，暂不能给出服务质量达标结论。`
       const batchRun: BatchRun = {
+        mode: mode.value,
         batch_id: `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         created_at: new Date().toISOString(),
         total: ids.length,

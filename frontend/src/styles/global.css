@@ -22,10 +22,13 @@
 * {
   box-sizing: border-box;
 }
+html {
+  overflow-x: hidden;
+}
 body {
   margin: 0;
   min-width: 320px;
-  font-size: 16px;
+  font-size: 17.5px;
 }
 button,
 input,
@@ -125,20 +128,20 @@ svg {
 }
 .brand strong {
   display: block;
-  font-size: 25px;
+  font-size: 26.5px;
   font-weight: 650;
   letter-spacing: 3px;
 }
 .brand small {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   letter-spacing: 1px;
   margin-top: 5px;
   color: #bbd4d3;
 }
 .workspace-label {
   padding: 37px 15px 15px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: #b1cbca;
 }
 .sidebar nav {
@@ -151,7 +154,7 @@ svg {
   gap: 12px;
   padding: 13px 15px;
   color: #d0e2e1;
-  font-size: 14px;
+  font-size: 15.5px;
   border-radius: 6px;
   transition: background 0.15s;
 }
@@ -170,7 +173,7 @@ svg {
   min-width: 21px;
   height: 20px;
   padding: 0 4px;
-  font-size: 14px;
+  font-size: 15.5px;
   background: #d6eae7;
   border-radius: 5px;
   color: #184e52;
@@ -183,7 +186,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .connection-dot {
   width: 6px;
@@ -196,7 +199,7 @@ svg {
 }
 .sidebar-bottom > p {
   color: #b1cbca;
-  font-size: 14px;
+  font-size: 15.5px;
   margin-top: 11px;
 }
 .operator {
@@ -215,16 +218,16 @@ svg {
   background: #2b6468;
   border: 1px solid #659291;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .operator strong {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 500;
 }
 .operator small {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: #b1cbca;
   margin-top: 5px;
 }
@@ -245,7 +248,7 @@ svg {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
 }
 .breadcrumb strong {
@@ -265,7 +268,7 @@ svg {
   place-items: center;
   background: #e9f0f4;
   color: #47616e;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .mobile-menu {
   display: none !important;
@@ -283,14 +286,14 @@ main {
   margin-bottom: 25px;
 }
 h1 {
-  font-size: 25px;
+  font-size: 26.5px;
   line-height: 1.5;
   font-weight: 650;
   letter-spacing: 0.5px;
 }
 .page-heading p {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   margin-top: 7px;
   line-height: 1.8;
 }
@@ -308,7 +311,7 @@ h1 {
   gap: 8px;
   border-radius: 6px;
   border: 1px solid transparent;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
   transition: background 0.15s;
   white-space: nowrap;
@@ -335,7 +338,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 15.5px;
   text-align: left;
 }
 .text-button:hover {
@@ -359,7 +362,7 @@ h1 {
   gap: 6px;
   align-items: center;
   padding: 4px 8px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.5;
   font-weight: 500;
   border-radius: 4px;
@@ -400,7 +403,7 @@ h1 {
   border: 1px solid #efddba;
   border-radius: 6px;
   background: var(--warning-bg);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.7;
   margin-bottom: 20px;
 }
@@ -427,12 +430,12 @@ h1 {
 .session-identity > span,
 .session-property > span {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-bottom: 9px;
 }
 .session-identity > strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -442,11 +445,11 @@ h1 {
   border-left: 1px solid var(--line);
 }
 .session-property strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
 }
 .session-property small {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 400;
 }
 .investigation-trace { padding: 1rem 1.25rem; margin: 1rem 0; }
@@ -479,7 +482,7 @@ h1 {
   background: #e4ebef;
   border: 1px solid #dce5e9;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .track-step.complete > span {
   background: #dbece7;
@@ -491,20 +494,20 @@ h1 {
   background: #e9f4f3;
 }
 .track-step strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
   display: block;
 }
 .track-step small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   display: block;
   margin-top: 5px;
 }
 .run-note {
   color: var(--teal);
   margin: 0 0 16px;
-  font-size: 14px;
+  font-size: 15.5px;
   padding: 10px 14px;
   background: #e8f3f4;
   border-radius: 5px;
@@ -524,17 +527,17 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 h2 {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 650;
 }
 .panel-header p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.7;
   margin-top: 6px;
 }
 .mini-label {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--teal);
   border: 1px solid #c9e2df;
   padding: 4px 7px;
@@ -566,7 +569,7 @@ h2 {
   padding: 5px 0;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 15.5px;
   outline: none;
 }
 .search-field:focus-within {
@@ -593,7 +596,7 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: #6b818b;
 }
 .speaker-mark {
@@ -602,7 +605,7 @@ textarea::placeholder {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 14px;
+  font-size: 15.5px;
   background: #e9edf4;
   color: #576d83;
 }
@@ -611,19 +614,19 @@ textarea::placeholder {
   background: #e1efeb;
 }
 .message-meta strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
   color: #405b67;
 }
 .message-meta time {
   margin-left: auto;
   color: #7e9098;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .message-bubble {
   margin: 9px 0 0 29px;
   padding: 12px 14px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.95;
   border-radius: 0 6px 6px 6px;
   background: #f2f5f8;
@@ -650,7 +653,7 @@ textarea::placeholder {
   display: flex;
   gap: 10px;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 15.5px;
   color: #80929a;
 }
 .evidence-marker {
@@ -663,7 +666,7 @@ textarea::placeholder {
   background: #fbfcfd;
   border-radius: 0 0 6px 6px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
 }
 .report-empty {
@@ -680,13 +683,13 @@ textarea::placeholder {
 }
 .empty-state h3 {
   color: #304d5b;
-  font-size: 16px;
+  font-size: 17.5px;
   margin: 17px 0 10px;
   font-weight: 550;
 }
 .empty-state p {
   max-width: 330px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   margin-bottom: 22px;
 }
@@ -694,7 +697,7 @@ textarea::placeholder {
   padding: 35px 20px;
 }
 .empty-state.compact h3 {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .empty-illustration {
   position: relative;
@@ -725,7 +728,7 @@ textarea::placeholder {
   justify-content: center;
   gap: 14px;
   margin-top: 38px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: #6e838d;
   flex-wrap: wrap;
 }
@@ -740,7 +743,7 @@ textarea::placeholder {
   border-bottom: 1px solid var(--line);
 }
 .report-summary > p:first-child {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
 }
 .summary-counts {
@@ -753,7 +756,7 @@ textarea::placeholder {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   border-right: 1px solid var(--line);
   padding: 0 15px;
@@ -765,12 +768,12 @@ textarea::placeholder {
   border: 0;
 }
 .summary-counts strong {
-  font-size: 22px;
+  font-size: 23.5px;
   font-weight: 550;
   color: var(--ink);
 }
 .small {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
   color: var(--muted);
 }
@@ -778,7 +781,7 @@ textarea::placeholder {
   margin-top: 11px;
 }
 .mapping-note {
-  font-size: 14px;
+  font-size: 15.5px;
   margin: 14px 22px 0;
   color: var(--warning);
   padding: 9px 11px;
@@ -801,7 +804,7 @@ select {
   border: 1px solid #dce5e9;
   border-radius: 5px;
   min-width: 90px;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .finding-list {
   border-block: 1px solid var(--line);
@@ -840,18 +843,18 @@ select {
   align-items: center;
 }
 .finding-code {
-  font-size: 14px;
+  font-size: 15.5px;
   color: #627c8c;
   font-weight: 550;
 }
 .finding-row-main > strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
 }
 .finding-agent {
   width: 100%;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .finding-row-end {
   display: flex;
@@ -862,13 +865,13 @@ select {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   width: 58px;
   justify-content: flex-end;
 }
 .list-score small {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 400;
   color: var(--muted);
 }
@@ -892,7 +895,7 @@ select {
 .metric-code {
   display: inline-block;
   padding: 3px 6px;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
   color: #426c7d;
   background: #edf3f7;
@@ -900,17 +903,17 @@ select {
   white-space: nowrap;
 }
 .detail-title h3 {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 650;
 }
 .detail-meta {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.7;
   margin-top: 8px;
 }
 .rationale {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.95;
   margin-top: 15px;
 }
@@ -920,16 +923,16 @@ select {
   gap: 12px;
   padding: 11px 0;
   margin-top: 9px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
 }
 .candidate-score strong {
   color: var(--ink);
-  font-size: 22px;
+  font-size: 23.5px;
   font-weight: 600;
 }
 .candidate-score small {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 400;
 }
 .candidate-score span:last-child:not(:first-child) {
@@ -941,7 +944,7 @@ select {
   border-top: 1px solid var(--line);
 }
 .detail-section h4 {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -950,7 +953,7 @@ select {
 }
 .detail-section h4 > span:not(.status-badge) {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .evidence-quote {
   background: #f4f8fa;
@@ -962,14 +965,14 @@ select {
 .evidence-quote blockquote {
   padding: 0;
   margin: 0;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.95;
   color: #385563;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .evidence-quote > p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-top: 7px;
   line-height: 1.8;
@@ -982,7 +985,7 @@ select {
 }
 .evidence-quote > small {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.8;
   margin-top: 5px;
@@ -992,7 +995,7 @@ select {
 }
 .empty-note {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
 }
 .padded {
@@ -1004,7 +1007,7 @@ select {
   background: #f5f9fb;
   border-radius: 5px;
   color: #526f7e;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
 }
 .notice.danger {
@@ -1028,11 +1031,11 @@ select {
 }
 dt {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 dd {
   margin: 8px 0 0;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
 }
 .claim-row {
@@ -1040,19 +1043,19 @@ dd {
   border-bottom: 1px dashed var(--line);
 }
 .claim-row p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   margin: 8px 0 5px;
 }
 .claim-row small,
 .detail-section > small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
 }
 .issue-list {
   padding-left: 18px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   color: var(--muted);
 }
@@ -1070,16 +1073,16 @@ dd {
 }
 .revision-compare span {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-bottom: 8px;
 }
 .revision-compare strong {
-  font-size: 15px;
+  font-size: 16.5px;
   font-weight: 550;
 }
 .revision-compare p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
   margin-top: 8px;
 }
@@ -1109,11 +1112,11 @@ dd {
   border-radius: 50%;
 }
 .discussion-list strong {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--teal);
 }
 .discussion-list p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   margin: 7px 0 0;
 }
@@ -1125,22 +1128,22 @@ dd {
   margin-bottom: 8px;
 }
 .arbitration-record strong {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--warning);
 }
 .arbitration-record p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   margin-top: 8px;
 }
 .arbitration-record small {
   color: var(--warning);
-  font-size: 14px;
+  font-size: 15.5px;
   display: block;
   margin-top: 8px;
 }
 summary {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   cursor: pointer;
   line-height: 1.7;
@@ -1155,7 +1158,7 @@ details[open] > summary {
 }
 .report-limitations ul,
 .report-limitations p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   color: var(--muted);
 }
@@ -1167,7 +1170,7 @@ details[open] > summary {
   margin-top: 25px;
   padding: 19px 0 23px;
   border-top: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 15.5px;
   color: #6d838e;
 }
 .page-footer p {
@@ -1178,7 +1181,7 @@ details[open] > summary {
   border: 1px solid #dce7eb;
   border-radius: 6px;
   margin-bottom: 18px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
 }
 .alert.danger {
@@ -1187,7 +1190,7 @@ details[open] > summary {
   border-color: #e9c9cc;
 }
 .alert strong {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .alert .text-button {
   margin-right: 15px;
@@ -1204,7 +1207,7 @@ details[open] > summary {
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.7;
   max-width: min(520px, calc(100vw - 32px));
   border-radius: 6px;
@@ -1226,7 +1229,7 @@ details[open] > summary {
   padding: 22px;
 }
 .current-report-body > p {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
 }
 .inline-facts {
@@ -1235,7 +1238,7 @@ details[open] > summary {
   margin: 20px 0 25px;
 }
 .inline-facts dd {
-  font-size: 19px;
+  font-size: 20.5px;
   margin-top: 11px;
 }
 .export-area {
@@ -1246,7 +1249,7 @@ details[open] > summary {
   justify-content: space-between;
   align-items: center;
   gap: 15px;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
 }
 .export-area label {
@@ -1263,14 +1266,14 @@ input[type='checkbox'] {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 15.5px;
   text-align: left;
 }
 .data-table th {
   padding: 12px 22px;
   background: #f5f8fa;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1282,7 +1285,7 @@ input[type='checkbox'] {
 .id-cell {
   max-width: 250px;
   overflow-wrap: anywhere;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .review-notice {
   display: flex;
@@ -1304,7 +1307,7 @@ input[type='checkbox'] {
   flex: 1;
 }
 .review-toolbar > span {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
 }
 .review-toolbar > .button {
@@ -1337,7 +1340,7 @@ input[type='checkbox'] {
   border-left-color: var(--teal);
 }
 .queue-item > strong {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
 }
 .queue-item > .status-badge {
@@ -1349,12 +1352,12 @@ input[type='checkbox'] {
   background: #fcfdfe;
 }
 .review-form h3 {
-  font-size: 14px;
+  font-size: 15.5px;
   margin-bottom: 18px;
 }
 .review-form > label {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   margin: 17px 0 9px;
 }
 .review-form select,
@@ -1367,7 +1370,7 @@ textarea {
   background: white;
   padding: 11px 13px;
   resize: vertical;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
 }
 .review-form-footer {
@@ -1379,13 +1382,13 @@ textarea {
 }
 .review-form-footer small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .draft-record {
   border-top: 1px dashed var(--line);
   margin-top: 18px;
   padding-top: 17px;
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
 }
 .draft-record p {
@@ -1402,7 +1405,7 @@ textarea {
   color: var(--teal);
 }
 .rubric-intro p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.9;
   margin-top: 10px;
@@ -1410,7 +1413,7 @@ textarea {
 }
 .rubric-total {
   margin-left: auto;
-  font-size: 35px;
+  font-size: 36.5px;
   font-weight: 500;
   color: var(--teal);
   text-align: center;
@@ -1418,7 +1421,7 @@ textarea {
 }
 .rubric-total small {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-top: 4px;
   white-space: nowrap;
@@ -1436,11 +1439,11 @@ textarea {
 }
 .rubric-section h2 span {
   color: var(--teal);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .rubric-section .panel-header > small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .rubric-item {
   display: flex;
@@ -1454,19 +1457,19 @@ textarea {
 }
 .rubric-item strong {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 550;
 }
 .rubric-item small {
   display: block;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   margin-top: 7px;
 }
 .draft-label {
   margin-left: auto;
   color: #758892;
-  font-size: 14px;
+  font-size: 15.5px;
   white-space: nowrap;
 }
 .connection-facts {
@@ -1483,7 +1486,7 @@ textarea {
 }
 .connection-facts dd {
   margin-top: 13px;
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .connection-panel > .notice {
   margin: 0 22px 20px;
@@ -1497,13 +1500,13 @@ textarea {
   border-bottom: 1px solid var(--line);
 }
 .capability-row strong {
-  font-size: 14px;
+  font-size: 15.5px;
   display: block;
   font-weight: 550;
 }
 .capability-row small {
   display: block;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   line-height: 1.8;
   margin-top: 8px;
@@ -1552,10 +1555,10 @@ textarea {
     gap: 7px;
   }
   .track-step strong {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .track-step small {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .heading-actions {
     gap: 8px;
@@ -1564,7 +1567,7 @@ textarea {
     padding-inline: 11px;
   }
   h1 {
-    font-size: 23px;
+    font-size: 24.5px;
   }
   .panel-header,
   .finding-detail {
@@ -1676,7 +1679,7 @@ textarea {
     gap: 10px;
   }
   .mode-button {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .top-avatar {
     display: none;
@@ -1688,10 +1691,10 @@ textarea {
     margin-bottom: 18px;
   }
   h1 {
-    font-size: 22px;
+    font-size: 23.5px;
   }
   .page-heading p {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .heading-actions {
     width: 100%;
@@ -1712,22 +1715,22 @@ textarea {
     margin-top: 3px;
   }
   .track-step strong {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .session-identity > strong {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .session-property {
     min-width: 0;
   }
   .session-property strong {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .panel-header {
     padding: 17px;
   }
   .panel-header p {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .conversation-list {
     padding-inline: 17px;
@@ -1746,14 +1749,14 @@ textarea {
     gap: 5px;
   }
   .finding-row-main > strong {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .finding-row-end .status-badge {
-    font-size: 14px;
+    font-size: 15.5px;
     padding: 4px 5px;
   }
   .finding-code {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .list-score {
     width: 44px;
@@ -1782,10 +1785,10 @@ textarea {
     padding-inline: 10px;
   }
   .summary-counts strong {
-    font-size: 20px;
+    font-size: 21.5px;
   }
   .summary-counts > span {
-    font-size: 14px;
+    font-size: 15.5px;
   }
   .revision-compare {
     grid-template-columns: 1fr;
@@ -1830,7 +1833,7 @@ textarea {
     line-height: 1.7;
   }
   .rubric-total {
-    font-size: 29px;
+    font-size: 30.5px;
     padding-left: 0;
   }
   .rubric-item {
@@ -1908,12 +1911,12 @@ textarea {
   margin-bottom: 16px;
 }
 .overview-toolbar strong {
-  font-size: 16px;
+  font-size: 17.5px;
 }
 .overview-toolbar p {
   margin: 7px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .overview-controls {
   display: flex;
@@ -1922,7 +1925,7 @@ textarea {
 }
 .overview-controls label {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .overview-controls select {
   padding: 9px 10px;
@@ -1954,21 +1957,21 @@ textarea {
 }
 .overview-stat > strong {
   display: block;
-  font-size: 32px;
+  font-size: 33.5px;
   line-height: 1.4;
   margin: 12px 0 8px;
   letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
 }
 .overview-stat strong small {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 400;
   color: var(--muted);
   margin-left: 8px;
   letter-spacing: 0;
 }
 .overview-stat p {
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin: 0;
 }
@@ -1983,7 +1986,7 @@ textarea {
   gap: 14px;
   align-items: center;
   flex-wrap: wrap;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin: 18px 0;
 }
@@ -2008,11 +2011,11 @@ textarea {
   stroke-width: 1;
 }
 .chart-label {
-  font-size: 14px;
+  font-size: 15.5px;
   fill: var(--muted);
 }
 .chart-tick {
-  font-size: 14px;
+  font-size: 15.5px;
   fill: var(--muted);
 }
 .radar-fill {
@@ -2028,7 +2031,7 @@ textarea {
 .chart-caption {
   text-align: center;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   min-height: 17px;
   margin: 8px 0 14px;
 }
@@ -2062,7 +2065,7 @@ textarea {
   justify-content: center;
   flex-wrap: wrap;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .chart-legend > span {
   display: flex;
@@ -2085,7 +2088,7 @@ textarea {
 }
 .dimension-averages small {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 .chart-empty {
   min-height: 310px;
@@ -2098,7 +2101,7 @@ textarea {
 .trend-table summary {
   padding: 16px 24px;
   color: var(--teal);
-  font-size: 14px;
+  font-size: 15.5px;
   cursor: pointer;
 }
 .trend-table .table-scroll {
@@ -2110,7 +2113,7 @@ textarea {
   border-top: 1px solid var(--line);
 }
 .quality-distribution h3 {
-  font-size: 14px;
+  font-size: 15.5px;
   margin: 0 0 14px;
 }
 .distribution-bar {
@@ -2134,7 +2137,7 @@ textarea {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 14px;
+  font-size: 15.5px;
   color: var(--muted);
   margin-top: 12px;
 }
@@ -2143,13 +2146,13 @@ textarea {
   margin-top: 20px;
 }
 .overview-definition summary {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 600;
   cursor: pointer;
 }
 .overview-definition ul {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.9;
   padding-left: 18px;
   margin-bottom: 0;
@@ -2182,7 +2185,7 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .overview-stat > strong {
-    font-size: 28px;
+    font-size: 29.5px;
   }
   .overview-charts {
     gap: 16px;
