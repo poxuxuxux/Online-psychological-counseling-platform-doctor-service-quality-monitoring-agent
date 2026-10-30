@@ -1,3 +1,4 @@
+# 环节：项目协作与 CI 层；用途：配置自动化检查或代码评审流程。
 name: CI
 
 on:
@@ -14,6 +15,20 @@ jobs:
     name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: team_test
+          POSTGRES_PASSWORD: test_only_password
+          POSTGRES_DB: team_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U team_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://team_test:test_only_password@localhost:5432/team_test
 
     steps:
       - name: Check out repository

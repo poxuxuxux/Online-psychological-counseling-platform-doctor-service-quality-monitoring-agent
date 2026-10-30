@@ -1,0 +1,142 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+examples:
+- case_id: D2_1_measured
+  input:
+    session_id: D2_1_measured
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_1_measured-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想开始这次咨询。
+    - message_id: D2_1_measured-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 你好，请说说本次想讨论的问题。
+      timestamp: '2026-01-01T10:03:00+08:00'
+    computed_measurements:
+      tool: synthetic_time_calculator
+      start_confirmed: true
+      start_time: '2026-01-01T10:00:00+08:00'
+      reply_time: '2026-01-01T10:03:00+08:00'
+      duration_seconds: 180
+      reply_message_id: D2_1_measured-m2
+      measurement_version: synthetic-wall-clock-v1
+      start_event_id: D2_1_measured-start
+    service_events:
+    - event_id: D2_1_measured-start
+      type: consultation_start
+      confirmed_by: synthetic_platform_policy
+      timestamp: '2026-01-01T10:00:00+08:00'
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - timing_policy_pending
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_1_purchase_only
+  input:
+    session_id: D2_1_purchase_only
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_1_purchase_only-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想开始这次咨询。
+    - message_id: D2_1_purchase_only-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 你好，请说说本次想讨论的问题。
+    service_events:
+    - type: purchase
+      time: '2026-01-01T10:00:00+08:00'
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    - timing_policy_pending
+    - time_facts_missing
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_1_pending
+  input:
+    session_id: D2_1_pending
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D2_1_pending-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想开始这次咨询。
+    - message_id: D2_1_pending-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 你好，请说说本次想讨论的问题。
+      timestamp: '2026-01-01T10:10:00+08:00'
+    computed_measurements:
+      tool: synthetic_time_calculator
+      start_confirmed: true
+      duration_seconds: 600
+      measurement_version: synthetic-wall-clock-v1
+      start_time: '2026-01-01T10:00:00+08:00'
+      reply_time: '2026-01-01T10:10:00+08:00'
+      reply_message_id: D2_1_pending-m2
+      start_event_id: D2_1_pending-start
+    service_events:
+    - event_id: D2_1_pending-start
+      type: consultation_start
+      confirmed_by: synthetic_platform_policy
+      timestamp: '2026-01-01T10:00:00+08:00'
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - timing_policy_pending
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D2_1_ongoing
+  input:
+    session_id: D2_1_ongoing
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D2_1_ongoing-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 请问可以开始了吗？
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    - timing_policy_pending
+    - time_facts_missing
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
