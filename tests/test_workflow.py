@@ -255,8 +255,9 @@ async def test_tool_ownership_evidence_and_history_guards(make_service, session)
             "risk",
         }
     }
-    with pytest.raises(ValueError, match="another evaluator"):
-        await tools.execute(state, "evaluator:D1", "submit_evaluation", {"findings": [finding]})
+    result = await tools.execute(state, "evaluator:D1", "submit_evaluation", {"findings": [finding]})
+    assert not result["accepted"]
+    assert "another evaluator" in result["rejected"][0]["error"]
 
 
 async def test_immutable_input_and_duplicate_message_validation(make_service, session):

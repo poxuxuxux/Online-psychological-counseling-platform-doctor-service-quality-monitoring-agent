@@ -27,7 +27,8 @@ def finalize_conflicts(team):
     findings = active_findings(team)
     for conflict in team["conflicts"].values():
         review = conflict.get("review")
-        revised = all(
+        # Only the mistaken side may need correction; unchanged results are idempotent.
+        revised = any(
             mid in findings and findings[mid]["finding_id"] not in conflict["finding_ids"]
             for mid in conflict["metric_ids"]
         )

@@ -41,6 +41,11 @@ export const SessionSchema = z
       ctx.addIssue({ code: 'custom', message: '消息编号必须唯一', path: ['messages'] })
   })
 export const FindingSchema = z.object({
+  decision_method: z.enum(['provisional', 'consensus', 'evidence_adjudicated', 'not_evaluable',
+    'not_applicable', 'execution_failed']).nullable().optional(),
+  outcome: z.enum(['scored', 'not_applicable', 'configuration_blocked', 'execution_failed',
+    'insufficient_evidence', 'manual_review', 'conflict']).optional(),
+  failure_code: z.string().nullable().optional(),
   finding_id: z.string().min(1),
   metric_id: z.string().min(1),
   metric_version: z.string().nullable().optional(),
@@ -125,6 +130,38 @@ export const ArbitrationSchema = z.object({
 })
 export const ReportSchema = z
   .object({
+    execution_issues: z.array(z.object({
+      agent_id: z.string(), stage: z.string(), metric_id: z.string().nullable(), error: z.string(),
+      fields: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), type: z.string() })),
+      attempt: z.number().nullable().optional(),
+      transport: z.object({ category: z.string(), exception_type: z.string(),
+        cause_types: strings, endpoint_host: z.string().nullable(),
+      }).nullable().optional(),
+    })).default([]),
+    collaboration: z.object({
+      protocol: z.string(), prompt_version: z.string(), selected_metric_ids: strings,
+      excluded: z.array(z.object({ metric_id: z.string(), reason: z.string() })),
+      weights: z.record(z.string(), z.number()), candidate_weights: z.record(z.string(), z.number()),
+      weight_deviation: z.number().nullable(), context_summary: z.string(), round_count: z.number().int().min(0).max(3),
+      weight_policy: z.string().nullable().optional(), initial_metric_ids: strings.optional(),
+      weighting_stages: z.array(z.object({ stage: z.string(), context_summary: z.string(),
+        task_analysis: z.string(), relevance_analysis: z.string(), consistency_check: z.string(),
+        weights: z.record(z.string(), z.number()), candidate_weights: z.record(z.string(), z.number()),
+        selected: z.array(z.object({ metric_id: z.string(), reason: z.string(), candidate_weight: z.number() })),
+        excluded: z.array(z.object({ metric_id: z.string(), reason: z.string() })),
+      })).optional(),
+      initial_evaluations: z.array(z.object({ agent_id: z.string(), perspective: z.string(),
+        findings: z.array(z.object({ metric_id: z.string(), status: z.string(), score,
+          reason: z.string(), evidence_ids: strings })) })),
+      reports: z.array(z.object({ version: z.number(), round: z.number(), final: z.boolean(),
+        findings: z.array(z.object({ metric_id: z.string(), score, reason: z.string(),
+          question: z.string(), decision_method: z.string().nullable().optional(),
+          responses: z.array(z.object({ feedback_id: z.string(), disposition: z.string(),
+            reason: z.string(), evidence_ids: strings })) })) })),
+      feedback: z.array(z.object({ feedback_id: z.string(), agent_id: z.string(), metric_id: z.string(),
+        decision: z.string(), reason: z.string(), evidence_ids: strings, issue_type: z.string(),
+        report_version: z.number(), round: z.number() })),
+    }).optional(),
     evaluation_id: z.string().min(1),
     session_id: z.string().min(1),
     verification_mode: z.enum(['independent', 'none']).optional(),
@@ -144,6 +181,10 @@ export const ReportSchema = z
     limitations: strings,
     quality_profile: z
       .object({
+        policy_version: z.string().optional(),
+        weights: z.record(z.string(), z.number()).optional(),
+        selected_metric_ids: strings.optional(),
+        scoring_signature: z.string().optional(),
         dimensions: z
           .array(z.object({ dimension_id: z.string(), name: z.string(), score, coverage }))
           .default([]),
@@ -169,6 +210,9 @@ export const ReportSchema = z
       )
       .default([]),
     review_required: z.boolean().default(false),
+    collaboration_complete: z.boolean().optional(),
+    input_warnings: strings,
+    score_notices: strings,
     review_reasons: strings,
     risk: z.object({
       level: z.enum(['high', 'medium', 'low', 'unknown']),

@@ -1,5 +1,11 @@
 # 模块维护契约
 
+> 当前默认v2已改为先全量初评、后三阶段归一化平均赋权，不再有等权起点和±20%限制。详见LEADER_PROTOCOL.md；后文旧协议细节仅作兼容记录。
+
+
+> 本轮默认协议已升级为Leader选项、受约束赋权、三视角初评及三轮有据裁决。新增模块与当前行为见 [Leader协议说明](LEADER_PROTOCOL.md)。下文旧分工/旧报告描述保留作兼容与演进记录。
+
+
 ## 依赖方向
 
 API → 组合根 → Workflow → Context / Team / Evaluation → Domain Ports。

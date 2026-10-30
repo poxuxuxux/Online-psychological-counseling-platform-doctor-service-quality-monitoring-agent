@@ -19,10 +19,12 @@ class Settings:
     concurrency: int = 6
     max_model_calls: int = 180
     max_input_chars: int = 4_000_000
-    agent_timeout: float = 180
+    agent_timeout: float = 300
     model_timeout: float = 60
     total_timeout: float = 600
     seed_demo: bool = True
+    team_protocol: str = "leader-review-v2"
+    weight_deviation: float = 0.2
     bucket: str = ""
     bucket_endpoint: str = ""
     bucket_region: str = ""
@@ -62,6 +64,8 @@ class Settings:
             api_token=os.getenv("EVALUATION_API_TOKEN", ""),
             frontend_origins=cls.frontend_origins_from_env(),
             skill_dir=Path(os.getenv("METRIC_SKILLS_DIR", str(cls.skill_dir))),
+            team_protocol=os.getenv("TEAM_PROTOCOL", cls.team_protocol),
+            weight_deviation=float(os.getenv("TEAM_WEIGHT_DEVIATION", str(cls.weight_deviation))),
             **{
                 field: int(os.getenv("TEAM_" + field.upper(), str(getattr(cls, field))))
                 for field in (
@@ -90,6 +94,10 @@ class Settings:
             bucket_secret_key=os.getenv("SECRET_ACCESS_KEY", "").strip(),
             bucket_encryption_key=os.getenv("BUCKET_ENCRYPTION_KEY", "").strip(),
         )
+        if settings.team_protocol not in {"leader-review-v1", "leader-review-v2", "legacy"}:
+            raise ValueError("Unknown TEAM_PROTOCOL")
+        if not 0 <= settings.weight_deviation < 1:
+            raise ValueError("TEAM_WEIGHT_DEVIATION must be in [0,1)")
         bucket_values = (
             settings.bucket,
             settings.bucket_endpoint,

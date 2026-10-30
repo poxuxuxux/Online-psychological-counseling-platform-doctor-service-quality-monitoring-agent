@@ -93,8 +93,9 @@ def test_published_d6_scores_clear_case_and_reviews_flagged_case(metric_id):
     }
     assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == [metric_id]
     finding["review_rule_ids"] = ["urgent_safety_review"]
-    with pytest.raises(ValueError, match="Unresolved review rules"):
-        tools.submit(state, agent, {"findings": [finding]})
+    rejected = tools.submit(state, agent, {"findings": [finding]})
+    assert not rejected["accepted"]
+    assert "Unresolved review rules" in rejected["rejected"][0]["error"]
     finding.update(status="NOT_EVALUABLE", score=None)
     assert tools.submit(state, agent, {"findings": [finding]})["accepted"] == [metric_id]
 
@@ -110,8 +111,9 @@ def test_d6_professional_review_distinguishes_absent_trigger_from_uncertain_trig
                   "evidence_ids": [], "claims": [], "review_rule_ids": []}
     assert tools.submit(state, agent, {"findings": [no_trigger]})["accepted"] == ["D6.1"]
     no_trigger["review_rule_ids"] = ["rubric_unpublished"]
-    with pytest.raises(ValueError, match="Unknown manual review rule"):
-        tools.submit(state, agent, {"findings": [no_trigger]})
+    rejected = tools.submit(state, agent, {"findings": [no_trigger]})
+    assert not rejected["accepted"]
+    assert "Unknown manual review rule" in rejected["rejected"][0]["error"]
     uncertain = {**no_trigger, "status": "NOT_EVALUABLE",
                  "review_rule_ids": ["context_ambiguous"]}
     assert tools.submit(state, agent, {"findings": [uncertain]})["accepted"] == ["D6.1"]
@@ -143,11 +145,13 @@ def test_d2_interaction_time_does_not_require_first_response_start():
                     "scope": "current_session", "statement": "Doctor replied", "evidence_ids": ["e1"]}],
         "review_rule_ids": [],
     }
-    with pytest.raises(ValueError, match="blocked by configuration"):
-        tools.submit(state, agent, {"findings": [finding]})
+    rejected = tools.submit(state, agent, {"findings": [finding]})
+    assert not rejected["accepted"]
+    assert "blocked by configuration" in rejected["rejected"][0]["error"]
     finding["metric_id"] = "D2.1"
-    with pytest.raises(ValueError, match="blocked by configuration"):
-        tools.submit(state, agent, {"findings": [finding]})
+    rejected = tools.submit(state, agent, {"findings": [finding]})
+    assert not rejected["accepted"]
+    assert "blocked by configuration" in rejected["rejected"][0]["error"]
 
 
 @pytest.mark.parametrize(
@@ -176,8 +180,9 @@ def test_unconfigured_timing_policy_blocks_scores_at_submission_and_scoring(metr
 
     assert catalog.metrics[metric_id]["time_fact"] == time_fact
     assert not score_eligible(state, metric_id, finding)
-    with pytest.raises(ValueError, match="blocked by configuration"):
-        TeamTools(Settings(), None).submit(state, agent, {"findings": [finding]})
+    rejected = TeamTools(Settings(), None).submit(state, agent, {"findings": [finding]})
+    assert not rejected["accepted"]
+    assert "blocked by configuration" in rejected["rejected"][0]["error"]
 
     finding.update(
         status="NOT_EVALUABLE",

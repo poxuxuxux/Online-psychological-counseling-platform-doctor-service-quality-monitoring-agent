@@ -966,6 +966,70 @@ onUnmounted(() => {
                     {{ agentName(a.agent_id) }}：{{ a.error }}
                   </p>
                 </details>
+                <details v-if="report.collaboration" class="report-limitations collaboration-audit">
+                  <summary>
+                    Leader 组织与协商 · 已选 {{ report.collaboration.selected_metric_ids.length }} 项 ·
+                    {{ report.collaboration.round_count }}/3 轮
+                  </summary>
+                  <p>{{ report.collaboration.context_summary }}</p>
+                  <p v-if="report.collaboration.protocol === 'leader-review-v2'" class="small">
+                    三个视角先独立初评全部指标，再由 Leader 依情境、评分与证据分布、核心需求相关性决定保留项。
+                    每阶段先归一化，未入选补 0，三阶段固定平均；无等权起点或 ±20% 限幅。
+                  </p>
+                  <p v-else class="small">
+                    三个视角独立评价同一组所选指标；讨论由 Leader 组织。历史协议权重在评分前冻结，最终份额相对等权最多浮动
+                    {{ ((report.collaboration.weight_deviation ?? 0.2) * 100).toFixed(0) }}%。
+                  </p>
+                  <details v-for="stage in report.collaboration.weighting_stages" :key="stage.stage">
+                    <summary>{{ stage.stage === 'scenario' ? '阶段1 · 情境分析' : stage.stage === 'distribution' ? '阶段2 · 评分与证据分布' : '阶段3 · 核心需求相关性' }}</summary>
+                    <p>{{ stage.context_summary }}</p>
+                    <p>{{ stage.task_analysis }}</p>
+                    <p>{{ stage.relevance_analysis }}</p>
+                    <p>{{ stage.consistency_check }}</p>
+                    <p v-for="item in stage.selected" :key="item.metric_id">
+                      {{ item.metric_id }} · {{ ((stage.weights[item.metric_id] ?? 0) * 100).toFixed(2) }}%：{{ item.reason }}
+                    </p>
+                  </details>
+                  <div class="table-scroll">
+                    <table>
+                      <thead><tr><th>所选指标</th><th>{{ report.collaboration.protocol === 'leader-review-v2' ? '三阶段平均权重' : '初评前权重' }}</th><th>最终计分权重</th></tr></thead>
+                      <tbody>
+                        <tr v-for="mid in report.collaboration.selected_metric_ids" :key="mid">
+                          <td>{{ mid }} · {{ metricName(mid) }}</td>
+                          <td>{{ ((report.collaboration.weights[mid] ?? 0) * 100).toFixed(2) }}%</td>
+                          <td>{{ report.quality_profile?.weights?.[mid] === undefined ? '未计入' : `${(report.quality_profile.weights[mid]! * 100).toFixed(2)}%` }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <details>
+                    <summary>Leader 未选择的指标（不属于本次缺项）</summary>
+                    <p v-for="item in report.collaboration.excluded" :key="item.metric_id">
+                      {{ item.metric_id }} · {{ metricName(item.metric_id) }}：{{ item.reason }}
+                    </p>
+                  </details>
+                  <details v-for="initial in report.collaboration.initial_evaluations" :key="initial.agent_id">
+                    <summary>{{ agentName(initial.agent_id) }} · 独立初评</summary>
+                    <p>{{ initial.perspective }}</p>
+                    <p v-for="finding in initial.findings" :key="finding.metric_id">
+                      <strong>{{ finding.metric_id }} · {{ finding.score === null ? '无数值分' : `${finding.score}/5` }}</strong>：{{ finding.reason }}
+                    </p>
+                  </details>
+                  <details v-for="version in report.collaboration.reports" :key="version.version">
+                    <summary>报告 P{{ version.version }}{{ version.final ? ' · 最终裁决' : ' · 候选报告' }}</summary>
+                    <article v-for="finding in version.findings" :key="finding.metric_id">
+                      <p><strong>{{ finding.metric_id }} · {{ finding.score === null ? '无数值分' : `${finding.score}/5` }}</strong>：{{ finding.reason }}</p>
+                      <p class="small">Leader 核对问题：{{ finding.question }}</p>
+                      <p v-for="reply in report.collaboration.feedback.filter((item) => item.report_version === version.version && item.metric_id === finding.metric_id)" :key="reply.feedback_id">
+                        {{ agentName(reply.agent_id) }} · {{ reply.decision === 'agree' ? '同意' : reply.decision === 'disagree' ? '提出异议' : '仍无法判断' }}：{{ reply.reason }}
+                      </p>
+                      <p v-for="response in finding.responses" :key="response.feedback_id" class="small">
+                        Leader {{ response.disposition === 'accepted' ? '采纳反馈' : response.disposition === 'rejected' ? '未采纳反馈' : '部分采纳反馈' }}：{{ response.reason }}
+                      </p>
+                    </article>
+                  </details>
+                  <p class="small">独立初评不等于三方一致；有据裁决保留不同意见，也不代表独立专业核验。</p>
+                </details>
               </template>
             </section>
           </div>

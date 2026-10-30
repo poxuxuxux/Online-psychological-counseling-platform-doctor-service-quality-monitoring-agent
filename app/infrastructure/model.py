@@ -2,6 +2,7 @@
 """DeepSeek/Qwen/GLM JSON tool-decision gateway. Secrets and provider bodies never enter logs."""
 
 import json
+import logging
 import os
 import re
 import time
@@ -11,6 +12,36 @@ import httpx
 
 from app.domain.ports import ModelUnavailable
 from app.infrastructure.telemetry import model_usage
+
+log = logging.getLogger(__name__)
+
+
+def transport_diagnostics(error, endpoint_host):
+    """Exception classes only: never expose URLs with credentials, headers or response bodies."""
+    causes, seen = [], set()
+    current = error
+    while current is not None and id(current) not in seen and len(causes) < 8:
+        seen.add(id(current))
+        causes.append(type(current).__name__)
+        current = current.__cause__ or current.__context__
+    if isinstance(error, httpx.ProxyError):
+        category = "proxy"
+    elif any("SSL" in name or "Certificate" in name for name in causes):
+        category = "tls"
+    elif "gaierror" in causes:
+        category = "dns"
+    elif isinstance(error, httpx.TimeoutException):
+        category = "timeout"
+    elif isinstance(error, httpx.RemoteProtocolError):
+        category = "remote_protocol"
+    elif isinstance(error, httpx.ConnectError):
+        category = "connect"
+    elif isinstance(error, (httpx.ReadError, httpx.WriteError)):
+        category = "read_write"
+    else:
+        category = "transport"
+    return {"category": category, "exception_type": type(error).__name__,
+            "cause_types": causes, "endpoint_host": endpoint_host}
 
 PROVIDERS = {
     "deepseek": {
@@ -64,9 +95,8 @@ def _decode_object(content):
                     quoted = True
                 elif char in "{[":
                     stack.append("}" if char == "{" else "]")
-                elif char in "}]":
-                    if not stack or stack.pop() != char:
-                        break
+                elif char in "}]" and (not stack or stack.pop() != char):
+                    break
             else:
                 if not quoted and stack:
                     try:
@@ -165,7 +195,7 @@ class JsonModelGateway:
             content = choice["message"]["content"]
             measurement["failure_stage"] = "model_content_json"
             try:
-                result, fenced, recovered = _decode_object(content)
+                result, _fenced, recovered = _decode_object(content)
             except json.JSONDecodeError as error:
                 measurement["json_error"] = {
                     "message": error.msg,
@@ -179,12 +209,24 @@ class JsonModelGateway:
                 measurement["json_error"] = {"type": type(result).__name__}
                 raise TypeError("Expected JSON object")
             return result
-        except httpx.TimeoutException:
-            raise ModelUnavailable("model_timeout") from None
+        except httpx.TimeoutException as error:
+            detail = transport_diagnostics(error, urlsplit(self.base_url).hostname)
+            measurement["transport_error"] = detail
+            unavailable = ModelUnavailable("model_timeout")
+            unavailable.diagnostics = detail
+            log.warning("Model transport error: provider=%s host=%s type=%s causes=%s",
+                        self.provider, detail["endpoint_host"], detail["exception_type"], detail["cause_types"])
+            raise unavailable from None
         except httpx.HTTPStatusError as error:
             raise ModelUnavailable(f"model_http_{error.response.status_code}") from None
-        except httpx.RequestError:
-            raise ModelUnavailable("model_connection_failed") from None
+        except httpx.RequestError as error:
+            detail = transport_diagnostics(error, urlsplit(self.base_url).hostname)
+            measurement["transport_error"] = detail
+            unavailable = ModelUnavailable("model_connection_failed")
+            unavailable.diagnostics = detail
+            log.warning("Model transport error: provider=%s host=%s type=%s causes=%s",
+                        self.provider, detail["endpoint_host"], detail["exception_type"], detail["cause_types"])
+            raise unavailable from None
         except (ValueError, KeyError, IndexError, TypeError) as error:
             measurement.setdefault("json_error", {"type": type(error).__name__})
             raise ModelUnavailable("model_invalid_json") from None

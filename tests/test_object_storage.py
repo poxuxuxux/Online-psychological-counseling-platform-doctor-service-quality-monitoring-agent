@@ -146,7 +146,7 @@ async def test_evaluation_completes_with_bucket_backed_snapshots(tmp_path, sessi
     repo = Repository(url, object_store=store)
     await repo.initialize()
     service = EvaluationService(
-        replace(Settings(), database_url=url, seed_demo=False),
+        replace(Settings(team_protocol="legacy"), database_url=url, seed_demo=False),
         repo,
         ScriptedModel(),
         catalog,

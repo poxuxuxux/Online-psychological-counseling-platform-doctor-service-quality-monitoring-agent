@@ -10,7 +10,14 @@ import {
   type Session,
 } from '../contracts/evaluation'
 
+// Team v2 may run several bounded collaboration rounds before returning a report.
+const evaluationTimeoutMs = 1_830_000
+
 export const api = {
+  retryRun: (id: string) => request(`/api/v1/runs/${encodeURIComponent(id)}/retry`,
+    z.object({ run_id: z.string() }), { method: 'POST' }),
+  executeRun: (id: string) => request(`/api/v1/runs/${encodeURIComponent(id)}/execute`,
+    ReportSchema, { method: 'POST' }, evaluationTimeoutMs),
   demoSessions: () => request('/api/v1/demo/sessions', z.array(SessionSchema)),
   demoDetail: (id: string) =>
     request(`/api/v1/demo/sessions/${encodeURIComponent(id)}`, ConsultationDetailSchema),
@@ -57,14 +64,14 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(session),
       },
-      600000,
+      evaluationTimeoutMs,
     ),
   evaluateGuest: (session: Session) =>
     request('/api/v1/guest/evaluations', ReportSchema, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(session),
-    }, 600000),
+    }, evaluationTimeoutMs),
   recent: () => request('/api/v1/evaluations/recent?limit=20', RecentSchema),
   health: () => request('/health', z.object({ status: z.string() })),
   ready: () => request('/ready', ReadySchema),

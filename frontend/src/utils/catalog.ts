@@ -1,5 +1,9 @@
 // 环节：前端展示工具层；用途：提供目录映射、显示计算、导出或复核排序逻辑。
 export const agents: Record<string, string> = {
+  team_lead: 'Leader · 综合与裁决',
+  'evaluator:effectiveness': '评价 Agent 1 · 问题解决与实效',
+  'evaluator:empathy': '评价 Agent 2 · 情绪处境与沟通',
+  'evaluator:collaboration': '评价 Agent 3 · 响应协作与落地',
   professional_service: '专业服务评价',
   process_response: '过程与响应评价',
   empathy_relationship: '共情与关系评价',

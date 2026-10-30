@@ -2,6 +2,8 @@
 
 Python 3.11+ / FastAPI / LangGraph / PostgreSQL。评价对象是医生服务行为。外层确定性流程，内层按需协作团队；不根据分数诊断患者。
 
+默认新协议及配置、计分与恢复见 [Leader中心化协议](docs/LEADER_PROTOCOL.md)。上一轮修复记录见 [评分可靠性说明](docs/SCORING_RELIABILITY.md)。
+
 ## 本地运行
 
 ```powershell
@@ -30,8 +32,8 @@ CLI 会加载 `.env`；`evaluate` 会调用配置的真实模型。自动测试�
 app/
   domain/          Pydantic 输入/动作/评分契约、模型/仓储/知识接口
   context/         对话规范化、医患关系查询、初复诊路由、历史上下文
-  rubrics/         现有 metric.yaml + SKILL.md、动态目录加载和版本哈希
-  team/            任务状态、共享证据、消息工具、独立 Reviewer、动态子图
+  rubrics/         SKILL.md指标规则、动态目录加载和版本哈希
+  team/            Leader规划与赋权、三视角初评、MessageBus、限轮反馈与有据裁决；兼容旧子图
   evaluation/      评分汇总、服务风险、总结、纵向分析、报表
   workflow/        外层 StateGraph、依赖编排、恢复入口和总超时
   infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配、加密 Bucket 对象存储
@@ -47,18 +49,11 @@ app/
 
 主图节点：预处理 → Session Context → Initial / Historical Context → Team Lead → Team Initialization → Team Subgraph → Completion Check → Scoring → Risk → Summary → Longitudinal Analysis → Report → Storage。独立 Evidence Validator 已移除。
 
-团队子图：`schedule → observe → reason → act → save → schedule`。不是一次并行评分后结束；每一步根据当前观察调用工具，并重新进入调度。
+新运行默认leader-review-v2：三个Agent从问题解决、情绪处境、响应协作视角先独立初评全部18项。Leader随后依情境、评分与证据分布、核心需求相关性分别选项赋权；每阶段先归一化，未入选补0，三个阶段固定平均，无等权起点或±20%限幅。Leader不受Agent不适用意见限制，可保留并要求重评，也可删除已评分项。Leader汇总P0并检查五分制分差≥3及非数值问题，通过MessageBus与各评价者往返；接受或拒绝异议都要解释。最多3轮后作有据裁决，保留异议，不把裁决标成全体共识。真正的材料或规则不足仍留空。
 
-- 主责 Evaluator 按 `app/rubrics/groups.py` 分为 D1+D3、D2+D5、D4+D6 三组；原始六个维度仍独立评分和统计。新增未映射维度会自动建立单独 Agent。临时 Reviewer 在需要时创建。
-- 任务拥有独立观察记录、负责指标、状态、步数和耗时。消息接收者在已完成或等待状态下也会重新进入 PENDING。
-- 消息经过 PENDING → DELIVERED → PROCESSED；接收者读取后必须记录采纳/无关/已答复及理由，才能完成任务。
-- 共享证据必须是当前消息中连续原文，带角色、消息 ID、轮次、来源 Agent；解释不能充当事实。
-- 只允许指标主责 Agent 修订自己的评分。全部修订和原始版本保存，Reviewer 只提出复核意见。
-- 相同主体、行为和范围的相反事实主张触发复核；不同维度分数差异不触发冲突。表达未被归一为同一行为的语义冲突可由 Agent 主动报告；当前不宣称确定性检测器能识别全部语义等价表述。
-- 严重服务风险标记单调保留，Reviewer 不能取消。
-- 有步数、轮次、消息、复核、修订、单 Agent 耗时、总耗时和模型调用数限制。
+新子图以advance/save循环推进planning、initial、report、feedback、revision和终评阶段；阶段、预算与成功提交保存于节点快照。消息仅允许Leader与Teammate往返，无争议卡。完整说明见docs/LEADER_PROTOCOL.md。
 
-工具包括 `read_skill`、`get_dialogue`、`get_evidence`、`share_evidence`、`time_calculator`、`search_knowledge`、`get_session_context`、`get_previous_evaluations`、`send_message`、`get_messages`、`acknowledge_message`、`request_review`、`submit_review`、`submit_evaluation`、`wait`、`finish`。模型输出结构化工具决策，后端执行受控能力，不执行模型提供的 Python/SQL。
+旧TEAM_PROTOCOL=legacy保留原schedule/observe/reason/act/save与D1+D3、D2+D5、D4+D6分工，仅用于旧运行兼容。旧检查点按自身协议恢复，不会被环境变量静默改变。
 
 ## 初复诊与历史防锚定
 
@@ -80,11 +75,11 @@ app/
 
 模型请求携带 `SKILL.md` 的结构化规则与执行说明。规则与对话由程序预载；Agent 仍可主动取证、协作和修正。已移除独立模型语义校验及其自动修正调用；报告明确标记 `verification_mode=none`，前端显示“Agent 已评分”，不声称经过独立核验。
 
-新报告的 `team.usage` 记录供应商返回的输入/输出 token、实际记录用量的请求数与输入字符数，前端报告中可展开查看。旧报告没有 token 统计，不把缺失统计当作零成本。模型超时和服务错误每个 Agent 最多连续累计两次后停止，避免预算空转。
+新报告的 `team.usage` 记录供应商返回的输入/输出 token、实际记录用量的请求数与输入字符数，前端报告中可展开查看。旧报告没有 token 统计，不把缺失统计当作零成本。模型超时和服务错误连续两次后停止；截断或格式错误会缩小为单项提交，连续三次后停止。默认每次建议提交两项，单 Agent 累计模型耗时预算为 300 秒，总耗时仍为 600 秒，环境变量可覆盖。
 
 可运行 `python -m scripts.prepare_real_samples` 从本地真实数据流式选取 3 份订单范围样本，输出到忽略提交的 `data/private/quality-samples`。不会把跨年线程当作一次问诊，也不会截断长订单来伪装完整会话。样本去除原始身份元数据及可识别的姓名、联系方式，但自由文本不保证完全匿名，必须保留私有访问。没有明确结束事件时 `observation_complete=false`，没有明确接诊事件时不生成首次响应计时起点。
 
-分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。提交工具仍校验指标归属、发布状态、分数锚点取值、原文证据引用、时间事实和显式复核规则；未解决冲突或缺项不计分。这里不再有独立的事实/适用性/评分语义复核，Agent 判断可能有误。总分使用 Skill 权重均值，默认等权；覆盖门控只统计可计分指标（published 且无 scoring_blockers），配置上无法数值计分的指标在 `quality_profile.score_exclusions` 中披露，不再阻塞总分；其余全部适用指标可计分且团队任务完成，才生成总分。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，覆盖不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
+分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。提交工具仍校验指标归属、发布状态、分数锚点取值、原文证据引用、时间事实和显式复核规则；未解决冲突或缺项不计分。这里不再有独立的事实/适用性/评分语义复核，Agent 判断可能有误。总分使用 Skill 权重均值，默认等权；覆盖门控只统计可计分指标（published 且无 scoring_blockers），配置上无法数值计分的指标在 `quality_profile.score_exclusions` 中披露，不再阻塞总分；新协议只对Leader选中的项目计分，必要反馈和最终裁决必须完成；真正的应计分缺口阻断总分。旧协议保留上一轮关于可计分项和Leader单独失败的策略，不用于解释新协议。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，覆盖不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
 
 带有结构化 `scoring_blockers` 的指标即使状态为 published，也不能提交或计入数值评分；必须提交对应人工复核原因。当前 D2.1、D2.2 的计时政策尚未配置，因此只记录可用时间事实，不生成确定性分数，但不再因此放弃其他指标的总分。
 

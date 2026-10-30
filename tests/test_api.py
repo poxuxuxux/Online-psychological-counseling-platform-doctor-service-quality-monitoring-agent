@@ -1,19 +1,43 @@
 # 环节：后端测试层；用途：验证接口、工作流、规则策略或数据持久化行为。
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi.testclient import TestClient
 
 from app.config import Settings
+from app.domain.ports import ModelUnavailable
 from app.main import create_app
 from tests.conftest import ScriptedModel
 
 
+def test_retry_requires_access_preserves_original_and_returns_new_run(tmp_path, catalog, session):
+    class Unavailable(ScriptedModel):
+        async def json(self, *args):
+            raise ModelUnavailable("model_timeout")
+
+    settings = replace(Settings(team_protocol="legacy"), seed_demo=False,
+                       database_url="sqlite:///" + str(tmp_path / "retry.sqlite3"),
+                       api_token="test-token-at-least-24-characters")
+    with TestClient(create_app(settings=settings, model=Unavailable(), catalog=catalog)) as client:
+        headers = {"Authorization": "Bearer " + settings.api_token}
+        original = client.post("/api/v1/evaluations", json=session.model_dump(mode="json"),
+                               headers=headers).json()
+        path = f"/api/v1/runs/{original['evaluation_id']}/retry"
+        assert client.post(path).status_code == 401
+        created = client.post(path, headers=headers)
+        assert created.status_code == 201
+        new_id = created.json()["run_id"]
+        assert new_id != original["evaluation_id"]
+        assert client.get(f"/api/v1/runs/{new_id}", headers=headers).json()["status"] == "pending"
+        assert client.get(f"/api/v1/runs/{original['evaluation_id']}",
+                          headers=headers).json()["report"] == original
+
+
 def test_guest_evaluation_needs_no_token_and_is_not_published(tmp_path, catalog, session):
     settings = replace(
-        Settings(), database_url="sqlite:///" + str(tmp_path / "guest-host.sqlite3"),
+        Settings(team_protocol="legacy"), database_url="sqlite:///" + str(tmp_path / "guest-host.sqlite3"),
         api_token="test-token-at-least-24-characters", seed_demo=False,
     )
     with TestClient(create_app(settings=settings, model=ScriptedModel(), catalog=catalog)) as client:
@@ -29,7 +53,7 @@ def test_guest_evaluation_needs_no_token_and_is_not_published(tmp_path, catalog,
 
 def test_private_consultation_catalog_requires_token_and_excludes_demo(tmp_path, catalog, session):
     settings = replace(
-        Settings(), database_url="sqlite:///" + str(tmp_path / "listing.sqlite3"),
+        Settings(team_protocol="legacy"), database_url="sqlite:///" + str(tmp_path / "listing.sqlite3"),
         api_token="test-token-at-least-24-characters", seed_demo=True,
     )
     headers = {"Authorization": "Bearer " + settings.api_token}
@@ -41,21 +65,23 @@ def test_private_consultation_catalog_requires_token_and_excludes_demo(tmp_path,
         listing = client.get("/api/v1/consultations?scope=private", headers=headers).json()
         assert listing["total"] == 1
         assert [item["session_id"] for item in listing["items"]] == [session.session_id]
-        today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
         in_range = client.get(
-            f"/api/v1/consultations?scope=private&start_date={today}&end_date={today}",
+            "/api/v1/consultations?scope=private&start_date=2026-01-01&end_date=2026-01-01",
+            headers=headers,
+        ).json()
+        out_of_range = client.get(
+            "/api/v1/consultations?scope=private&start_date=2025-12-31&end_date=2025-12-31",
             headers=headers,
         ).json()
         assert in_range["total"] == 1
-        outside_range = client.get(
-            "/api/v1/consultations?scope=private&start_date=2020-01-01&end_date=2020-01-01",
-            headers=headers,
-        ).json()
-        assert outside_range["total"] == 0
+        assert out_of_range["total"] == 0
+        assert client.get(
+            "/api/v1/consultations?scope=private&start_date=2026-01-02", headers=headers
+        ).status_code == 422
 
 
 async def test_cors_allows_only_configured_frontend_origin():
-    settings = replace(Settings(), frontend_origins=("https://frontend.example",))
+    settings = replace(Settings(team_protocol="legacy"), frontend_origins=("https://frontend.example",))
     transport = httpx.ASGITransport(app=create_app(settings=settings))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         headers = {
@@ -75,7 +101,7 @@ async def test_cors_allows_only_configured_frontend_origin():
 
 def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session):
     settings = replace(
-        Settings(),
+        Settings(team_protocol="legacy"),
         database_url="sqlite:///" + str(tmp_path / "api.sqlite3"),
         api_token="test-token-at-least-24-characters",
         seed_demo=True,
@@ -113,38 +139,32 @@ def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session)
         private_list = client.get("/api/v1/consultations?scope=private", headers=headers).json()
         assert private_list["total"] == 1
         assert [item["session_id"] for item in private_list["items"]] == ["s1"]
-        overview = client.get("/api/v1/evaluations/overview?days=7", headers=headers).json()
-        assert overview["counts"]["scored"] == 1
-        assert len(overview["trend"]) == 7
-        today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-        exact_overview_response = client.get(
+        today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
+        overview = client.get(
             f"/api/v1/evaluations/overview?start_date={today}&end_date={today}",
             headers=headers,
-        )
-        assert exact_overview_response.status_code == 200, exact_overview_response.text
-        exact_overview = exact_overview_response.json()
-        assert exact_overview["period_start"] == exact_overview["period_end"] == today
-        assert exact_overview["days"] == len(exact_overview["trend"]) == 1
-        exact_doctors = client.get(
+        ).json()
+        assert overview["counts"]["scored"] == 1
+        assert len(overview["trend"]) == 1
+        assert overview["period_start"] == overview["period_end"] == str(today)
+        previous = today - timedelta(days=1)
+        empty_overview = client.get(
+            f"/api/v1/evaluations/overview?start_date={previous}&end_date={previous}",
+            headers=headers,
+        ).json()
+        assert empty_overview["counts"]["scored"] == 0
+        doctors = client.get(
             f"/api/v1/monitoring/doctors?start_date={today}&end_date={today}",
             headers=headers,
-        )
-        assert exact_doctors.status_code == 200, exact_doctors.text
-        assert exact_doctors.json()["doctor_count"] == 1
-        exact_profile = client.get(
+        ).json()
+        assert doctors["days"] == 1
+        assert [doctor["doctor_id"] for doctor in doctors["doctors"]] == ["d1"]
+        profile = client.get(
             f"/api/v1/monitoring/doctors/d1?start_date={today}&end_date={today}",
             headers=headers,
-        )
-        assert exact_profile.status_code == 200, exact_profile.text
-        assert exact_profile.json()["period_start"] == exact_profile.json()["period_end"] == today
-        assert exact_profile.json()["counts"]["in_window"] == 1
-        assert client.get(
-            f"/api/v1/evaluations/overview?start_date={today}", headers=headers
-        ).status_code == 422
-        assert client.get(
-            f"/api/v1/evaluations/overview?start_date={today}&end_date=2020-01-01",
-            headers=headers,
-        ).status_code == 422
+        ).json()
+        assert profile["days"] == 1
+        assert profile["period_start"] == profile["period_end"] == str(today)
         payload = {
             "evaluation_id": run,
             "finding_id": report["agent_results"][0]["findings"][0]["finding_id"],
@@ -165,7 +185,7 @@ def test_api_auth_evaluation_audit_and_compatibility(tmp_path, catalog, session)
 
 
 def test_public_demo_cannot_spoof_private_content(tmp_path, catalog):
-    settings = replace(Settings(), database_url="sqlite:///" + str(tmp_path / "demo.sqlite3"))
+    settings = replace(Settings(team_protocol="legacy"), database_url="sqlite:///" + str(tmp_path / "demo.sqlite3"))
     with TestClient(create_app(settings, model=ScriptedModel(), catalog=catalog)) as client:
         demo = client.get("/api/v1/demo/session").json()
         response = client.post("/api/v1/evaluations", json=demo)

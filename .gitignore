@@ -35,3 +35,7 @@ frontend/*.tsbuildinfo
 .backend-backups/
 .pytest*/
 
+
+.pnpm-store/
+.venv-quality/
+

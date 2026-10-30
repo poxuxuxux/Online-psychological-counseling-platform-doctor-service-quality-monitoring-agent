@@ -68,8 +68,11 @@ export async function request<T>(
     return result.data
   } catch (error) {
     if (error instanceof ApiError) throw error
-    if (controller.signal.aborted)
+    if (controller.signal.aborted) {
+      if (path === '/api/v1/guest/evaluations')
+        throw new ApiError('上传评价请求已超时。后端可能仍在执行；访客结果不保存到最近记录，无法通过历史列表找回。请勿立即重复提交，请先核查后端状态。')
       throw new ApiError('请求已超时。评估可能仍在服务端执行，请先查看最近记录，再决定是否重试。')
+    }
     throw new ApiError('无法连接服务，请检查网络或后端是否启动。')
   } finally {
     clearTimeout(timer)

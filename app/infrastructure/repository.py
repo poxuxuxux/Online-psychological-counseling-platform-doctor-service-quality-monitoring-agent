@@ -379,7 +379,8 @@ class Repository:
         ]
 
     async def consultations(
-        self, limit, offset, query, public=True, private_only=False, start_date=None, end_date=None
+        self, limit, offset, query, public=True, private_only=False,
+        start_date=None, end_date=None,
     ):
         # 私有工作台只列真实导入记录；公开查询仍只能看合成演示记录。
         if private_only and public:
@@ -387,38 +388,52 @@ class Repository:
         source_filter = "COALESCE(s.source_id,'')!='synthetic-demo'" if private_only else "(?=0 OR s.source_id='synthetic-demo')"
         where = f"{source_filter} AND s.session_id LIKE ?"
         params = ("%" + query + "%",) if private_only else (int(public), "%" + query + "%")
-        if start_date is not None and end_date is not None:
-            local_date = (
-                "(s.updated_at::timestamptz AT TIME ZONE 'Asia/Shanghai')::date"
-                if self.postgres
-                else "date(s.updated_at, '+8 hours')"
-            )
-            where += f" AND {local_date} BETWEEN ? AND ?"
-            params = (*params, start_date.isoformat(), end_date.isoformat())
+
+        select_rows = f"""SELECT s.payload,s.updated_at,(SELECT r.status FROM team_runs r
+          WHERE r.session_id=s.session_id AND r.report IS NOT NULL
+          ORDER BY r.created_at DESC LIMIT 1) FROM team_sessions s WHERE {where}
+          ORDER BY s.updated_at DESC,s.session_id"""
+
+        def item_from(row):
+            payload, updated, status = row
+            record = json.loads(payload)
+            return {
+                "session_id": record["session_id"],
+                "consultation_round": record["consultation_round"],
+                "message_count": record.get("message_count", len(record.get("messages", []))),
+                "updated_at": updated,
+                "evaluation_status": status,
+            }
+
+        if start_date or end_date:
+            rows = (await self._transaction([(select_rows, params)]))[0]
+            filtered = []
+            for row in rows:
+                record = json.loads(row[0])
+                messages = record.get("messages") or []
+                stamp = record.get("imported_at") or (
+                    messages[0].get("timestamp") if messages else None
+                ) or record.get("session_time")
+                day = str(stamp or "")[:10]
+                if not day or (start_date and day < start_date) or (end_date and day > end_date):
+                    continue
+                filtered.append(item_from(row))
+            return {
+                "database_configured": True,
+                "total": len(filtered),
+                "items": filtered[offset:offset + limit],
+            }
+
         count, rows = await self._transaction(
             [
                 (f"SELECT COUNT(*) FROM team_sessions s WHERE {where}", params),
                 (
-                    f"""SELECT s.payload,s.updated_at,(SELECT r.status FROM team_runs r
-              WHERE r.session_id=s.session_id AND r.report IS NOT NULL
-              ORDER BY r.created_at DESC LIMIT 1) FROM team_sessions s WHERE {where}
-              ORDER BY s.updated_at DESC,s.session_id LIMIT ? OFFSET ?""",
+                    select_rows + " LIMIT ? OFFSET ?",
                     (*params, limit, offset),
                 ),
             ]
         )
-        items = []
-        for payload, updated, status in rows:
-            record = json.loads(payload)
-            items.append(
-                {
-                    "session_id": record["session_id"],
-                    "consultation_round": record["consultation_round"],
-                    "message_count": record.get("message_count", len(record.get("messages", []))),
-                    "updated_at": updated,
-                    "evaluation_status": status,
-                }
-            )
+        items = [item_from(row) for row in rows]
         return {"database_configured": True, "total": count[0][0], "items": items}
 
     async def detail(self, session_id):

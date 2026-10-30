@@ -18,7 +18,7 @@ from tests.conftest import ScriptedModel
 )
 async def test_postgres_transactional_team_and_history(catalog, session):
     settings = replace(
-        Settings(), database_url=os.environ.get("TEST_DATABASE_URL", ""), seed_demo=False
+        Settings(team_protocol="legacy"), database_url=os.environ.get("TEST_DATABASE_URL", ""), seed_demo=False
     )
     repo = Repository(settings.database_url)
     await repo.initialize()

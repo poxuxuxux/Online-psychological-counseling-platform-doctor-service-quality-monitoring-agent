@@ -29,10 +29,12 @@ SYSTEM = """You evaluate DOCTOR SERVICE BEHAVIOR, never diagnose patients.
 You are an evaluator or the Team Lead arbitrator as specified by your task.
 Choose exactly ONE tool action each turn; a concise action justification suffices.
 Use the supplied SKILL.md frontmatter and instructions for applicability, anchors and evidence.
-Rules and dialogue are loaded for you before the first turn. Submit all assigned metrics in a
-batch when possible. Cite the smallest sufficient facts, usually 1-3 claims per metric.
+Rules and dialogue are loaded for you before the first turn. Submit at most submission_batch_size
+metrics per call, starting with suggested_metric_ids. Continue until every assigned metric is
+covered. Correct rejected metrics only; accepted results are already saved. Cite the smallest
+sufficient facts, usually 1-3 claims per metric. Never drop required fields to save output tokens.
 The full dialogue is supplied in the top-level 'dialogue' field of every observation. Every
-text dialogue message already has a ready-made full-message evidence ID: 'e-' + message_id;
+nonempty doctor/patient text dialogue message has a full-message evidence ID: 'e-' + message_id;
 cite those IDs directly. get_dialogue/read_skill/share_evidence are unnecessary when supplied
 context is sufficient.
 Use submit_evaluation with complete=true when done and no pending collaboration is needed.
@@ -55,7 +57,11 @@ Use source quotes, not a peer's interpretation, as evidence. Use get_messages an
 acknowledge every received message with your disposition. You may exchange evidence, ask peers
 for clarification or flag a possible conflict for Team Lead when useful; communication is not mandatory.
 You can revise only your own scores. Different dimension scores alone are not a conflict.
-For absence claims, complete observation is mandatory. No evidence means NOT_EVALUABLE.
+For absence claims, complete observation is mandatory. observation_complete=false does NOT
+invalidate directly observed positive behavior. Explain exactly which missing context prevents
+scoring, if any. Lack of a trigger in a complete session is NOT_APPLICABLE, not a low score.
+No evidence means NOT_EVALUABLE. Do not use NOT_EVALUABLE to escape a tool/schema error;
+correct the rejected fields using finding_schema and the tool's per-metric feedback.
 Historical scores must never anchor current scoring. Never invent time facts or clinical rules.
 Every assigned metric requires EVALUATED, NOT_APPLICABLE or NOT_EVALUABLE. submit_evaluation
 accepts a batch. Then finish if inbox is handled; wait only for a genuine pending collaboration.
@@ -143,6 +149,17 @@ class TeamRuntime:
             agent for agent in agents if team["tasks"][agent]["status"] in {"PENDING", "RUNNING"}
         ]
         if not team["stop_reason"] and not ready:
+            # Recover a stranded wait once, within the original step/time budgets.
+            for agent in agents:
+                current = team["tasks"][agent]
+                if current["status"] == "WAITING" and not current.get("wait_recovered"):
+                    current.update(status="PENDING", wait_recovered=True)
+                    current["observations"].append({"tool": "scheduler", "result": {
+                        "instruction": "No peer is running. Submit remaining metrics or finish; do not wait."
+                    }})
+                    event(team, "system", "recover_stranded_wait", {"agent": agent})
+                    ready.append(agent)
+        if not team["stop_reason"] and not ready:
             team["stop_reason"] = (
                 "completed"
                 if all(t["status"] == "COMPLETED" for t in team["tasks"].values())
@@ -173,8 +190,14 @@ class TeamRuntime:
     def _observation(self, data, agent):
         team = data["team"]
         task = team["tasks"][agent]
+        remaining = [mid for mid in task["metric_ids"]
+                     if mid not in task["findings"] or mid in task.get("submission_errors", {})]
+        batch_size = task.get("submission_batch_size", 2)
         # 键序即 JSON 序列化顺序：稳定内容在前（利于供应商前缀缓存），易变状态在后。
         return {
+            "submission_batch_size": batch_size,
+            "remaining_metric_ids": remaining,
+            "suggested_metric_ids": remaining[:batch_size],
             "frozen_skills": {
                 mid: (
                     {key: value for key, value in metric_payload(data["skills"]["metrics"][mid]).items()
@@ -205,7 +228,7 @@ class TeamRuntime:
                 for a, t in team["tasks"].items()
             ],
             "evidence": {
-                "rule": "every text dialogue message has full-message evidence ID 'e-<message_id>'",
+                "rule": "nonempty doctor/patient text dialogue messages have evidence ID 'e-<message_id>'",
                 "pool_size": len(team["evidence"]),
                 "sample_ids": list(team["evidence"])[:5],
             },
@@ -230,7 +253,6 @@ class TeamRuntime:
                     and message["modality"] == "text"
                     and message["role"] in {"doctor", "patient"}
                     and message["content"].strip()
-                    and len(message["content"]) <= 10000
                 ):
                     team["evidence"]["e-" + message["message_id"]] = {
                         "evidence_id": "e-" + message["message_id"],
@@ -320,7 +342,13 @@ class TeamRuntime:
                 )
                 task["model_errors"] = task.get("model_errors", 0) + 1
                 task["consecutive_model_errors"] = task.get("consecutive_model_errors", 0) + 1
-                if task["consecutive_model_errors"] >= 2:
+                format_error = code in {"model_truncated_response", "model_invalid_json", "model_schema_error"}
+                if format_error:
+                    task["submission_batch_size"] = 1
+                    task["observations"][-1]["result"]["recovery"] = (
+                        "Submit ONE remaining metric with concise reason and claims; follow finding_schema."
+                    )
+                if task["consecutive_model_errors"] >= (3 if format_error else 2):
                     task.update(status="FAILED", error=code)
 
         await asyncio.gather(*(decide(agent) for agent in batch))

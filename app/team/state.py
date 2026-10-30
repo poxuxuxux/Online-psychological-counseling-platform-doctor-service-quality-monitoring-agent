@@ -73,6 +73,8 @@ def initialize_team(skills, run_id):
 
 
 def active_findings(team):
+    if team.get("protocol") in {"leader-review-v1", "leader-review-v2"}:
+        return dict(team.get("final_findings", {}))
     return {
         mid: f
         for t in team["tasks"].values()

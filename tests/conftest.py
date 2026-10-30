@@ -205,7 +205,7 @@ class ScriptedModel:
 def make_service(tmp_path, catalog):
     async def factory(model=None, **overrides):
         settings = replace(
-            Settings(),
+            Settings(team_protocol="legacy"),
             database_url="sqlite:///" + str(tmp_path / "teams.sqlite3"),
             seed_demo=False,
             **overrides,

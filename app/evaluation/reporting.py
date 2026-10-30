@@ -5,15 +5,37 @@ from app.infrastructure.telemetry import usage_summary
 from app.team.state import active_findings
 
 
+def finding_outcome(state, mid, finding):
+    """Do not turn infrastructure failures or review policies into missing evidence."""
+    if finding.get("origin") == "runtime_fallback":
+        return "execution_failed"
+    if finding["status"] == "NOT_APPLICABLE" and not finding["review_rule_ids"]:
+        return "not_applicable"
+    spec = state["skills"]["metrics"][mid]
+    if spec["status"] != "published" or spec.get("scoring_blockers"):
+        return "configuration_blocked"
+    if any(c["status"] != "RESOLVED" and mid in c["metric_ids"]
+           for c in state["team"]["conflicts"].values()):
+        return "conflict"
+    if score_eligible(state, mid, finding):
+        return "scored"
+    rules = set(finding["review_rule_ids"])
+    if rules & {"source_incomplete", "context_ambiguous", "source_conflict", "time_facts_missing"}:
+        return "insufficient_evidence"
+    return "manual_review"
+
+
 def summarize(state):
     profile = state["quality_profile"]
     findings = active_findings(state["team"])
     accepted = [f for mid, f in findings.items() if score_eligible(state, mid, f)]
     total = profile["overall_score"]
+    expected = len(state.get("team_plan", {}).get("selected_metric_ids", [])) \
+        if state["team"].get("protocol") in {"leader-review-v1", "leader-review-v2"} else len(state["skills"]["metrics"])
     lines = [
         (
             f"本次为{ {'INITIAL': '初诊', 'FOLLOW_UP': '复诊', 'UNKNOWN': '初复诊未确定'}[state['context']['session_type']] }，"
-            f"已完成 {len(findings)}/{len(state['skills']['metrics'])} 项评价记录，"
+            f"已提交 {sum(f.get('origin') != 'runtime_fallback' for f in findings.values())}/{expected} 项评价记录，"
             f"其中 {len(accepted)} 项由 Agent 提交并符合计分输入约束。"
         )
     ]
@@ -34,6 +56,13 @@ def summarize(state):
         )
     if state["risk"]["requires_manual_review"]:
         lines.append("服务风险或评价缺口需人工复核。")
+    if not state["completion"]["complete"]:
+        lines.append("团队执行或协作复核尚未完成；已展示的分数不代表团队复核已通过。")
+    if state["team"].get("protocol") in {"leader-review-v1", "leader-review-v2"}:
+        adjudicated = [mid for mid, f in findings.items() if f.get("decision_method") == "evidence_adjudicated"]
+        lines.append(f"Leader选择{expected}项，已开展{state['team']['round']}轮反馈。")
+        if adjudicated:
+            lines.append("有据裁决（保留异议）：" + "、".join(adjudicated) + "；这些分数不代表全体一致。")
     return "".join(lines)
 
 
@@ -50,6 +79,7 @@ def longitudinal(state):
                 "evaluation_id": r.get("evaluation_id") if r else None,
                 "overall_score": r.get("quality_profile", {}).get("overall_score") if r else None,
                 "rubric_version": r.get("rubric_version") if r else None,
+                "scoring_signature": r.get("quality_profile", {}).get("scoring_signature") if r else None,
                 "risk": r.get("risk", {}).get("level") if r else None,
                 "summary": r.get("summary") if r else None,
             }
@@ -60,6 +90,7 @@ def longitudinal(state):
         and previous["rubric_version"] == state["skills"]["version"]
         and previous["overall_score"] is not None
         and current is not None
+        and previous.get("scoring_signature") == state["quality_profile"].get("scoring_signature")
     )
     return {
         "historical_sessions": records,
@@ -80,14 +111,18 @@ def longitudinal(state):
 
 def build_report(state):
     team, metrics = state["team"], state["skills"]["metrics"]
+    is_lead = team.get("protocol") in {"leader-review-v1", "leader-review-v2"}
     agent_results = []
     reasons = list(state["completion"]["issues"])
-    for agent, task in team["tasks"].items():
+    tasks = ({"team_lead": {**team["tasks"]["team_lead"], "kind": "evaluator",
+                           "findings": team["final_findings"]}} if is_lead else team["tasks"])
+    for agent, task in tasks.items():
         if task["kind"] != "evaluator":
             continue
         output = []
         for mid, f in task["findings"].items():
             accepted = score_eligible(state, mid, f)
+            outcome = finding_outcome(state, mid, f)
             evidence = [
                 {
                     "message_ids": [team["evidence"][eid]["message_id"]],
@@ -121,9 +156,12 @@ def build_report(state):
                     "evidence": evidence,
                     "limitations": f["review_rule_ids"],
                     "status": f["status"],
+                    "outcome": outcome,
+                    "failure_code": f.get("failure_code"),
+                    "decision_method": f.get("decision_method"),
                 }
             )
-            if f["status"] == "NOT_EVALUABLE":
+            if f["status"] == "NOT_EVALUABLE" and outcome != "configuration_blocked":
                 reasons.append(mid + ": " + (
                     "timing_policy_pending" if "timing_policy_pending" in f["review_rule_ids"]
                     else "not_evaluable"
@@ -152,15 +190,19 @@ def build_report(state):
         mid + ":" + issue for mid, m in metrics.items() for issue in m["configuration_issues"]
     ]
     status = "completed" if state["completion"]["complete"] and not reasons else "partial"
-    if len(state["completion"]["missing_metrics"]) == len(metrics):
+    required = len(state.get("team_plan", {}).get("selected_metric_ids", [])) if is_lead else len(metrics)
+    if (required and len(state["completion"]["missing_metrics"]) == required) or (
+        is_lead and not state.get("team_plan", {}).get("planning_complete")
+    ):
         status = "failed"
     conflicts = list(team["conflicts"].values())
-    return {
+    report = {
         "evaluation_id": state["run_id"],
+        "parent_evaluation_id": state.get("parent_evaluation_id"),
         "session_id": state["session"]["session_id"],
         "created_at": now(),
         "status": status,
-        "schema_version": "2.1",
+        "schema_version": "3.0" if is_lead else "2.2",
         "verification_mode": "none",
         "session_type": state["context"]["session_type"],
         "rubric_version": state["skills"]["version"],
@@ -175,6 +217,14 @@ def build_report(state):
         "limitations": issues,
         "review_required": bool(reasons),
         "review_reasons": list(dict.fromkeys(reasons)),
+        "score_notices": [
+            f"{entry['metric_id']}: {entry['reason']}"
+            for entry in state["quality_profile"].get("score_exclusions", [])
+        ],
+        "input_warnings": ([] if state["session"].get("observation_complete") else [
+            "observation_completeness_unconfirmed"
+        ]),
+        "collaboration_complete": state["completion"]["complete"],
         "arbitration_status": "unresolved"
         if any(c["status"] != "RESOLVED" for c in conflicts)
         else "resolved"
@@ -200,4 +250,51 @@ def build_report(state):
             "audit_url": f"/api/v1/runs/{state['run_id']}/audit",
         },
         "pipeline_stages": state["completed_stages"],
+        # Guest workspaces are removed after the request; preserve safe field diagnostics
+        # in the response without retaining/uploading the original dialogue or API keys.
+        "execution_issues": [
+            {"agent_id": e["actor"], "stage": e["detail"].get("purpose", "model"),
+             "metric_id": e["detail"].get("metric_id"),
+             "error": e["detail"].get("error") or e["detail"].get("code", "execution_error"),
+             "fields": e["detail"].get("fields", []),
+             "attempt": e["detail"].get("attempt"), "transport": e["detail"].get("transport")}
+            for e in team["events"] if e["action"] in {"submission_rejected", "model_error"}
+        ][-20:],
     }
+    if is_lead:
+        plan = state["team_plan"]
+        adjudications = [f for f in team["final_findings"].values()
+                        if f.get("decision_method") == "evidence_adjudicated"]
+        if adjudications:
+            report["arbitration_status"] = "resolved"
+            report["arbitration_decisions"] = [
+                {"conflict_id": "leader-decision-" + f["finding_id"], "metric_ids": [f["metric_id"]],
+                 "status": "resolved", "rationale": f["reason"], "requires_manual_review": False}
+                for f in adjudications]
+        report["collaboration"] = {
+            "protocol": team["protocol"], "prompt_version": team["prompt_version"],
+            "selected_metric_ids": plan.get("selected_metric_ids", []),
+            "excluded": plan.get("excluded", []), "weights": plan.get("weights", {}),
+            "candidate_weights": plan.get("candidate_weights", {}),
+            "weight_deviation": plan.get("weight_deviation", .2),
+            "weight_policy": plan.get("weight_policy"),
+            "weighting_stages": plan.get("weighting_stages", list(team.get("weighting_stages", {}).values())),
+            "initial_metric_ids": plan.get("initial_metric_ids", []),
+            "context_summary": plan.get("context_summary", ""), "round_count": team["round"],
+            "score_gaps": team["score_gaps"],
+            "initial_evaluations": [
+                {"agent_id": agent, "perspective": team["tasks"][agent]["perspective"],
+                 "findings": [{"metric_id": mid, "status": f["status"], "score": f["score"],
+                               "reason": f["reason"], "evidence_ids": f["evidence_ids"]}
+                              for mid, f in findings.items()]}
+                for agent, findings in team["initial_evaluations"].items()],
+            "reports": [{"version": r["version"], "round": r["round"], "final": r["final"],
+                         "findings": [{"metric_id": mid, "score": item["finding"]["score"],
+                                       "reason": item["finding"]["reason"], "question": item["question"],
+                                       "decision_method": item["finding"].get("decision_method"),
+                                       "responses": item["responses"]} for mid, item in r["items"].items()]}
+                        for r in team["reports"]],
+            "feedback": [f for by_agent in team["feedback"].values()
+                         for items in by_agent.values() for f in items.values()],
+        }
+    return report

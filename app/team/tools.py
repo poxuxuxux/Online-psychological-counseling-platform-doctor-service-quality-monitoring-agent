@@ -1,8 +1,11 @@
 # 环节：Agent 团队运行层；用途：管理团队循环、任务状态、共享证据、消息或工具。
 """Capability-limited tools. All mutations live in the checkpointed run state."""
 
+from collections import Counter
 from datetime import datetime
 from itertools import pairwise
+
+from pydantic import ValidationError
 
 from app.context.service import evaluator_context
 from app.domain.models import MESSAGE_TYPES, EvidenceInput, FindingInput, now, uid
@@ -128,10 +131,15 @@ class TeamTools:
 
     @staticmethod
     def check_evidence(team, evidence_ids):
-        if not isinstance(evidence_ids, list) or any(
-            e not in team["evidence"] for e in evidence_ids
-        ):
-            raise ValueError("Unknown evidence reference")
+        if not isinstance(evidence_ids, list):
+            raise TypeError("evidence_ids must be a list of registered strings")
+        unknown = [e for e in evidence_ids if not isinstance(e, str) or e not in team["evidence"]]
+        if unknown:
+            # Exact IDs (not dialogue text) make retries actionable; validation stays strict.
+            bad = [str(e)[:80] for e in unknown[:4]]
+            available = list(team["evidence"])[:8]
+            raise ValueError(f"Unknown evidence reference: {bad!r}. "
+                             f"Registered IDs include {available!r}; copy dialogue.messages[].evidence_id exactly.")
 
     def request_review(self, state, sender, args):
         ids = args["metric_ids"]
@@ -346,12 +354,17 @@ class TeamTools:
         if name == "submit_evaluation":
             return self.submit(state, agent, args)
         if name == "wait":
+            if current["kind"] == "evaluator" and (
+                set(current["findings"]) != set(current["metric_ids"])
+                or current.get("submission_errors")
+            ) and not pending_messages(team, agent):
+                raise ValueError("Submit missing/corrected metrics before waiting")
             current["status"] = "WAITING"
             return {"status": "WAITING"}
         if name == "finish":
             if current["kind"] == "team_lead":
                 raise ValueError("Team Lead must submit_review")
-            if set(current["findings"]) != set(current["metric_ids"]) or pending_messages(
+            if current.get("submission_errors") or set(current["findings"]) != set(current["metric_ids"]) or pending_messages(
                 team, agent
             ):
                 raise ValueError("Required metrics or incoming messages remain unfinished")
@@ -360,6 +373,49 @@ class TeamTools:
         raise ValueError("Unknown tool")
 
     def submit(self, state, agent, args):
+        """Validate independently: one rejected metric must not discard valid siblings."""
+        current = state["team"]["tasks"][agent]
+        if current["kind"] != "evaluator" or not current["skills_read"]:
+            raise ValueError("Only assigned evaluators with loaded Skills may submit scores")
+        items = args.get("findings")
+        if not isinstance(items, list) or not items:
+            raise ValueError("findings must be a non-empty list")
+        counts = Counter(f.get("metric_id") for f in items
+                         if isinstance(f, dict) and isinstance(f.get("metric_id"), str))
+        accepted, rejected = [], []
+        errors = current.setdefault("submission_errors", {})
+        for index, item in enumerate(items):
+            mid = item.get("metric_id") if isinstance(item, dict) else None
+            if not isinstance(mid, str):
+                mid = None
+            try:
+                if mid and counts[mid] > 1:
+                    raise ValueError("Duplicate metric in this submission; submit it once")
+                result = self._submit_validated(state, agent, {"findings": [item]})
+                accepted.extend(result["accepted"])
+                errors.pop(mid, None)
+            except (ValueError, KeyError, TypeError) as error:
+                detail = {"index": index, "metric_id": mid, "error": str(error)[:500]}
+                if isinstance(error, ValidationError):
+                    detail["error"] = "finding_schema_error"
+                    detail["fields"] = [
+                        {"path": list(e["loc"]), "type": e["type"]}
+                        for e in error.errors()
+                    ]
+                rejected.append(detail)
+                if mid in current["metric_ids"]:
+                    errors[mid] = detail
+        remaining = [mid for mid in current["metric_ids"] if mid not in current["findings"]]
+        if (args.get("complete") is True and not remaining and not rejected
+                and not errors and not pending_messages(state["team"], agent)):
+            current["status"] = "COMPLETED"
+        elif rejected:
+            current["status"] = "RUNNING"
+        return {"accepted": accepted, "rejected": rejected, "remaining_metric_ids": remaining,
+                "status": current["status"],
+                "next": "Correct only rejected or remaining metrics; do not resubmit accepted ones."}
+
+    def _submit_validated(self, state, agent, args):
         team, metrics = state["team"], state["skills"]["metrics"]
         current = team["tasks"][agent]
         if current["kind"] != "evaluator" or not current["skills_read"]:
@@ -428,6 +484,10 @@ class TeamTools:
                 ):
                     raise ValueError("Required reliable time facts missing")
             prior = current["findings"].get(f.metric_id)
+            if prior and all(prior.get(key) == value for key, value in f.model_dump().items()):
+                # Repeating an accepted result is not a substantive revision.
+                prepared.append(prior)
+                continue
             revision = prior["revision_count"] + 1 if prior else 0
             if revision > self.settings.max_revisions:
                 raise ValueError("revision_budget_exhausted")
@@ -442,6 +502,8 @@ class TeamTools:
             }
             prepared.append(finding)
         for finding in prepared:
+            if current["findings"].get(finding["metric_id"]) is finding:
+                continue
             current["findings"][finding["metric_id"]] = finding
             team["finding_history"].append(finding.copy())
             if finding["risk"] == "serious_service_risk":

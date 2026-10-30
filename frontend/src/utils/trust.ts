@@ -2,7 +2,7 @@
 import type { Evidence, Finding, Report, Session, Verification } from '../api/contracts/evaluation'
 
 export type Verdict = {
-  code: 'verified' | 'agent_scored' | 'pending' | 'insufficient' | 'conflict' | 'not_applicable'
+  code: 'verified' | 'agent_scored' | 'pending' | 'insufficient' | 'conflict' | 'not_applicable' | 'execution_failed'
   text: string
   tone: 'success' | 'warning' | 'danger' | 'neutral'
 }
@@ -14,6 +14,17 @@ export type Row = {
   verdict: Verdict
 }
 export function verdict(f: Finding, v?: Verification, agentStatus = 'completed', mode = 'independent'): Verdict {
+  if (f.outcome === 'execution_failed')
+    return { code: 'execution_failed', text: '评价执行未完成', tone: 'danger' }
+  if (f.outcome === 'conflict')
+    return { code: 'conflict', text: '材料冲突', tone: 'danger' }
+  if (f.outcome === 'manual_review')
+    return { code: 'pending', text: '需人工复核', tone: 'warning' }
+  if (f.outcome === 'configuration_blocked')
+    return { code: 'pending', text: '评分规则未开放（不计入总分）', tone: 'warning' }
+  // Old reports stored runtime failures in rationale instead of a typed outcome.
+  if (!f.outcome && /^(model_[a-z0-9_]+|agent_budget_exhausted|total_timeout|stalled_or_failed|input_budget_exhausted|collaboration_round_budget_exhausted|未完成评价)$/.test(f.rationale))
+    return { code: 'execution_failed', text: '评价执行未完成', tone: 'danger' }
   if (f.applicability === 'not_applicable')
     return { code: 'not_applicable', text: '不适用', tone: 'neutral' }
   if (f.limitations.includes('timing_policy_pending'))
@@ -41,9 +52,12 @@ export function verdict(f: Finding, v?: Verification, agentStatus = 'completed',
   )
     return { code: 'insufficient', text: '证据不足', tone: 'warning' }
   if (mode === 'none')
-    return agentStatus === 'completed' && f.score !== null
-      ? { code: 'agent_scored', text: 'Agent 已评分', tone: 'neutral' }
-      : { code: 'pending', text: '待复核', tone: 'warning' }
+    if ((agentStatus === 'completed' || f.outcome === 'scored') && f.score !== null) {
+      return { code: 'agent_scored',
+        text: f.decision_method === 'evidence_adjudicated' ? 'Leader 有据裁决'
+          : f.decision_method === 'consensus' ? '三方共识评分' : 'Agent 已评分',
+        tone: f.decision_method === 'evidence_adjudicated' ? 'warning' : 'neutral' }
+    } else return { code: 'pending', text: '待复核', tone: 'warning' }
   const completeClaims =
     v &&
     v.claims.length > 0 &&
@@ -99,14 +113,18 @@ export function reportRows(report: Report | null): Row[] {
     })
 }
 export function overallScore(report: Report | null): number | null {
+  const currentPolicy = report?.quality_profile?.policy_version === 'eligible-metrics-v2'
   if (
     !report ||
-    report.status !== 'completed' ||
-    report.review_required ||
+    report.status === 'failed' ||
+    (!currentPolicy && (report.status !== 'completed' || report.review_required)) ||
     report.arbitration_status === 'unresolved'
   )
     return null
-  const active = reportRows(report).filter((r) => r.verdict.code !== 'not_applicable')
+  const excluded = new Set(currentPolicy
+    ? report.quality_profile?.score_exclusions?.map((e) => e.metric_id) : [])
+  const active = reportRows(report).filter((r) =>
+    r.verdict.code !== 'not_applicable' && !excluded.has(r.finding.metric_id))
   if (new Set(active.map((r) => r.finding.metric_id)).size !== active.length) return null
   const accepted = report.verification_mode === 'none' ? 'agent_scored' : 'verified'
   if (!active.length || active.some((r) => r.verdict.code !== accepted)) return null

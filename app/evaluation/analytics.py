@@ -2,6 +2,8 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.evaluation.scoring import report_has_score
+
 
 def overview(records, catalog, days, source, start_date=None, end_date=None):
     current = datetime.now(ZoneInfo("Asia/Shanghai"))
@@ -17,10 +19,7 @@ def overview(records, catalog, days, source, start_date=None, end_date=None):
     scored = [
         (r, d)
         for r, d in same
-        if r["status"] == "completed"
-        and not r["review_required"]
-        and r["quality_profile"]["coverage_gate_passed"]
-        and r["quality_profile"]["overall_score"] is not None
+        if report_has_score(r)
     ]
 
     def point(values):

@@ -2,6 +2,7 @@
 """Deterministic outer StateGraph, dynamic inner StateGraph, durable node-boundary resume."""
 
 import asyncio
+import copy
 import time
 from itertools import pairwise
 
@@ -13,7 +14,15 @@ from app.evaluation.reporting import build_report, longitudinal, summarize
 from app.evaluation.scoring import classify_risk, score
 from app.infrastructure.repository import RunBusy
 from app.infrastructure.telemetry import model_usage
-from app.team.conflicts import finalize_conflicts
+from app.team.conflicts import finalize_conflicts, still_contradictory
+from app.team.lead_protocol import (
+    PROTOCOL,
+    LeaderProtocol,
+    complete_protocol,
+    initialize_protocol,
+    retry_protocol,
+)
+from app.team.post_initial_protocol import PROTOCOL_V2, PostInitialProtocol, initialize_post_initial
 from app.team.runtime import GraphState, TeamRuntime
 from app.team.state import active_findings, close_failed_inboxes, initialize_team
 from app.team.tools import TeamTools
@@ -54,12 +63,74 @@ class EvaluationService:
             "dimension_ids": self.catalog.dimensions,
             "context": {},
             "elapsed_seconds": 0.0,
+            "protocol": self.settings.team_protocol,
         }
         await self.repository.create_run(state)
         return state["run_id"]
 
     async def evaluate(self, session: Session):
         return await self.execute(await self.create(session))
+
+    async def retry_incomplete(self, run_id):
+        """Create a bounded continuation; never rewrite a finished report or reset its audit."""
+        previous = await self.repository.get_run(run_id)
+        if not previous or previous.get("next_stage") != "done":
+            raise ValueError("Only a finished evaluation may be retried")
+        if previous.get("completion", {}).get("complete"):
+            raise ValueError("Execution already complete; material/review gaps require new evidence or review")
+        new_id = uid("eval")
+        if previous.get("protocol") in {PROTOCOL, PROTOCOL_V2}:
+            state = retry_protocol(previous, new_id)
+            await self.repository.create_run(state)
+            return new_id
+        state = {
+            "run_id": new_id, "parent_evaluation_id": run_id,
+            "session": copy.deepcopy(previous["session"]),
+            "skills": copy.deepcopy(previous["skills"]),
+            "dimension_ids": list(previous["dimension_ids"]),
+            "context": copy.deepcopy(previous["context"]),
+            "status": "pending", "next_stage": "team_runtime",
+            "completed_stages": [s for s in previous["completed_stages"]
+                                 if s in STAGES[:6]],
+            "elapsed_seconds": 0.0,
+        }
+        team = state["team"] = initialize_team(state["skills"], new_id)
+        old_team = previous["team"]
+        team["evidence"] = copy.deepcopy(old_team["evidence"])
+        team["risk_alerts"] = copy.deepcopy(old_team["risk_alerts"])
+        retry_metrics = set(previous["completion"].get("missing_metrics", []))
+        retry_metrics.update(mid for c in old_team["conflicts"].values()
+                             if c["status"] != "RESOLVED" for mid in c["metric_ids"])
+        team["conflict_reports"] = copy.deepcopy(old_team.get("conflict_reports", []))
+        for c in old_team["conflicts"].values():
+            if c["status"] != "RESOLVED":
+                team["conflict_reports"].append({"metric_ids": c["metric_ids"],
+                    "reason": c["description"], "reported_by": "retry_context"})
+        for agent, current in team["tasks"].items():
+            old = old_team["tasks"].get(agent, {})
+            for mid, finding in old.get("findings", {}).items():
+                if (mid in retry_metrics or mid in old.get("submission_errors", {})
+                        or finding.get("origin") == "runtime_fallback"):
+                    continue
+                kept = copy.deepcopy(finding)
+                kept.update(finding_id=uid("finding"), revision_count=0,
+                            supersedes_finding_id=None, source_finding_id=finding["finding_id"])
+                current["findings"][mid] = kept
+                team["finding_history"].append(copy.deepcopy(kept))
+            if set(current["findings"]) == set(current["metric_ids"]):
+                current["status"] = "COMPLETED"
+        # Pending peer requests must not silently disappear when retaining prior findings.
+        from app.team.state import event
+        for message in old_team["messages"]:
+            if message["status"] != "PROCESSED" and message["receiver"] in team["tasks"]:
+                copied = copy.deepcopy(message)
+                copied.update(message_id=uid("msg"), evaluation_run_id=new_id, status="PENDING")
+                team["messages"].append(copied)
+                team["tasks"][copied["receiver"]]["status"] = "PENDING"
+        event(team, "system", "retry_incomplete", {"parent_evaluation_id": run_id,
+              "retained_metrics": sorted(active_findings(team))})
+        await self.repository.create_run(state)
+        return new_id
 
     async def execute(self, run_id):
         owner = uid("worker")
@@ -108,7 +179,8 @@ class EvaluationService:
                         }
                     )
                 if "team" not in state:
-                    state["team"] = initialize_team(state["skills"], run_id)
+                    initializer = initialize_post_initial if state.get("protocol") == PROTOCOL_V2 else initialize_protocol if state.get("protocol") == PROTOCOL else initialize_team
+                    state["team"] = initializer(state["skills"], run_id)
                 state["team"]["stop_reason"] = "total_timeout"
                 state["next_stage"] = "completion_check"
                 result = await graph.ainvoke({"data": state}, config=graph_config)
@@ -122,6 +194,8 @@ class EvaluationService:
         context_manager = SessionContextManager(self.repository)
         tools = TeamTools(self.settings, self.knowledge)
         runtime = TeamRuntime(self.settings, self.model, tools, persist)
+        leader_runtime = LeaderProtocol(self.settings, self.model, self.knowledge, persist)
+        post_initial_runtime = PostInitialProtocol(self.settings, self.model, self.knowledge, persist)
         graph = StateGraph(GraphState)
 
         async def process(name, state):
@@ -149,16 +223,23 @@ class EvaluationService:
             elif name == "team_lead":
                 data["team_plan"] = {
                     "dimensions": data["dimension_ids"],
-                    "required_metric_ids": list(data["skills"]["metrics"]),
-                    "policy": "owner_only_scoring_team_lead_arbitration",
+                    "required_metric_ids": list(data["skills"]["metrics"]) if data.get("protocol") not in {PROTOCOL, PROTOCOL_V2} else [],
+                    "policy": data.get("protocol") if data.get("protocol") in {PROTOCOL, PROTOCOL_V2} else "owner_only_scoring_team_lead_arbitration",
                 }
                 next_stage = "team_initialization"
             elif name == "team_initialization":
-                data["team"] = initialize_team(data["skills"], data["run_id"])
+                initializer = initialize_post_initial if data.get("protocol") == PROTOCOL_V2 else initialize_protocol if data.get("protocol") == PROTOCOL else initialize_team
+                data["team"] = initializer(data["skills"], data["run_id"])
                 next_stage = "team_runtime"
             elif name == "completion_check":
                 if "team_runtime" not in data["completed_stages"]:
                     data["completed_stages"].append("team_runtime")
+                if data.get("protocol") in {PROTOCOL, PROTOCOL_V2}:
+                    complete_protocol(data)
+                    data["completed_stages"].append(name)
+                    data["next_stage"] = "scoring_engine"
+                    await persist(data)
+                    return {"data": data}
                 finalize_conflicts(data["team"])
                 # 失败任务的收件无法再被处理；超时恢复路径不再经过 schedule，这里兜底关闭。
                 close_failed_inboxes(data["team"])
@@ -177,6 +258,20 @@ class EvaluationService:
                     issues.append(data["team"]["stop_reason"] or "runtime_incomplete")
                 data["completion"] = {
                     "complete": not issues,
+                    # A failed optional lead pass must not erase independently accepted scores.
+                    # Known/reported conflicts and unfinished evaluator collaboration still block.
+                    "scoring_complete": (
+                        not missing
+                        and all(t["status"] == "COMPLETED" and not t.get("submission_errors")
+                                for t in data["team"]["tasks"].values()
+                                if t["kind"] == "evaluator")
+                        and not unread
+                        and not any(c["status"] != "RESOLVED"
+                                    for c in data["team"]["conflicts"].values())
+                        and not still_contradictory(data["team"], {"metric_ids": list(findings)})
+                        and (not data["team"].get("conflict_reports")
+                             or data["team"]["tasks"].get("team_lead", {}).get("phase") == "arbitrate")
+                    ),
                     "issues": issues,
                     "missing_metrics": missing,
                     "unprocessed_messages": unread,
@@ -195,6 +290,9 @@ class EvaluationService:
                                 "dimension_id": spec["dimension_id"],
                                 "metric_version": spec["version"],
                                 "status": "NOT_EVALUABLE",
+                                "origin": "runtime_fallback",
+                                "failure_code": task["error"] or data["team"]["stop_reason"]
+                                or "evaluation_incomplete",
                                 "score": None,
                                 "reason": task["error"]
                                 or data["team"]["stop_reason"]
@@ -233,7 +331,10 @@ class EvaluationService:
 
         for name in STAGES:
             if name == "team_runtime":
-                graph.add_node(name, runtime.graph)
+                async def run_team(state):
+                    selected_runtime = post_initial_runtime if state["data"].get("protocol") == PROTOCOL_V2 else leader_runtime if state["data"].get("protocol") == PROTOCOL else runtime
+                    return await selected_runtime.graph.ainvoke(state)
+                graph.add_node(name, run_team)
             else:
 
                 async def node(state, stage=name):

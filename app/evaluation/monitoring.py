@@ -4,6 +4,8 @@
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.evaluation.scoring import report_has_score
+
 POLICY_VERSION = "monitoring-v1"
 RISK_STREAK_LENGTH = 2
 SCORE_DECLINE_STEP = 0.5
@@ -23,13 +25,7 @@ def _score_of(report):
 
 
 def _scored(report):
-    profile = report.get("quality_profile", {})
-    return bool(
-        report.get("status") == "completed"
-        and not report.get("review_required")
-        and profile.get("coverage_gate_passed")
-        and profile.get("overall_score") is not None
-    )
+    return report_has_score(report)
 
 
 def _point(values):

@@ -1,10 +1,28 @@
 # 环节：评价结果后处理层；用途：汇总 Agent 评分并计算服务质量风险。
 from app.team.state import active_findings
+from app.team.weights import bounded_weights, normalize_weights
+
+SCORE_POLICY_VERSION = "eligible-metrics-v2"
+
+
+def report_has_score(report):
+    """One policy for current reports; preserve conservative gates for legacy reports."""
+    profile = report.get("quality_profile") or {}
+    valid = (profile.get("coverage_gate_passed") and profile.get("overall_score") is not None
+             and report.get("arbitration_status") != "unresolved"
+             and report.get("status") != "failed")
+    if profile.get("policy_version") == SCORE_POLICY_VERSION:
+        return bool(valid)
+    return bool(valid and report.get("status") == "completed" and not report.get("review_required"))
 
 
 def score_eligible(state, mid, finding):
     """Use an assigned Agent's structured result; no independent semantic model pass."""
     if not finding or finding["status"] != "EVALUATED" or finding["score"] is None:
+        return False
+    if state["team"].get("protocol") not in {"leader-review-v1", "leader-review-v2"} and any(
+        mid in t.get("submission_errors", {}) for t in state["team"]["tasks"].values()
+    ):
         return False
     spec = state["skills"]["metrics"][mid]
     if (
@@ -28,6 +46,18 @@ def score_eligible(state, mid, finding):
 def score(state):
     metrics = state["skills"]["metrics"]
     findings = active_findings(state["team"])
+    is_lead = state["team"].get("protocol") in {"leader-review-v1", "leader-review-v2"}
+    if is_lead:
+        selected = state.get("team_plan", {}).get("selected_metric_ids", [])
+        metrics = {mid: metrics[mid] for mid in selected}
+        candidates = {mid: state["team_plan"]["weights"][mid] for mid, spec in metrics.items()
+                      if spec["status"] == "published" and not spec.get("scoring_blockers")
+                      and not (findings.get(mid, {}).get("status") == "NOT_APPLICABLE"
+                               and not findings[mid]["review_rule_ids"])}
+        effective = (normalize_weights(candidates) if state["team"].get("protocol") == "leader-review-v2"
+                     else bounded_weights(candidates, state["team_plan"].get("weight_deviation", .2)))
+    else:
+        effective = {mid: spec["weight"] for mid, spec in metrics.items()}
     dimensions, total_weight, weighted, required, accepted, exclusions = [], 0, 0, 0, 0, []
     for dimension in state["dimension_ids"]:
         items = []
@@ -52,7 +82,7 @@ def score(state):
                 )
                 continue
             value = f["score"] if score_eligible(state, mid, f) else None
-            items.append((value, spec["weight"]))
+            items.append((value, effective[mid]))
         count = sum(value is not None for value, _ in items)
         coverage = count / len(items) if items else 1.0
         weight = sum(w for _, w in items)
@@ -70,9 +100,10 @@ def score(state):
         total_weight += weight
         weighted += subtotal
     coverage = accepted / required if required else 1.0
-    complete = state["completion"]["complete"]
+    complete = state["completion"].get("scoring_complete", state["completion"]["complete"])
     gate = bool(required and coverage == 1 and complete)
-    return {
+    result = {
+        "policy_version": SCORE_POLICY_VERSION,
         "dimensions": dimensions,
         "overall_coverage": coverage,
         "overall_score": round(weighted / total_weight, 3) if gate else None,
@@ -83,6 +114,17 @@ def score(state):
         "required_count": required,
         "score_exclusions": exclusions,
     }
+    if is_lead:
+        import hashlib
+        import json
+        result.update(weights=effective, selected_metric_ids=list(metrics),
+                      assigned_weights=state.get("team_plan", {}).get("weights", {}),
+                      weight_policy=state["team_plan"].get("weight_policy", "bounded-equal-simplex-v1"),
+                      protocol=state["team"]["protocol"],
+                      weight_deviation=state.get("team_plan", {}).get("weight_deviation", .2))
+        signature = {key: result[key] for key in ("weights", "selected_metric_ids", "weight_policy", "protocol", "weight_deviation")}
+        result["scoring_signature"] = hashlib.sha256(json.dumps(signature, sort_keys=True).encode()).hexdigest()[:20]
+    return result
 
 
 def classify_risk(state):

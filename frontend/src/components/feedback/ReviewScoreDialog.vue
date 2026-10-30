@@ -66,7 +66,7 @@ function submit() {
   const scores: Record<string, number> = {}
   if (decision.value === 'adjust') {
     for (const metric of props.metrics) {
-      const value = changedScores.value[metric.code]?.trim()
+      const value = String(changedScores.value[metric.code] ?? '').trim()
       if (!value) continue
       const parsed = Number(value)
       if (!Number.isFinite(parsed) || parsed < 0 || parsed > 5) {
