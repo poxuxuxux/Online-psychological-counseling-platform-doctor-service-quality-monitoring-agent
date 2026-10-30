@@ -1,0 +1,98 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+examples:
+- case_id: D1_1_adequate
+  input:
+    session_id: D1_1_adequate
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D1_1_adequate-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我不知道怎样准备下次咨询，需要整理哪些内容？
+    - message_id: D1_1_adequate-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 可以先记下本次最想讨论的问题、近期变化及已有的就诊资料，下次从你最关心的部分开始。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D1_1_poor
+  input:
+    session_id: D1_1_poor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D1_1_poor-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我不知道怎样准备下次咨询，需要整理哪些内容？
+    - message_id: D1_1_poor-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 您好，欢迎咨询。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D1_1_unavailable
+  input:
+    session_id: D1_1_unavailable
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: true
+      response_opportunity: null
+    messages:
+    - message_id: D1_1_unavailable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我不知道怎样准备下次咨询，需要整理哪些内容？
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D1_1_incomplete
+  input:
+    session_id: D1_1_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D1_1_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我不知道怎样准备下次咨询，需要整理哪些内容？
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
