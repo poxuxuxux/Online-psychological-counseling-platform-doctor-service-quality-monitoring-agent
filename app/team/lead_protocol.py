@@ -527,6 +527,10 @@ class LeaderProtocol:
             schema = leader_batch_schema(final=final)
             for agent, _, raw in await self._ask(data, [(LEADER, purpose, prompt, payload, schema)]):
                 def accept(mid, value):
+                    if initial and isinstance(value, dict) and value.get("responses"):
+                        # P0 precedes feedback. The model sometimes invents response
+                        # records here; no feedback exists to acknowledge yet.
+                        value = {**value, "responses": []}
                     # A missing discussion question is presentation metadata, not a
                     # reason to discard otherwise valid evidence and scoring.
                     defaulted_question = False

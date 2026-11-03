@@ -15,6 +15,7 @@ STAGE_COMMON = COMMON + """
 你独占选择权，候选范围始终为完整指标库，不受评价者是否给数值、是否标不适用的限制。
 可以删除Agent已评的CD，也可以保留Agent标不适用的EF，后续在协商中要求重评；保留不等于强迫编分。
 每个候选ID恰好出现于selected或excluded一次，给明确理由；不得凭空创造库外指标。
+顶层JSON必须同时包含selected和excluded两个数组；即使一侧为空也要写[]，不得用weights等字段替代。
 selected的candidate_weight是本阶段相对重要性，必须正且有限，程序会在本阶段内部归一化。
 没有等权起点、没有±20%限制、不向等权投影。不要依据医生高分就加权、低分就删项。
 提供context_summary、task_analysis、relevance_analysis、consistency_check等简短分析结论，不输出完整内部推理。

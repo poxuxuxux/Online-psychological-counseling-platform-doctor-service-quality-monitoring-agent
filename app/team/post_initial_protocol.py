@@ -131,9 +131,24 @@ class PostInitialProtocol(LeaderProtocol):
         payload = self._base(data, LEADER, purpose, mids)
         payload.pop("weights", None)
         payload.pop("finding_schema", None)
+        # Selection needs definitions and triggers, not scoring anchors or the
+        # full per-metric execution manual. Keep the distribution request bounded.
+        stage_fields = {"metric_id", "name", "dimension_id", "status", "definition",
+                        "applicability", "scoring_blockers"}
+        payload["frozen_skills"] = {
+            mid: {key: value for key, value in spec.items() if key in stage_fields}
+            for mid, spec in payload["frozen_skills"].items()
+        }
         payload["previous_weighting_stages"] = copy.deepcopy(data["team"]["weighting_stages"])
         if stage == "distribution":
-            payload["initial_evaluations"] = data["team"]["initial_evaluations"]
+            finding_fields = {"metric_id", "status", "score", "reason", "evidence_ids",
+                              "review_rule_ids"}
+            payload["initial_evaluations"] = {
+                agent: {mid: {key: value for key, value in finding.items()
+                              if key in finding_fields}
+                        for mid, finding in findings.items()}
+                for agent, findings in data["team"]["initial_evaluations"].items()
+            }
             if not data["team"].get("grouped_initial"):
                 payload["score_gaps"] = data["team"]["initial_score_gaps"]
         # Scenario is committed before any score is exposed; relevance emphasizes patient needs.

@@ -1215,7 +1215,7 @@ onUnmounted(() => {
         </template>
         <footer class="page-footer">
           <span>心鉴 · 服务质量辅助评估</span>
-          <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : listSource === 'uploaded' ? '本页上传的会话与报告刷新后会清除。' : '数据库中的真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
+          <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : listSource === 'uploaded' ? '上传会话列表刷新后会清除；评价任务编号保存在此浏览器，重新上传同一会话可找回结果。' : '数据库中的真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
         </footer>
       </main>
     </div>

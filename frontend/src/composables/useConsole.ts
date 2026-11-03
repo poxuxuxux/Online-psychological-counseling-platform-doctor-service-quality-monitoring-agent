@@ -1,6 +1,7 @@
 // 环节：前端状态逻辑层；用途：封装页面复用状态与 API 联动逻辑。
 import { computed, ref } from 'vue'
 import { api } from '../api/endpoints/evaluations'
+import { evaluateUploaded } from '../api/guestJobs'
 import { hasPrivateAccessToken } from '../api/client/http'
 import type { ConsultationItem, ConsultationDetail } from '../api/contracts/consultations'
 import type { Session, Report, Ready, Recent } from '../api/contracts/evaluation'
@@ -277,7 +278,10 @@ export function useConsole(initialMode?: 'service' | 'preview') {
           if (item.session_id !== id) throw new Error('咨询 ID 与返回记录不一致，已阻止评价。')
           const result = mode.value === 'preview'
             ? previewReport(item)
-            : uploadedDetails.has(id) ? await api.evaluateGuest(item) : await api.evaluate(item)
+            : uploadedDetails.has(id)
+              ? await evaluateUploaded(item, (message) => { batchProgress.value.currentId = `${id} · ${message}` },
+                Boolean(uploadedDetails.get(id)?.report))
+              : await api.evaluate(item)
           if (result.session_id !== item.session_id)
             throw new Error('返回报告与提交的咨询 ID 不一致。')
           if (mode.value === 'preview')

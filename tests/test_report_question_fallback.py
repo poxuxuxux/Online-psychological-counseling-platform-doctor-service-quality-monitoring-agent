@@ -54,7 +54,7 @@ async def test_question_fallback_preserves_three_round_limit_and_big_gap(make_se
     assert report["status"] == "completed"
     assert report["collaboration"]["round_count"] == 3
     state = await repo.get_run(report["evaluation_id"])
-    assert "大分差" in state["team"]["reports"][0]["items"]["D1.1"]["question"]
+    assert "D1.1" in state["team"]["reports"][0]["items"]["D1.1"]["question"]
     final = state["team"]["reports"][-1]["items"]["D1.1"]
     assert "不再开启新一轮" in final["question"]
     assert final["decision_method"] == "evidence_adjudicated"

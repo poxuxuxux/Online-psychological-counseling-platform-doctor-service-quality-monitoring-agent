@@ -11,7 +11,7 @@ import {
 } from '../contracts/evaluation'
 
 // Team v2 may run several bounded collaboration rounds before returning a report.
-const evaluationTimeoutMs = 1_830_000
+const evaluationTimeoutMs = 3_630_000
 
 export const api = {
   retryRun: (id: string) => request(`/api/v1/runs/${encodeURIComponent(id)}/retry`,

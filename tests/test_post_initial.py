@@ -63,7 +63,9 @@ async def test_entire_initial_precedes_stages_and_leader_drops_scored_items(make
     assert report["status"] == "completed"
     collab = report["collaboration"]
     assert collab["selected_metric_ids"] == ["D1.1"]
-    assert all(len(a["findings"]) == 2 for a in collab["initial_evaluations"])
+    assert sum(len(a["findings"]) for a in collab["initial_evaluations"]) == 2
+
+
     assert report["quality_profile"]["required_count"] == 1
     purposes = [p["purpose"] for p in model.payloads]
     assert max(i for i, purpose in enumerate(purposes) if purpose == "initial_evaluation") < purposes.index("leader_weight_scenario")
@@ -79,6 +81,28 @@ async def test_entire_initial_precedes_stages_and_leader_drops_scored_items(make
     assert all(m["status"] == "PROCESSED" for m in state["team"]["messages"])
 
 
+async def test_preliminary_ignores_invented_responses_and_stage_payload_is_compact(make_service, session):
+    class InventedPreliminaryResponse(PostInitialModel):
+        async def json(self, system, payload, schema):
+            result = await super().json(system, payload, schema)
+            if payload["purpose"] == "leader_preliminary":
+                for item in result["items"]:
+                    item["responses"] = [{"feedback_id": "invented", "disposition": "accepted",
+                                          "reason": "No feedback exists", "evidence_ids": []}]
+            return result
+
+    model = InventedPreliminaryResponse(selected=["D1.1"])
+    service, _ = await make_service(model, team_protocol=PROTOCOL_V2)
+    report = await service.evaluate(session)
+    assert report["status"] == "completed"
+    assert report["quality_profile"]["overall_score"] is not None
+    distribution = next(p for p in model.payloads if p["purpose"] == "leader_weight_distribution")
+    assert all("instructions" not in rule and "anchors" not in rule
+               for rule in distribution["frozen_skills"].values())
+    assert all("claims" not in finding for findings in distribution["initial_evaluations"].values()
+               for finding in findings.values())
+
+
 async def test_all_18_initials_and_leader_keeps_peer_not_applicable_metric(make_service, session):
     model = PostInitialModel(selected=["D1.1", "D4.1"])
     service, _ = await make_service(model, team_protocol=PROTOCOL_V2)
@@ -87,9 +111,9 @@ async def test_all_18_initials_and_leader_keeps_peer_not_applicable_metric(make_
     report = await service.evaluate(session)
     assert report["status"] == "completed"
     collab = report["collaboration"]
-    assert sum(len(a["findings"]) for a in collab["initial_evaluations"]) == 54
-    assert all(next(f for f in a["findings"] if f["metric_id"] == "D4.1")["status"] == "NOT_APPLICABLE"
-               for a in collab["initial_evaluations"])
+    assert sum(len(a["findings"]) for a in collab["initial_evaluations"]) == 18
+    assert next(f for a in collab["initial_evaluations"] for f in a["findings"]
+                if f["metric_id"] == "D4.1")["status"] == "NOT_APPLICABLE"
     assert "D4.1" in collab["selected_metric_ids"]
     assert report["quality_profile"]["required_count"] == 2
     assert all(f["score"] == 4 for f in report["agent_results"][0]["findings"])

@@ -1,6 +1,7 @@
 // 环节：前端测试层；用途：验证前端组件逻辑、API 客户端和展示工具。
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { webcrypto } from 'node:crypto'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import App from '../../src/App.vue'
 import { previewSession, previewReport } from '../../src/data/preview'
@@ -18,6 +19,8 @@ let modelConfigured: boolean | undefined
 let failedReportSessionId = ''
 let highRiskSessionId = ''
 beforeEach(() => {
+  localStorage.removeItem('xin-heng-upload-jobs-v1')
+  vi.stubGlobal('crypto', webcrypto)
   requests = []
   failEvaluation = false
   failSessionId = ''
@@ -39,8 +42,14 @@ beforeEach(() => {
       if (path === '/ready')
         return new Response(
           JSON.stringify({ status: 'ready', database: { configured: false, connected: false },
+            capabilities: { guest_jobs: true },
             ...(modelConfigured === undefined ? {} : { model: { configured: modelConfigured } }) }),
         )
+      if (path === '/api/v1/guest/jobs' && options?.method === 'POST')
+        return new Response(JSON.stringify({ job_id: 'test-job', token: 'test-capability' }))
+      if (path === '/api/v1/guest/jobs/test-job')
+        return new Response(JSON.stringify({ job_id: 'test-job', status: 'completed', stage: 'done',
+          model_calls: 1, elapsed_seconds: 1, error: null, report: previewReport(previewSession()) }))
       if (path.startsWith('/api/v1/evaluations/recent'))
         return new Response(JSON.stringify({ database_configured: false, items: [] }))
       if (path.startsWith('/api/v1/consultations?')) {
@@ -402,7 +411,7 @@ describe('workbench actual component interaction', () => {
     expect(app.findAll('.consultation-row')).toHaveLength(1)
     await app.get('.consultation-evaluate').trigger('click')
     await flushPromises()
-    expect(requests.filter((r) => r === 'POST /api/v1/guest/evaluations')).toHaveLength(1)
+    expect(requests.filter((r) => r === 'POST /api/v1/guest/jobs')).toHaveLength(1)
     expect(app.get('.session-identity').text()).toContain('preview-synthetic-001')
   })
   it('does not create a report when the POST fails', async () => {
