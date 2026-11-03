@@ -11,15 +11,26 @@ from app.team.weights import average_stage_weights, normalize_weights
 
 PROTOCOL_V2 = "leader-review-v2"
 WEIGHT_POLICY = "three-stage-normalize-mean-v1"
+INITIAL_GROUPS = {
+    "evaluator:effectiveness": ({"D1", "D3"}, "专业信息咨询 Agent"),
+    "evaluator:empathy": ({"D4", "D6"}, "情感-评价支持 Agent"),
+    "evaluator:collaboration": ({"D2", "D5"}, "行动与资源支持 Agent"),
+}
 
 
 def initialize_post_initial(skills, run_id):
     team = initialize_protocol(skills, run_id)
     team.update(protocol=PROTOCOL_V2, phase="initial", weighting_stages={})
-    team["prompt_version"] = "post-initial-prompts-2.0.5"
+    team["prompt_version"] = "post-initial-prompts-2.1.0"
+    team["grouped_initial"] = True
     mids = list(skills["metrics"])
     for current in team["tasks"].values():
         current.update(metric_ids=mids, skills_read=True)
+    for agent, (dimensions, name) in INITIAL_GROUPS.items():
+        team["tasks"][agent].update(
+            metric_ids=[mid for mid in mids if skills["metrics"][mid]["dimension_id"] in dimensions],
+            perspective=name,
+        )
     return team
 
 
@@ -29,7 +40,8 @@ class PostInitialProtocol(LeaderProtocol):
         payload["protocol"] = PROTOCOL_V2
         if purpose == "initial_evaluation":
             payload.pop("weights", None)
-            payload["initial_scope"] = "all_catalog_metrics"
+            payload["initial_scope"] = ("assigned_dimensions" if data["team"].get("grouped_initial")
+                                        else "all_catalog_metrics")
         return payload
 
     def _prepare_initial(self, data):
@@ -50,8 +62,8 @@ class PostInitialProtocol(LeaderProtocol):
                     "source_agent": "context_manager", "related_indicators": [], "created_at": now()}
         for agent in PERSPECTIVES:
             self._send_once(data, "task:" + agent, LEADER, agent, "TASK_ASSIGNMENT",
-                            {"metric_ids": list(data["skills"]["metrics"]),
-                             "scope": "all_metrics_initial_only", "weighting": "not_yet_performed"})
+                            {"metric_ids": team["tasks"][agent]["metric_ids"],
+                             "scope": "assigned_metrics_initial_only", "weighting": "not_yet_performed"})
         team["all_metrics_assigned"] = True
 
     async def _initial(self, data):
@@ -68,9 +80,37 @@ class PostInitialProtocol(LeaderProtocol):
         requests = [(agent, purpose, INITIAL_ALL if purpose == "initial_evaluation"
                      else system.replace("和同一±20%约束", "") + suffix, payload, schema)
                     for agent, purpose, system, payload, schema in requests]
+        if data["team"].get("grouped_initial"):
+            requests = [(agent, purpose, self._grouped_prompt(purpose, system), payload, schema)
+                        for agent, purpose, system, payload, schema in requests]
         return await super()._ask(data, requests)
 
+    @staticmethod
+    def _grouped_prompt(purpose, system):
+        if purpose == "initial_evaluation":
+            return system.replace(
+                "本协议先全指标独立初评，再由Leader选择和赋权。逐项评价完整候选库，当前批次只返回requested_metric_ids。",
+                "本协议先按维度分工初评，再由Leader选择和赋权。只评本批requested_metric_ids，不替其他Agent初评。",
+            )
+        system = system.replace("三份全量初评", "三份分工初评（合计覆盖完整目录，每项一份）")
+        system = system.replace(
+            "阶段2评分与证据分布：查看三方初评、原文和已确认情境，检查状态、分差、证据与理由。\n"
+            "分数接近或证据充分可以支持保留，但不是唯一条件；分差大、低分、难评不等于不重要。",
+            "阶段2评分与证据分布：逐项核对负责人初评、原文与已确认情境。每项仅一份初评，"
+            "依据证据与任务相关性决定是否保留；低分和难评不等于不重要。",
+        ).replace("同分不等于事实正确。", "")
+        system = system.replace(
+            "不取多数票或平均来代替判断。score_gaps中的原始分差>=3必须在question提出有针对性的问题；\n"
+            "分差小也要检查事实、证据、适用性冲突。不要直接要求统一数字或重跑所有项目。",
+            "每项仅一份负责人初评。发现证据矛盾、适用性疑点或与负责人结论不一致时，在question明确核对事项。",
+        ).replace("三方都须检查综合报告而非只审大分差。", "三方都须检查综合报告。")
+        if purpose.startswith("evaluator_feedback_"):
+            system += "\nown_initial和own_latest只包含你有记录的项目；没有初评的项目直接核对P0及原文，仍须提交反馈。"
+        return system
+
     def _gaps(self, data):
+        if data["team"].get("grouped_initial"):
+            return {}
         plan = data.get("team_plan", {})
         if not plan.get("planning_complete"):
             return super()._gaps({**data, "team_plan": {**plan, "selected_metric_ids": list(data["skills"]["metrics"])}})
@@ -94,7 +134,8 @@ class PostInitialProtocol(LeaderProtocol):
         payload["previous_weighting_stages"] = copy.deepcopy(data["team"]["weighting_stages"])
         if stage == "distribution":
             payload["initial_evaluations"] = data["team"]["initial_evaluations"]
-            payload["score_gaps"] = data["team"]["initial_score_gaps"]
+            if not data["team"].get("grouped_initial"):
+                payload["score_gaps"] = data["team"]["initial_score_gaps"]
         # Scenario is committed before any score is exposed; relevance emphasizes patient needs.
         if stage == "relevance":
             payload["patient_statements"] = [m for m in payload["dialogue"]["messages"] if m["role"] == "patient"]

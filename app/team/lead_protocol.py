@@ -507,11 +507,12 @@ class LeaderProtocol:
             requested = todo[:current.get("batch_size", 2)]
             payload = self._base(data, LEADER, purpose, requested)
             payload.update(report_version=version, round=team["round"], report_is_final=final,
-                           score_gaps={mid: team["score_gaps"][mid] for mid in requested},
-                           initial_evaluations={a: {mid: fs[mid] for mid in requested}
+                           initial_evaluations={a: {mid: fs[mid] for mid in requested if mid in fs}
                                                 for a, fs in team["initial_evaluations"].items()},
                            current_report=team["reports"][-1] if team["reports"] else None,
                            received_feedback={mid: self._round_feedback(data, mid) for mid in requested})
+            if not team.get("grouped_initial"):
+                payload["score_gaps"] = {mid: team["score_gaps"][mid] for mid in requested}
             if payload["current_report"]:
                 payload["current_report"] = {**payload["current_report"], "items": {
                     mid: payload["current_report"]["items"][mid] for mid in requested}}
@@ -537,10 +538,11 @@ class LeaderProtocol:
                         if final:
                             question = "【程序补充】本项已进入最终裁决，请保留裁决理由与异议记录，不再开启新一轮协商。"
                         else:
-                            scores = {a: fs[mid].get("score") for a, fs in team["initial_evaluations"].items()}
                             question = (f"【程序补充】请核对指标{mid}的原文证据、适用条件与评分锚点，"
                                         "逐项审阅Leader当前理由；不同意时请给出可定位反证或缺失信息。")
                             if team["score_gaps"].get(mid, {}).get("large_gap"):
+                                scores = {a: fs[mid].get("score") for a, fs in team["initial_evaluations"].items()
+                                          if mid in fs}
                                 question += f"当前记录有大分差，三方初评分为{scores}，请说明分差涉及的事实或锚点依据。"
                             if value.get("factual_resolution") == "unresolved":
                                 question += "关键事实或适用性尚未确认，请说明哪些原文可以确认或仍缺少什么，确认前不强行给分。"
@@ -644,8 +646,10 @@ class LeaderProtocol:
             payload = self._base(data, agent, purpose, requested)
             payload.update(report_version=report["version"], round=team["round"],
                            current_report={mid: report["items"][mid] for mid in requested},
-                           own_initial={mid: team["initial_evaluations"][agent][mid] for mid in requested},
-                           own_latest={mid: current["findings"][mid] for mid in requested})
+                           own_initial={mid: team["initial_evaluations"][agent][mid] for mid in requested
+                                        if mid in team["initial_evaluations"][agent]},
+                           own_latest={mid: current["findings"][mid] for mid in requested
+                                       if mid in current["findings"]})
             requests.append((agent, purpose, EVALUATOR_FEEDBACK, payload, FeedbackBatch.model_json_schema()))
         for agent, payload, raw in await self._ask(data, requests) if requests else []:
             purpose = "evaluator_feedback_" + round_key

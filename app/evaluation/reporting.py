@@ -281,7 +281,7 @@ def build_report(state):
             "weighting_stages": plan.get("weighting_stages", list(team.get("weighting_stages", {}).values())),
             "initial_metric_ids": plan.get("initial_metric_ids", []),
             "context_summary": plan.get("context_summary", ""), "round_count": team["round"],
-            "score_gaps": team["score_gaps"],
+            **({"score_gaps": team["score_gaps"]} if not team.get("grouped_initial") else {}),
             "initial_evaluations": [
                 {"agent_id": agent, "perspective": team["tasks"][agent]["perspective"],
                  "findings": [{"metric_id": mid, "status": f["status"], "score": f["score"],
