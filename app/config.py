@@ -19,9 +19,9 @@ class Settings:
     concurrency: int = 6
     max_model_calls: int = 180
     max_input_chars: int = 4_000_000
-    agent_timeout: float = 300
-    model_timeout: float = 60
-    total_timeout: float = 600
+    agent_timeout: float = 1200
+    model_timeout: float = 90
+    total_timeout: float = 3600
     seed_demo: bool = True
     team_protocol: str = "leader-review-v2"
     weight_deviation: float = 0.2

@@ -116,7 +116,7 @@ class JsonModelGateway:
         self.key = os.getenv(spec["key"], "")
         self.base_url = os.getenv(prefix + "_BASE_URL", spec["base_url"])
         self.model = os.getenv(prefix + "_MODEL", spec["model"])
-        self.timeout = float(os.getenv(prefix + "_TIMEOUT_SECONDS", "60"))
+        self.timeout = float(os.getenv(prefix + "_TIMEOUT_SECONDS", "90"))
         self.max_tokens = int(os.getenv(prefix + "_MAX_TOKENS", "4096"))
         self.transport = transport
         url = urlsplit(self.base_url)

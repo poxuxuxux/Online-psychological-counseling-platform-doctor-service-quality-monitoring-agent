@@ -5,6 +5,7 @@ INITIAL_ALL = COMMON + """
 本协议先全指标独立初评，再由Leader选择和赋权。逐项评价完整候选库，当前批次只返回requested_metric_ids。
 此时没有本次权重，不等待Leader筛选、不自行赋权，不把其他视角的工作当成替代。
 明确不适用用NOT_APPLICABLE及score=null；不使用-1或负分。无法确认用NOT_EVALUABLE及具体规则原因。
+只要review_rule_ids非空，status必须为NOT_EVALUABLE且score=null；先解决待核查规则才能给数值分。
 本次沿用正式1—5整数锚点，不新增0分。不适用是你的意见，不是Leader的保留白名单。
 只提交findings数组；证据不足与执行错误分开，依据消息的确切evidence_id提交原文引用。
 """
