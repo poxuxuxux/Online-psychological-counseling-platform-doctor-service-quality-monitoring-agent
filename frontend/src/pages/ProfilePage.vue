@@ -38,15 +38,6 @@ const riskTones: Record<string, string> = {
   low: 'neutral',
   unknown: 'warning',
 }
-const ruleNames: Record<string, string> = {
-  latest_high_risk: '最近评价高风险',
-  consecutive_risk_streak: '连续风险观察',
-  score_decline: '总分连续下滑',
-  persistent_dimension_gap: '维度持续短板',
-  serious_service_risk_flag: '严重服务风险标记',
-  review_backlog: '待复核积压',
-}
-
 async function load() {
   const token = ++epoch
   profileEpoch++
@@ -120,15 +111,6 @@ const profileDimensions = computed(() => {
         : names[dimension.dimension_id] || dimension.dimension_id,
   }))
 })
-const alertGroups = computed(() =>
-  (['high', 'medium'] as const)
-    .map((level) => ({
-      level,
-      title: level === 'high' ? '高风险重点关注' : '中风险持续观察',
-      alerts: profile.value?.alerts.filter((alert) => alert.level === level) ?? [],
-    }))
-    .filter((group) => group.alerts.length),
-)
 const alertCounts = computed(() => ({
   high: profile.value?.alerts.filter((alert) => alert.level === 'high').length ?? 0,
   medium: profile.value?.alerts.filter((alert) => alert.level === 'medium').length ?? 0,
@@ -271,50 +253,19 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
       </header>
 
       <div class="profile-analysis">
-        <div class="profile-analysis-main">
-          <section :class="['surface', 'alert-panel', { 'has-high-alert': alertCounts.high > 0, 'no-alert': profile.alerts.length === 0 }]" aria-labelledby="profile-alert-title">
-            <header class="section-heading">
-              <div>
-                <h3 id="profile-alert-title"><Icon name="shield" :size="19" />风险预警与结论</h3>
-                <p>确定性规则 · {{ profile.policy_version }}<span v-if="profile.latest_date"> · 最近一次评价 {{ profile.latest_date }}</span></p>
-              </div>
-              <StatusBadge :tone="profile.alerts.length ? (alertCounts.high ? 'danger' : 'warning') : 'success'">
-                {{ profile.alerts.length ? `${profile.alerts.length} 条待关注` : '暂无触发' }}
-              </StatusBadge>
-            </header>
-            <div v-if="alertGroups.length" class="alert-groups">
-              <section v-for="group in alertGroups" :key="group.level" :class="['alert-group', group.level]">
-                <h4>{{ group.title }}<span>{{ group.alerts.length }}</span></h4>
-                <ul role="list">
-                  <li v-for="alert in group.alerts" :key="alert.rule_id" class="alert-item">
-                    <strong>{{ ruleNames[alert.rule_id] || alert.rule_id }}</strong>
-                    <p>{{ alert.message }}</p>
-                    <small v-if="alert.related_sessions.length">相关会话：{{ alert.related_sessions.join('、') }}</small>
-                  </li>
-                </ul>
-              </section>
+        <section class="surface chart-card profile-trend-card" aria-labelledby="profile-trend-title">
+          <header class="section-heading chart-heading">
+            <div>
+              <h3 id="profile-trend-title">总分趋势</h3>
+              <p>近 {{ profile.days }} 天 · 满分 100 分</p>
             </div>
-            <div v-else class="alert-clear">
-              <span><Icon name="check" :size="19" /></span>
-              <div><strong>当前周期未触发确定性预警</strong><p>这表示现有监测规则未发现需提示的服务质量信号。</p></div>
-            </div>
-            <p class="alert-footnote">预警依据服务质量监测规则生成，不代表患者临床风险等级；正式判断请结合会话原文和适用规则。</p>
-          </section>
-
-          <section class="surface chart-card profile-trend-card" aria-labelledby="profile-trend-title">
-            <header class="section-heading chart-heading">
-              <div>
-                <h3 id="profile-trend-title">总分趋势</h3>
-                <p>近 {{ profile.days }} 天 · 满分 100 分</p>
-              </div>
-              <span class="chart-period"><Icon name="calendar" :size="15" />{{ profile.period_start }} — {{ profile.period_end }}</span>
-            </header>
-            <TrendChart v-if="hasTrend" :trend="profile.trend" />
-            <div v-else class="panel-state chart-empty">
-              近 {{ profile.days }} 天没有可信评分；初评分和待复核报告不进入趋势线。
-            </div>
-          </section>
-        </div>
+            <span class="chart-period"><Icon name="calendar" :size="15" />{{ profile.period_start }} — {{ profile.period_end }}</span>
+          </header>
+          <TrendChart v-if="hasTrend" :trend="profile.trend" />
+          <div v-else class="panel-state chart-empty">
+            近 {{ profile.days }} 天没有可信评分；初评分和待复核报告不进入趋势线。
+          </div>
+        </section>
 
         <section class="surface chart-card profile-radar-card" aria-labelledby="profile-radar-title">
           <header class="section-heading chart-heading">
@@ -510,52 +461,6 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   font-size: 17.5px;
   font-weight: 700;
 }
-.alert-panel {
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--danger);
-  border-radius: 10px;
-}
-.alert-panel h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-size: 16px;
-  color: var(--danger);
-}
-.alert-panel ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-.alert-card {
-  padding: 10px 12px;
-  border-radius: 8px;
-}
-.alert-card.high {
-  background: var(--danger-bg);
-  border: 1px solid #f0d4d7;
-}
-.alert-card.medium {
-  background: var(--warning-bg);
-  border: 1px solid #efe3c8;
-}
-.alert-card strong {
-  font-size: 15px;
-}
-.alert-card p {
-  margin: 4px 0 2px;
-  font-size: 14.5px;
-  line-height: 1.55;
-}
-.alert-card small {
-  font-size: 13.5px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
 .profile-charts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -618,7 +523,7 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   container-type: inline-size;
 }
 .profile-layout {
-  grid-template-columns: minmax(230px, 0.28fr) minmax(0, 0.72fr);
+  grid-template-columns: clamp(220px, 22%, 280px) minmax(0, 1fr);
   gap: clamp(16px, 1.35vw, 22px);
   min-width: 0;
   color: var(--ink);
@@ -626,7 +531,6 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 }
 .doctor-panel,
 .profile-header,
-.alert-panel,
 .chart-card,
 .sessions-card,
 .profile-placeholder {
@@ -784,6 +688,10 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   font-size: 13.5px;
   white-space: nowrap;
 }
+.doctor-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .doctor-row-end {
   display: grid;
   justify-items: end;
@@ -862,13 +770,8 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   gap: 16px;
   min-width: 0;
 }
-.profile-analysis-main { display: grid; gap: 16px; min-width: 0; }
-.alert-panel,
 .chart-card,
 .sessions-card { min-width: 0; padding: 18px; }
-.alert-panel { border-left: 4px solid #dca34e; }
-.alert-panel.has-high-alert { border-left-color: #d56e72; }
-.alert-panel.no-alert { border-left-color: #43a778; }
 .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
 .section-heading h3 {
   display: flex;
@@ -880,28 +783,6 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   line-height: 1.35;
 }
 .section-heading > div > p { margin: 5px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
-.alert-panel .section-heading h3 svg { color: #b58037; }
-.alert-panel.has-high-alert .section-heading h3 svg { color: #be555d; }
-.alert-panel.no-alert .section-heading h3 svg { color: #24895e; }
-.alert-panel .section-heading > .status-badge { flex: none; margin-top: 1px; }
-.alert-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
-.alert-group { min-width: 0; padding: 12px; border: 1px solid transparent; border-radius: 12px; }
-.alert-group.high { background: #fff3f2; border-color: #f4e0df; }
-.alert-group.medium { background: #fff8eb; border-color: #f3e9d3; }
-.alert-group h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: #ae5057; font-size: 15px; }
-.alert-group.medium h4 { color: #9f7226; }
-.alert-group h4 span { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 99px; background: #fff; font-size: 13px; }
-.alert-group ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.alert-item { padding-top: 8px; border-top: 1px solid rgba(137, 105, 75, 0.12); }
-.alert-item:first-child { padding-top: 0; border-top: 0; }
-.alert-item strong { color: #564940; font-size: 14px; line-height: 1.5; }
-.alert-item p { margin: 3px 0; color: #65766a; font-size: 13.5px; line-height: 1.6; overflow-wrap: anywhere; }
-.alert-item small { color: #7d8980; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.alert-clear { display: flex; align-items: center; gap: 12px; margin-top: 15px; padding: 17px; border: 1px solid #dcefe3; border-radius: 12px; background: #f1f9f3; }
-.alert-clear > span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #dcf1e4; color: #228b5e; }
-.alert-clear strong { color: #286448; font-size: 15px; }
-.alert-clear p { margin: 4px 0 0; color: #718579; font-size: 13.5px; line-height: 1.55; }
-.alert-footnote { margin: 12px 0 0; color: #79887f; font-size: 13.5px; line-height: 1.6; }
 .profile-trend-card,
 .profile-radar-card { display: flex; flex-direction: column; }
 .chart-heading { align-items: center; margin-bottom: 10px; }
@@ -913,7 +794,7 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 .profile-trend-card :deep(.chart-legend) { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 7px; font-size: 13.5px; }
 .profile-trend-card :deep(.chart-caption) { margin: 7px 0 0; font-size: 13.5px; }
 .chart-empty { display: grid; flex: 1; place-items: center; min-height: 210px; }
-.profile-radar-card { width: 100%; min-height: 510px; align-self: start; }
+.profile-radar-card { width: 100%; min-height: 510px; }
 .profile-radar-card :deep(.radar-area) { flex: none; min-height: 0; grid-template-rows: auto auto; padding: 5px 0 0; }
 .profile-radar-card :deep(.radar-shell) { width: min(100%, 440px); height: auto; max-width: 440px; max-height: none; aspect-ratio: 1; }
 .profile-radar-card :deep(.radar-chart) { width: 100%; height: 100%; }
@@ -952,16 +833,16 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 .retry-profile:hover { background: #e2f2e6; }
 
 @container profile-page (min-width: 1200px) {
-  .profile-analysis { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr); }
+  .profile-analysis { grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr); align-items: stretch; }
   .profile-radar-card { min-height: 0; }
   .profile-radar-card :deep(.radar-area) { min-height: 370px; }
 }
 @container profile-page (min-width: 900px) and (max-width: 1199px) {
   .profile-header { grid-template-columns: minmax(0, 1fr); }
   .profile-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .profile-analysis { grid-template-columns: minmax(0, 1fr); }
-  .profile-radar-card { min-height: 620px; }
-  .profile-radar-card :deep(.radar-area) { min-height: 400px; }
+  .profile-analysis { grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr); align-items: stretch; }
+  .profile-radar-card { min-height: 0; }
+  .profile-radar-card :deep(.radar-area) { min-height: 350px; }
   .profile-placeholder { grid-column: 2; }
 }
 @container profile-page (max-width: 899px) {
@@ -981,14 +862,12 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   .doctor-row-end { grid-column: 2; grid-template-columns: auto 1fr; justify-items: start; align-items: center; }
   .doctor-row-end small { justify-self: end; }
   .profile-header,
-  .alert-panel,
   .chart-card,
   .sessions-card { padding: 14px; }
   .profile-avatar { width: 50px; height: 50px; }
   .profile-identity h2 { font-size: 18px; }
   .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .profile-stat { min-height: 92px; }
-  .alert-groups { grid-template-columns: minmax(0, 1fr); }
   .section-heading { align-items: flex-start; }
   .chart-period { white-space: normal; text-align: right; }
   .profile-radar-card { min-height: 0; }
