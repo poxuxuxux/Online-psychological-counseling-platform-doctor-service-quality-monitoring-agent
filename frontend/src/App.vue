@@ -430,7 +430,7 @@ function exportReport() {
   if (!report.value) return
   downloadJson(
     { mode: mode.value, exported_at: new Date().toISOString(), report: report.value },
-    `心衡-${report.value.evaluation_id}.json`,
+    `心鉴-${report.value.evaluation_id}.json`,
   )
   notify('已导出报告；包含证据引文，请按授权范围保管。')
 }
@@ -546,7 +546,7 @@ onUnmounted(() => {
               opacity=".55"
             /></svg></span
         ><span class="brand-text"
-          ><strong>心衡</strong><small>服务质量工作台</small></span
+          ><strong>心鉴</strong><small>服务质量工作台</small></span
         ></a
       >
       <nav aria-label="主导航">
@@ -1014,7 +1014,7 @@ onUnmounted(() => {
           <div class="review-page service-review-page">
             <header class="review-heading">
               <div><h1>人工复核</h1><p>核对后端返回的会话原文、AI 评分和相关证据。</p></div>
-              <button class="review-action secondary" type="button" :disabled="!actionableDrafts.length" @click="downloadJson({ scope: 'local-draft-not-submitted', drafts: actionableDrafts }, '心衡-复核草稿.json')"><Icon name="download" :size="16" />导出复核草稿</button>
+              <button class="review-action secondary" type="button" :disabled="!actionableDrafts.length" @click="downloadJson({ scope: 'local-draft-not-submitted', drafts: actionableDrafts }, '心鉴-复核草稿.json')"><Icon name="download" :size="16" />导出复核草稿</button>
             </header>
 
             <section class="review-stats service-review-stats" aria-label="复核统计">
@@ -1214,7 +1214,7 @@ onUnmounted(() => {
           </div>
         </template>
         <footer class="page-footer">
-          <span>心衡 · 服务质量辅助评估</span>
+          <span>心鉴 · 服务质量辅助评估</span>
           <p>{{ mode === 'preview' ? '当前为离线合成数据演示。' : listSource === 'uploaded' ? '本页上传的会话与报告刷新后会清除。' : '数据库中的真实会话仅供授权访问。' }} 正式结论需核查证据与适用规则，并由授权人员复核。</p>
         </footer>
       </main>
@@ -1262,7 +1262,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: minmax(275px, 0.8fr) minmax(390px, 1.2fr) minmax(390px, 1.1fr);
   grid-template-areas: 'context context context' 'list conversation results';
-  grid-template-rows: auto clamp(620px, calc(100vh - 284px), 790px);
+  grid-template-rows: auto clamp(660px, calc(100vh - 248px), 900px);
   align-items: stretch;
   gap: 16px 18px;
 }
@@ -1310,7 +1310,21 @@ onUnmounted(() => {
 }
 .service-workspace-content :deep(.service-conversation-panel .conversation-list),
 .service-workspace-content :deep(.service-conversation-panel .structured-view) { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; }
-.service-workspace-content :deep(.service-conversation-panel .message-bubble) { font-size: 14px; line-height: 1.75; }
+.service-workspace-content :deep(.service-conversation-panel .message-bubble) { font-size: 15.5px; line-height: 1.75; }
+.service-workspace-layout :deep(.service-session-panel .panel-title-row h2),
+.service-workspace-layout :deep(.service-conversation-panel .panel-title-row h2),
+.service-workspace-layout > .results-panel .panel-title-row h2 { font-size: 19px; }
+.service-workspace-layout :deep(.service-session-panel .panel-title-row p),
+.service-workspace-layout :deep(.service-conversation-panel .panel-title-row p),
+.service-workspace-layout > .results-panel .panel-title-row p { font-size: 14px; }
+.service-workspace-layout :deep(.service-session-panel .consultation-id) { font-size: 15px; }
+.service-workspace-layout :deep(.service-session-panel .session-item-meta),
+.service-workspace-layout :deep(.service-session-panel .session-item-bottom),
+.service-workspace-layout :deep(.service-session-panel .session-pagination) { font-size: 13px; }
+.service-workspace-layout :deep(.service-conversation-panel .message-meta strong) { font-size: 14px; }
+.service-workspace-layout :deep(.service-conversation-panel .message-meta time) { font-size: 13px; }
+.service-workspace-layout :deep(.service-conversation-panel .message-foot),
+.service-workspace-layout :deep(.service-conversation-panel .conversation-footer) { font-size: 13px; }
 .service-workspace-layout > .results-panel { grid-area: results; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; max-height: none; overflow: auto; }
 .service-workspace-layout > .results-panel > .panel-title-row { position: sticky; top: 0; z-index: 1; flex: 0 0 auto; background: rgba(255, 255, 255, 0.98); }
 .service-workspace-layout > .results-panel > .empty-state { flex: 1; min-height: 0; }
@@ -1366,13 +1380,25 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 .service-workspace-layout > .results-panel .workspace-result-groups .metric-row { grid-template-columns: 42px minmax(0, 1fr) 62px 36px; }
+.service-workspace-layout > .results-panel .workspace-result-groups .metric-group-heading > strong { font-size: 15px; }
+.service-workspace-layout > .results-panel .workspace-result-groups .metric-row > span:first-child,
+.service-workspace-layout > .results-panel .workspace-result-groups .metric-row .metric-name,
+.service-workspace-layout > .results-panel .workspace-result-groups .metric-row > strong { font-size: 13.5px; }
+.service-workspace-layout > .results-panel .workspace-result-counts > span { font-size: 13px; }
+.service-workspace-layout > .results-panel .workspace-result-counts strong { font-size: 18px; }
+.service-workspace-layout > .results-panel .score-gate-note,
+.service-workspace-layout > .results-panel .workspace-result-failure { font-size: 13px; }
+.service-workspace-layout > .results-panel .overall-score small { font-size: 13px; }
+.service-workspace-layout > .results-panel .overall-score strong { font-size: 30px; }
+.service-workspace-layout > .results-panel .score-conclusion strong { font-size: 14px; }
+.service-workspace-layout > .results-panel .score-conclusion p { font-size: 13.5px; }
 .service-workspace-layout > .results-panel .execution-issues li { margin-bottom: 8px; }
 .service-workspace-layout > .results-panel .execution-issues small { display: block; margin-top: 3px; color: #6d8173; overflow-wrap: anywhere; }
 @media (max-width: 1350px) {
   .service-workspace-layout {
     grid-template-columns: minmax(250px, 0.76fr) minmax(360px, 1.24fr);
     grid-template-areas: 'context context' 'list conversation' 'results results';
-    grid-template-rows: auto 640px auto;
+    grid-template-rows: auto 680px auto;
     gap: 16px;
   }
   .service-workspace-layout > .results-panel { height: auto; min-height: 540px; max-height: none; }

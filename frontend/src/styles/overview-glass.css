@@ -23,6 +23,7 @@
   --radius-pill: 999px;
   --topbar-h: 74px;
   --sidebar-inset: 16px;
+  --topbar-main-offset: calc(var(--topbar-h) + var(--sidebar-inset));
   --sidebar-panel-width: 198px;
   --font-hand: 'Xingkai SC', 'STXingkai', '楷体', 'KaiTi', 'STKaiti', cursive;
 }
@@ -261,7 +262,7 @@ body {
 /* ── 顶栏：搜索药丸 + 日期 + 圆形按钮 + 用户 ─────────── */
 .topbar {
   position: fixed;
-  top: 0;
+  top: var(--sidebar-inset);
   left: calc(var(--sidebar-inset) + var(--sidebar-panel-width) + 10px);
   right: 0;
   z-index: 20;
@@ -276,10 +277,10 @@ body {
   backdrop-filter: none;
 }
 .main-shell > main {
-  margin-top: var(--topbar-h);
+  margin-top: var(--topbar-main-offset);
 }
 main.overview-main {
-  margin-top: var(--topbar-h);
+  margin-top: var(--topbar-main-offset);
 }
 .topbar .mobile-menu {
   display: none;
@@ -1671,6 +1672,7 @@ main.overview-main .page-footer p {
 @media (max-width: 760px) {
   :root {
     --topbar-h: 64px;
+    --topbar-main-offset: var(--topbar-h);
   }
   .sidebar {
     top: 0;
@@ -1683,6 +1685,7 @@ main.overview-main .page-footer p {
     margin-left: 0;
   }
   .topbar {
+    top: 0;
     left: 0;
     right: 0;
     height: 64px;

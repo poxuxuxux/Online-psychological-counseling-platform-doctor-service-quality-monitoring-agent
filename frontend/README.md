@@ -1,4 +1,4 @@
-# 心衡前端工作台
+# 心鉴前端工作台
 
 Vue 3 + TypeScript + Vite，可独立开发，也可以构建为现有 FastAPI `/` 页面。当前在 `feat/quality-console` 分支，基于包含 Railway 演示与 PostgreSQL 存储的 `origin/chore/railway-smoke-config`（74cc7ca），而不是尚未合入演示代码的旧 main。
 

@@ -1210,3 +1210,89 @@
     overflow: visible;
   }
 }
+
+/* 工作台阅读性：标题、正文、元数据按层级放大，桌面三栏获得更多纵向空间。 */
+.evaluation-workspace {
+  font-size: 16.5px;
+}
+.evaluation-workspace .panel-title-row h2 {
+  font-size: 19px;
+}
+.evaluation-workspace .panel-title-row p,
+.evaluation-workspace .panel-count,
+.evaluation-workspace .session-filters select,
+.evaluation-workspace .view-tabs button,
+.evaluation-workspace .metric-toolbar > strong {
+  font-size: 14px;
+}
+.evaluation-workspace .workspace-search input {
+  font-size: 15px;
+}
+.evaluation-workspace .session-item-top > strong {
+  font-size: 15px;
+}
+.evaluation-workspace .session-status {
+  font-size: 13px;
+}
+.evaluation-workspace .session-item-meta,
+.evaluation-workspace .session-item-bottom,
+.evaluation-workspace .session-pagination button,
+.evaluation-workspace .message-meta strong,
+.evaluation-workspace .evidence-tag,
+.evaluation-workspace .conversation-footer,
+.evaluation-workspace .metric-toolbar select,
+.evaluation-workspace .metric-group-heading small,
+.evaluation-workspace .metric-code,
+.evaluation-workspace .metric-item > strong,
+.evaluation-workspace .metric-detail > div span,
+.evaluation-workspace .metric-detail button {
+  font-size: 13px;
+}
+.evaluation-workspace .message-meta time {
+  font-size: 12.5px;
+}
+.evaluation-workspace .message-bubble {
+  font-size: 15.5px;
+}
+.evaluation-workspace .overall-score small,
+.evaluation-workspace .score-conclusion strong,
+.evaluation-workspace .metric-detail p {
+  font-size: 14px;
+}
+.evaluation-workspace .overall-score strong {
+  font-size: 30px;
+}
+.evaluation-workspace .overall-score em {
+  font-size: 14px;
+}
+.evaluation-workspace .metric-group-heading > strong {
+  font-size: 15px;
+}
+.evaluation-workspace .metric-group-heading > b,
+.evaluation-workspace .metric-detail > div b {
+  font-size: 16px;
+}
+.evaluation-workspace .metric-name {
+  font-size: 13.5px;
+}
+.evaluation-workspace .metric-detail > div strong {
+  font-size: 14px;
+}
+.evaluation-workspace .result-footer,
+.evaluation-workspace .result-footer button {
+  font-size: 13px;
+}
+@media (min-width: 761px) {
+  .evaluation-workspace .workspace-panel {
+    height: clamp(660px, calc(100vh - 248px), 900px);
+  }
+}
+@media (min-width: 761px) and (max-width: 1320px) {
+  .evaluation-workspace .workspace-panel {
+    height: 680px;
+  }
+  .evaluation-workspace .ai-panel {
+    height: auto;
+    min-height: 580px;
+  }
+}

@@ -68,7 +68,7 @@ function exportReport() {
   const url = URL.createObjectURL(new Blob([content], { type: 'application/json;charset=utf-8' }))
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `心衡-${latestReport.value.id}-离线质检报告.json`
+  anchor.download = `心鉴-${latestReport.value.id}-离线质检报告.json`
   anchor.click()
   URL.revokeObjectURL(url)
   emit('notify', '离线质检报告已导出为 JSON 文件。')
