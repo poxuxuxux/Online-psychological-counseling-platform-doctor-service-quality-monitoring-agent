@@ -10,6 +10,8 @@ __pycache__/
 .ruff_cache/
 data/raw/
 data/private/
+data/patients/
+data/longest_1000_sessions.json
 data/local/
 *.db
 *.sqlite
@@ -23,3 +25,17 @@ frontend/dist/
 frontend/.env.local
 frontend/.env.*.local
 # 功能：忽略本地环境、隐私数据、数据库和构建缓存，避免意外提交。
+
+frontend/.pnpm-store/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/*.tsbuildinfo
+
+.backend-backups/
+.pytest*/
+
+
+.pnpm-store/
+.venv-quality/
+

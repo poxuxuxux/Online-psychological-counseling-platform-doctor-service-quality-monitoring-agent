@@ -1,0 +1,7 @@
+# 环节：项目配置层；用途：为开发、构建、部署或预览提供配置与入口。
+packages:
+  - .
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

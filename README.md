@@ -1,121 +1,126 @@
-# 在线心理咨询平台医生服务质量监测 Agent
+# 医生服务质量评价 Agent Teams
 
-三人协作开发与数据适配边界见 [模块接口约定](docs/architecture/TEAM_DEVELOPMENT_CONTRACT.md)，第一次使用 GitHub 的完整操作、两人版/三人版分工和实施顺序见 [GitHub 团队协作与开发分工手册](docs/development/GITHUB_TEAM_WORKFLOW.md)。评价单位已确定为一次订单或咨询轮次：原始聊天线程先由可替换切分器形成评价轮次，不能将多年聊天线程直接当作一次咨询。该切分器及文档列出的新增契约仍待实现。
+Python 3.11+ / FastAPI / LangGraph / PostgreSQL。评价对象是医生服务行为。外层确定性流程，内层按需协作团队；不根据分数诊断患者。
 
-面向在线心理咨询平台运营方的 B2B 服务质检与风险线索监测系统。平台操作员导入授权的咨询记录后，后端识别初诊/复诊；复诊时检索必要的历史咨询上下文。三个专职 Agent 分别为专业服务评价 Agent（D1/D3/D6.2）、过程与响应评价 Agent（D2/D5）、共情与关系评价 Agent（D4/D6.1）。D6 两项指标默认进入评价任务，由所属 Agent 判断适用性；风险监测 Hook 仅提供可选候选线索，不控制 D6 是否执行；一个证据核验子 Agent 统一负责原文定位、评分依据核查和指标定义校对。
+默认新协议及配置、计分与恢复见 [Leader中心化协议](docs/LEADER_PROTOCOL.md)。上一轮修复记录见 [评分可靠性说明](docs/SCORING_RELIABILITY.md)。
 
-系统评价医生在会话中可观察到的服务行为，辅助平台扩大质检覆盖、定位问题和追溯依据。系统不对患者作临床诊断，不替代专业人员判断，也不会根据未复核的模型输出自动处罚医生或联系患者。
-
-## Agent 工作流程
-
-```mermaid
-flowchart LR
-    A[导入授权聊天记录：文本/语音/视频] --> SEG[按订单或咨询轮次切分]
-    SEG --> B[多模态预处理：校验、规范化、ASR 转写、脱敏、预检]
-    B --> C[初诊/复诊识别]
-    C -->|复诊| D[授权检索历史咨询并分区注入]
-    C -->|初诊| E[构建当前会话上下文]
-    D --> E
-    E --> F[风险监测 Hook：可选候选线索，不控制 D6 执行]
-    F --> G[三个专职 Agent 并行评价]
-    G --> H[单一证据核验 Agent：定位原文、核查评分依据、校对指标定义]
-    H --> O[应用编排器：检查证据状态与分歧]
-    O -->|存在待语义判断的分歧| ARB[分歧仲裁 Agent]
-    O -->|无需仲裁| SCORE[确定性评分汇总]
-    ARB --> O2[应用编排器：校验裁决并控制每指标一次重评]
-    H -->|核验不充分| O2
-    O2 -->|建议重评且额度可用| R[原评价 Agent 定向复评]
-    R --> H
-    O2 -->|无需重评、已解决或额度已用| SCORE
-    SCORE --> M[人工复核门控]
-    M --> S[总结 Agent：画像叙述、总评分说明与改进意见]
-    S --> J[报告与案件构造]
-    J --> K[操作员复核或归档并留审计记录]
-```
-
-评价体系沿用竞赛指标表的 6 个维度、18 项指标分布（D1/D2/D3/D4/D5/D6 分别为 2/2/5/3/4/2 项），全部通过版本化 Skill 包定义。证据核验 Agent 将复合评价拆成最小事实，分别记录支持、矛盾、证据不足、材料冲突、适用性和评分锚点状态；应用编排器控制一次定向质疑—修正，仍有语义分歧才调用仲裁 Agent。确定性评分汇总器生成 6 维质量画像与总评分（受覆盖率门槛约束），之后运行人工复核门控与总结 Agent。D6 默认纳入任务并按二级指标分工：共情与关系评价 Agent 评“风险信号回应”，专业服务评价 Agent 评“必要转介与求助提示”。历史咨询只作为有来源标签的复诊背景，评分证据必须定位到本次会话消息。
-
-## 产品与技术结构
-
-- **使用对象**：单平台工作空间中的一名平台质检操作员，不包含组织成员、角色或租户管理。
-- **后端**：Python 3.11+、FastAPI、Pydantic 数据契约、可替换的 LLM Provider 接口和版本化 Skill。
-- **前端**：规划为 Vue 3 + TypeScript 管理后台，按总览、质量监测、风险中心、复核工作台、评价任务、指标管理、数据接入和审计日志划分。
-- **系统形态**：比赛 MVP 采用 FastAPI 模块化单体；前端通过版本化 HTTP API 与后端交互。
-
-```text
-.
-├── app/                    # FastAPI、Agent 编排、评价规则与基础设施适配
-├── frontend/               # Vue 3 后台前端目录骨架
-├── data/                   # 合成演示数据与本地数据目录
-└── docs/
-    ├── architecture/       # Agent 与系统架构设计
-    └── product/             # 后台 PRD 与后端功能说明
-```
-
-## 本地启动
-
-需要 Python 3.11 或更高版本。
-
-### Windows PowerShell
+## 本地运行
 
 ```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
-python -m uvicorn app.main:app --reload
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+# 填写模型配置；已有 .env 时不要覆盖。
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --env-file .env --host 127.0.0.1 --port 8000
 ```
 
-### macOS / Linux
+打开 `http://127.0.0.1:8000`，接口文档为 `/docs`。无 DATABASE_URL 的 local 环境使用 `data/local/teams.sqlite3`。无模型配置会持久化明确的失败/不可评价结果，不生成演示分数。
 
-```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-python -m uvicorn app.main:app --reload
+```powershell
+.\.venv\Scripts\python.exe -m app.cli check
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest-teams
+.\.venv\Scripts\python.exe -m ruff check app tests
+.\.venv\Scripts\python.exe -m app.cli evaluate examples/team-session.json --output data/local/report.json
+.\.venv\Scripts\python.exe -m app.cli resume <evaluation_id>
 ```
 
-启动后打开 [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)，服务应返回：
+CLI 会加载 `.env`；`evaluate` 会调用配置的真实模型。自动测试使用可编程模型替身，执行真实图、工具、数据库和 API。`TEST_DATABASE_URL` 专用于可丢弃测试库，CI 启动 PostgreSQL 16 执行集成测试，禁止把它指向生产数据库。
 
-```json
-{"status":"ok"}
+## 模块边界
+
+```text
+app/
+  domain/          Pydantic 输入/动作/评分契约、模型/仓储/知识接口
+  context/         对话规范化、医患关系查询、初复诊路由、历史上下文
+  rubrics/         SKILL.md指标规则、动态目录加载和版本哈希
+  team/            Leader规划与赋权、三视角初评、MessageBus、限轮反馈与有据裁决；兼容旧子图
+  evaluation/      评分汇总、服务风险、总结、纵向分析、报表
+  workflow/        外层 StateGraph、依赖编排、恢复入口和总超时
+  infrastructure/ Qwen/GLM 网关、PostgreSQL/本地 SQLite 适配、加密 Bucket 对象存储
+  api/            HTTP 参数、鉴权、响应；不实现评分规则
+  bootstrap.py    组合根：注入模型、仓储、Skill 和知识库
+  config.py       运行预算与环境配置
+  web/            原前端构建产物
 ```
 
-### 运行测试
+更换模型实现 `domain.ports.ModelGateway`，更换知识源实现 `KnowledgeSource`，更换存储实现 `EvaluationRepository`。通过 `build_container` 或 `create_app` 注入，评分逻辑无需改动。细节见 [模块开发说明](docs/MODULES.md)。
 
-```bash
-python -m pytest
-```
+## 执行流程
 
-测试覆盖预处理管道的阶段编排与可评价性判定、脱敏失败阻断、评价协调器的超时与失败隔离、证据引用的归一化匹配，以及注册表与账本等骨架行为，共 35 个测试；尚未覆盖三人接口约定中的完整模块连接。
+主图节点：预处理 → Session Context → Initial / Historical Context → Team Lead → Team Initialization → Team Subgraph → Completion Check → Scoring → Risk → Summary → Longitudinal Analysis → Report → Storage。独立 Evidence Validator 已移除。
 
-`/health` 只检查 FastAPI 进程是否响应，不代表数据库、模型服务或完整评价工作流已经连通。前端目录目前仅含架构说明和目录占位文件，还没有独立安装与启动命令。
+新运行默认leader-review-v2：三个Agent从问题解决、情绪处境、响应协作视角先独立初评全部18项。Leader随后依情境、评分与证据分布、核心需求相关性分别选项赋权；每阶段先归一化，未入选补0，三个阶段固定平均，无等权起点或±20%限幅。Leader不受Agent不适用意见限制，可保留并要求重评，也可删除已评分项。Leader汇总P0并检查五分制分差≥3及非数值问题，通过MessageBus与各评价者往返；接受或拒绝异议都要解释。最多3轮后作有据裁决，保留异议，不把裁决标成全体共识。真正的材料或规则不足仍留空。
 
-当前代码骨架已包含：FastAPI 入口与组合根装配、多模态会话数据契约（文本/语音/视频消息、ASR 转写元数据、媒体时间区间）、四阶段预处理管道（规范化 → 转写 → 脱敏 → 预检，含可评价性判定与安全阻断）、带超时与并发预算的多 Agent 协调器、共享通信池运行账本（append-only 事件/任务单/结论消息，按 run_id 隔离）、管理与情境识别 Agent 的协议占位（只产出候选路由，指派权在确定性校验）、错误隔离的 Hook 注册表、确定性证据核验工具（引文归一化匹配、媒体区间校验）、分歧仲裁 Agent 与总结 Agent 的协议占位、画像/冲突/仲裁/改进意见数据契约、评分汇总器与复核门控接口、内存仓储和 35 个契约测试。尚未实现：真实 LLM Provider 与 AgentRunner、三个正式评价 Agent 的完整执行、证据核验子 Agent、管理/分歧仲裁/总结 Agent 的完整执行、评分汇总与门控规则、复诊历史检索、风险监测 Hook 规则、持久化和后台 API。产品文档描述目标闭环，不代表上述模块都已可运行。
+新子图以advance/save循环推进planning、initial、report、feedback、revision和终评阶段；阶段、预算与成功提交保存于节点快照。消息仅允许Leader与Teammate往返，无争议卡。完整说明见docs/LEADER_PROTOCOL.md。
 
-## 多模态输入与预处理边界
+旧TEAM_PROTOCOL=legacy保留原schedule/observe/reason/act/save与D1+D3、D2+D5、D4+D6分工，仅用于旧运行兼容。旧检查点按自身协议恢复，不会被环境变量静默改变。
 
-- 会话消息支持文本、语音、视频三种模态；原始音视频只保存在受控媒体存储中，**不进入模型上下文**。
-- 语音/视频消息经 ASR 转写为带引擎版本与时间偏移的派生文本后才可评价；证据引用可附带媒体时间区间，供前端跳转回原始音视频位置。
-- 脱敏在评价前强制执行：文本脱敏产生的映射保存在隔离仓储中，仅供审计与人工复核，不进入 Agent 输入或报告；脱敏阶段失败会阻断整条评价链路。
-- 转写引擎与脱敏规则集均为可替换适配器；当前分别为"未配置显式报错"和"仅限合成演示数据"的占位实现。
+## 初复诊与历史防锚定
 
-## 文档
+`patient_id + doctor_id + session_time` 决定历史查询；仅查询相同医患关系的严格更早会话，排除本次会话。时间统一 UTC，必须带时区。
 
-- [GitHub 团队协作与开发分工手册](docs/development/GITHUB_TEAM_WORKFLOW.md)：成员邀请、分支/PR/评审/冲突流程、公共契约规则、两人版和三人版分工及分阶段 Issues。
-- [Agent 系统设计文档](docs/architecture/AGENT_SYSTEM_DESIGN.md)：Agent 模块职责、复诊历史检索、风险 Hook/D6、证据核验子 Agent、评价流转、数据契约、API、失败处理和安全设计。
-- [B2B 后台架构融合提案](docs/architecture/B2B_ADMIN_CONSOLE_ARCHITECTURE.md)：后台如何融入现有项目结构，以及单操作员 MVP 的边界。
-- [后台产品 PRD](docs/product/PRD_B2B_QUALITY_CONTROL_CONSOLE.md)：产品目标、用户、流程、页面、功能需求和验收标准。
-- [后端 Agent 功能说明](docs/product/BACKEND_AGENT_FUNCTIONAL_SPEC.md)：后端完整业务能力、评价器职责、证据、风险复核和接口。
-- [前端目录骨架说明](frontend/README.md)：Vue 3 前端模块划分和后续工程初始化约定。
+- 找到更早会话：FOLLOW_UP。
+- 没有更早会话，身份时间齐全，可信导入方确认 `history_complete=true`：INITIAL。
+- 其余：UNKNOWN。不能将“没查到”自动当成初诊。
 
-## 数据与安全
+`history_complete` 是平台导入契约，默认 false，不能由 LLM 设置；接入方只有确认历史导入完整时才能置 true。历史原始数据通过受保护的 `/sessions` 导入。旧数据库表保留，但不自动猜测它们的医患键或时间字段，也不把旧演示分数并入新标准。
 
-- 演示优先使用合成会话；未经授权不要导入真实咨询记录。
-- 不要提交 `.env`、患者身份信息、数据库文件、私有对话或本地向量索引。
-- 评价结论必须与会话证据分开记录平台规则知识；引用无效或证据不足时不应给出确定分数。
-- 复诊历史仅按可信匿名患者标识和平台授权检索；历史片段与本次消息分开标注，不能作为本次医生行为评分的直接证据，并需记录访问审计和执行保留/删除策略。
-- 高风险结果是平台内部待核查线索；人工复核和平台处置流程保留最终判断权。
+历史评价、风险、总结与未解决问题进入服务端 Context Store 和纵向分析。常规 Evaluator 只看到会话类型和历史可用状态。历史工具仅对 Skill 的 `allowed_sources` 明确包含 `historical_dialogue` 的指标开放，只返回历史事实，隐藏历史分数与总结。现有指标尚未声明该来源，所以历史工具会明确返回不允许，不会偷偷注入旧分数。
 
-## 工程说明
+## Skill 与评分
 
-仓库提供可启动的 FastAPI 服务入口和健康检查，Agent 与评价流程按模块化架构组织。真实模型供应商、持久化数据层和后台页面应在满足平台授权与安全要求后接入；当前的 `/health` 响应不代表完整质检产品已可投入运营。
+保留的指标位于 `app/rubrics/metrics/<metric_id>/`。维度由 `dimension_id` 或指标 ID 的点号前缀确定，可增加新维度而不改 Agent 类。每次运行冻结规则内容、说明及哈希。
+
+18 个指标以各自 `SKILL.md` YAML frontmatter 的 `status` 字段为发布状态唯一依据；当前 18 项均为 published，包括 D6.1、D6.2。发布状态不等于所有指标都已开放数值评分：结构化 `scoring_blockers`、证据不足、材料冲突或无法区分锚点时仍必须留空并按对应规则人工复核。草案指标则不得提交数值评分，适用案例须记录 `rubric_unpublished`。
+
+模型请求携带 `SKILL.md` 的结构化规则与执行说明。规则与对话由程序预载；Agent 仍可主动取证、协作和修正。已移除独立模型语义校验及其自动修正调用；报告明确标记 `verification_mode=none`，前端显示“Agent 已评分”，不声称经过独立核验。
+
+新报告的 `team.usage` 记录供应商返回的输入/输出 token、实际记录用量的请求数与输入字符数，前端报告中可展开查看。旧报告没有 token 统计，不把缺失统计当作零成本。模型超时和服务错误连续两次后停止；截断或格式错误会缩小为单项提交，连续三次后停止。默认每次建议提交两项，单 Agent 累计模型耗时预算为 300 秒，总耗时仍为 600 秒，环境变量可覆盖。
+
+可运行 `python -m scripts.prepare_real_samples` 从本地真实数据流式选取 3 份订单范围样本，输出到忽略提交的 `data/private/quality-samples`。不会把跨年线程当作一次问诊，也不会截断长订单来伪装完整会话。样本去除原始身份元数据及可识别的姓名、联系方式，但自由文本不保证完全匿名，必须保留私有访问。没有明确结束事件时 `observation_complete=false`，没有明确接诊事件时不生成首次响应计时起点。
+
+分数必须在 Skill 的 `score_values` 中，NOT_EVALUABLE / NOT_APPLICABLE 不补零。提交工具仍校验指标归属、发布状态、分数锚点取值、原文证据引用、时间事实和显式复核规则；未解决冲突或缺项不计分。这里不再有独立的事实/适用性/评分语义复核，Agent 判断可能有误。总分使用 Skill 权重均值，默认等权；覆盖门控只统计可计分指标（published 且无 scoring_blockers），配置上无法数值计分的指标在 `quality_profile.score_exclusions` 中披露，不再阻塞总分；新协议只对Leader选中的项目计分，必要反馈和最终裁决必须完成；真正的应计分缺口阻断总分。旧协议保留上一轮关于可计分项和Leader单独失败的策略，不用于解释新协议。风险为服务质量风险：总分低于 3/5 为 high、低于 4/5 为 medium，覆盖不足为 unknown，严重服务风险标记优先 high。这些是版本化工程策略，不是临床风险诊断。
+
+带有结构化 `scoring_blockers` 的指标即使状态为 published，也不能提交或计入数值评分；必须提交对应人工复核原因。当前 D2.1、D2.2 的计时政策尚未配置，因此只记录可用时间事实，不生成确定性分数，但不再因此放弃其他指标的总分。
+
+总结由确定性模板和 Agent 的可计分结果生成自然语言，不额外让 LLM 编造事实。纵向分析仅在规则哈希一致且两次总分均有效时计算变化；历史来源、限额及不可比原因保留。
+
+## API 与权限
+
+- `POST /api/v1/evaluations`：同步完成并返回兼容现有前端的报告。
+- `POST /api/v1/runs`：持久化待执行任务，返回 run_id；不隐式创建后台进程。
+- `POST /api/v1/runs/{id}/execute`：执行/恢复。长运行可先创建 ID，再由客户端轮询 GET。
+- `GET /api/v1/runs/{id}`：状态、阶段、最终报告。
+- `GET /api/v1/runs/{id}/audit`：任务、证据、消息状态、模型调用数、复核、版本和工具审计。
+- `POST /api/v1/sessions`：导入可信平台会话；同一 session_id 的内容不可被覆盖。
+- `GET /api/v1/consultations`、`/{session_id}`、`/evaluations/recent`、`/evaluations/overview`：查询。
+- `/evaluations/{id}/reviews`：人工复核记录；不会静默重写机器评分。
+- `/demo/session`、`/demo/sessions`、`/demo/sessions/{id}`：内置合成样本。
+
+真实数据和审计需 `Authorization: Bearer <EVALUATION_API_TOKEN>`，至少 24 字符。匿名接口只允许服务端固定合成样本，伪造 source_id 无法绕过。此 token 是单平台管理凭据；多机构权限隔离需在接入平台认证层另行实现。前端服务模式默认不显示演示会话；在“服务连接”输入访问令牌后，仅列出真实导入会话，批量评价也只处理这些会话。离线样例需显式切换。访问令牌只保留在当前页面内存，刷新后需重新输入。
+
+## 持久化与恢复
+
+新增 `team_sessions`、`team_runs`、`team_tasks`、`team_evidence`、`team_messages`、`team_events`、`team_human_reviews`，不删除旧表。启动执行幂等建表；后续 schema 变更应新增迁移。
+
+每步模型请求前预留预算并保存状态。启用 Bucket 后，会话原文与完整运行快照先加密压缩上传，数据库只在事务中写对象引用、报告和协作审计；上传失败不会把新引用写进数据库。跨服务无法做到严格原子提交，数据库提交失败可能留下未引用对象，清理时必须先核对数据库引用。恢复从已提交的节点边界继续；进程在模型调用中崩溃时，该调用可能重发，但已预留调用数不会回退。已提交消息不会丢失或重复发送，未提交的内存动作不对外可见。失败或预算耗尽任务无法再处理的收件消息由系统以 `system_closed` 关闭并在事件审计中留痕，不再永久阻塞完成判定；已完成任务收到迟到消息时保留其评分结果，收件同样由系统关闭。数据库租约防止同一 run 被两个 worker 同时执行；崩溃后等待租约过期，再调用 execute 或 CLI resume。主动取消释放租约。
+
+这是应用级节点快照恢复，不宣称提供 LangGraph 原生 checkpoint 的任意节点 time-travel。后续可以替换存储并增加原生 checkpointer，当前外部工具均为只读或事务内状态修改。
+
+## Railway
+
+保留 `Dockerfile` 和 `railway.toml` 启动入口 `app.main:app`。在 **后端服务** Variables 中引用既有 PostgreSQL 服务的 `DATABASE_URL`；它由 Railway 注入，不需要复制密码到本地 `.env`。同时设置模型配置、`APP_ENV=production`、`EVALUATION_API_TOKEN`。`/health` 为存活检查，`/ready` 检查数据库并报告模型及规则状态。
+
+后端服务的 `DATABASE_URL` 建议使用 Railway 引用 `${{Postgres.DATABASE_URL}}`。部署后打开后端公网地址的 `/ready`，确认 `database.backend` 为 `postgresql`、`database.connected` 为 `true`、`model.configured` 为 `true`；启用 Bucket 时还须确认 `database.bucket.connected` 为 `true`，否则 `/ready` 返回 503。接口不会暴露数据库密码。若 `model.configured` 为 `false`，在后端服务配置 `DEEPSEEK_API_KEY`、`DASHSCOPE_API_KEY` 或 `GLM_API_KEY` 中的一种。前端会在批量评价前检查模型状态并直接给出配置提示。
+
+### 对话 Bucket
+
+`conversation-files` 的变更先在 Railway 控制台 **Apply/Deploy**。后端服务需要从该 Bucket 引用 `BUCKET`、`ENDPOINT`、`REGION`、`ACCESS_KEY_ID`、`SECRET_ACCESS_KEY`，另设 `BUCKET_ENCRYPTION_KEY`。密钥使用 Fernet 格式，可在可信本机运行 `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` 生成，并安全备份；丢失后无法读取已上传对象，不能直接轮换旧密钥。密钥不要发到聊天、写入 Git 或配置到前端。只配部分 Bucket 变量或缺少加密密钥时后端拒绝启动，防止误把对话写回 PostgreSQL 或明文上传。
+
+配置完整时，`team_sessions.payload` 与 `team_runs.payload` 写入小型对象引用；完整会话和运行快照在 Bucket 中加密压缩保存。评价报告及任务、证据和消息审计仍写 PostgreSQL。旧内联记录仍可读。确认 Bucket 可访问并完成数据库备份后，可显式运行 `python -m app.cli migrate-bucket` 迁移旧行；失败会保留原行，命令可重复执行。PostgreSQL 的 UPDATE 不会立即缩小已有卷文件，空间回收需安排数据库维护，切勿在接近 500 MB 容量上直接执行需要额外空间的重写操作。
+
+已整理成 `Session` 结构的每会话 JSON 文件可用 `python -m app.cli import-directory <目录>` 导入，或在前端“服务连接”中设置访问令牌后选择这些 JSON 文件上传；前端单文件上限 2 MB。`data/longest_1000_sessions.json` 是原始平台线程格式，不能直接上传或交给此命令。先按可信订单边界转换并检查隐私。`scripts.prepare_real_samples` 只生成少量测试样本，并不表示已导入全部 921 MiB；仓库当前的私有测试样本也不会随 Docker 构建进入 Railway。Bucket 本身不替代独立备份；Railway 当前 Bucket 不提供服务端加密、对象版本和自动快照，故这里在应用端加密。[Railway Bucket 文档](https://docs.railway.com/storage-buckets)
+
+直接访问后端公网域名时，FastAPI 已托管 `app/web` 前端，浏览器使用同源 `/api`，无需前端地址变量。若单独部署 `frontend/`，先为前端服务创建公网域名，再在**前端服务**配置构建变量 `VITE_API_URL=https://<后端公网域名>`，并在**后端服务**配置 `FRONTEND_ORIGINS=https://<前端公网域名>`。两个值都不带尾部 `/`，前端变量更改后需重新构建部署。`API_PROXY_TARGET` 仅供本地 Vite 开发服务器使用；`VITE_DATA_MODE` 当前未被应用代码读取。
+
+该重构已准备部署配置，未自动发布到 Railway，也未连接生产库执行测试。旧独立 worker 入口已移除；运行与恢复统一通过新 API/CLI。若 Railway 原来还有旧 worker 服务，应停用旧 start command 或改为调用新运行接口。

@@ -1,11 +1,12 @@
 # Railway deployment configuration for the FastAPI smoke environment.
-# The service must bind to Railway's injected PORT and expose /health.
+# Build with the repository Dockerfile so dependency installation is explicit.
 
 [build]
-builder = "RAILPACK"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+startCommand = "/bin/sh -c \"exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}\""
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+*.egg-info
+.env
+.env.*
+data/raw
+data/private
+data/local
+frontend/node_modules
+frontend/dist

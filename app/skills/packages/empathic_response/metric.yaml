@@ -1,9 +1,0 @@
-# 功能：为 Skill Registry 提供机器可读的指标身份与适用信息。
-# 状态：占位示例；上线前须由心理咨询专业人员审定定义、锚点和反例。
-id: empathic_response
-name: 共情回应（待审定）
-version: 0.1.0-draft
-description: 评估医生是否识别并回应患者表达的情绪与体验。
-status: draft
-score_range: [0, 5]
-evidence_required: true
