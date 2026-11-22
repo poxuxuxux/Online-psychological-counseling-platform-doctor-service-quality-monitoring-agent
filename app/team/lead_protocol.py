@@ -421,7 +421,25 @@ class LeaderProtocol:
                 FindingInput.model_validate(item)
                 result = self.tools.submit(data, owner, {"findings": [item]})
                 if result["rejected"]:
-                    raise ValueError(result["rejected"][0]["error"])
+                    error = result["rejected"][0]["error"]
+                    current = team["tasks"][owner]
+                    attempts = current.get("validation_attempts", {}).get("initial_evaluation:" + mid, 0)
+                    spec = data["skills"]["metrics"][mid]
+                    rules = {rule["rule_id"] for rule in spec["manual_review"]}
+                    if (team.get("grouped_initial") and attempts >= 2
+                            and error == "Absence claim requires complete observation"
+                            and "source_incomplete" in rules):
+                        fallback = self.tools.submit(data, owner, {"findings": [{
+                            "metric_id": mid, "status": "NOT_EVALUABLE", "score": None,
+                            "reason": "观察窗口未确认完整，无法核实该行为是否未发生，需进一步复核。",
+                            "review_rule_ids": list(dict.fromkeys(
+                                ["source_incomplete", *spec.get("scoring_blockers", [])])),
+                        }]})
+                        if not fallback["rejected"]:
+                            event(team, owner, "initial_absence_unresolved",
+                                  {"metric_id": mid, "attempt": attempts + 1, "error": error})
+                            return
+                    raise ValueError(error)
             self._consume(data, agent, "initial_evaluation", raw, "findings",
                           payload["requested_metric_ids"], accept)
         self._check_failed(data)
@@ -553,7 +571,30 @@ class LeaderProtocol:
                         value["question"] = question
                         defaulted_question = True
                     item = LeaderItem.model_validate(value)
-                    f = self._validated_candidate(data, mid, item.finding.model_dump())
+                    unresolved_absence = False
+                    try:
+                        f = self._validated_candidate(data, mid, item.finding.model_dump())
+                    except ValueError as error:
+                        attempts = current.get("validation_attempts", {}).get(purpose + ":" + mid, 0)
+                        spec = data["skills"]["metrics"][mid]
+                        if (not team.get("grouped_initial") or attempts < 2
+                                or str(error) != "Absence claim requires complete observation"
+                                or "source_incomplete" not in {r["rule_id"] for r in spec["manual_review"]}):
+                            raise
+                        # Apply the same bounded uncertainty handling used by initial evaluators.
+                        # Do not turn an unsupported absence assertion into a numeric final.
+                        item.finding = FindingInput.model_validate({
+                            "metric_id": mid, "status": "NOT_EVALUABLE", "score": None,
+                            "reason": "观察窗口未确认完整，无法核实该行为是否未发生，需进一步复核。",
+                            "review_rule_ids": list(dict.fromkeys(
+                                ["source_incomplete", *spec.get("scoring_blockers", [])])),
+                        })
+                        item.factual_resolution = "unresolved"
+                        item.decision_method = "not_evaluable" if final else "provisional"
+                        item.question = ("请核对本项行为是否有可定位的原文和完整回应机会；"
+                                         "确认前保留待核查空分。" + item.question)[:2000]
+                        f = self._validated_candidate(data, mid, item.finding.model_dump())
+                        unresolved_absence = True
                     pending_facts = f["status"] != "NOT_EVALUABLE" and item.factual_resolution != "resolved"
                     if pending_facts and final:
                         raise ValueError(
@@ -598,6 +639,10 @@ class LeaderProtocol:
                             + stored["question"]
                         )[:2000]
                     team["draft"][mid] = stored
+                    if unresolved_absence:
+                        event(team, LEADER, "leader_absence_unresolved",
+                              {"metric_id": mid, "purpose": purpose, "report_version": version,
+                               "attempt": attempts + 1})
                     if pending_facts:
                         event(team, LEADER, "provisional_facts_pending",
                               {"metric_id": mid, "report_version": version, "candidate_status": f["status"],

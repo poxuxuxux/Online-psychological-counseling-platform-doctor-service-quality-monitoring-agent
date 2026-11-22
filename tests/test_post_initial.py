@@ -186,3 +186,34 @@ async def test_stage_checkpoint_resume_does_not_repeat_initials_or_completed_sta
     report = await service.execute(run_id)
     assert report["status"] == "completed"
     assert not any(p["purpose"] in {"initial_evaluation", "leader_weight_scenario"} for p in model.payloads)
+
+
+async def test_blocked_timing_and_repeated_absence_do_not_abort_initials(make_service, session):
+    class IncompleteObservationModel(PostInitialModel):
+        async def json(self, system, payload, schema):
+            result = await super().json(system, payload, schema)
+            if payload["purpose"] == "initial_evaluation":
+                for row in result["findings"]:
+                    if row["metric_id"] == "D3.1":
+                        row["claims"][0]["polarity"] = "absent"
+            return result
+
+    model = IncompleteObservationModel(selected=["D1.1"])
+    service, repo = await make_service(model, team_protocol=PROTOCOL_V2)
+    service.catalog = SkillCatalog(Settings().skill_dir)
+    service.knowledge = SkillKnowledgeSource(service.catalog)
+    report = await service.evaluate(session.model_copy(update={"observation_complete": False}))
+    assert report["status"] == "completed"
+    initials = [p for p in model.payloads if p["purpose"] == "initial_evaluation"]
+    assert all(not {"D2.1", "D2.2"}.intersection(p["requested_metric_ids"]) for p in initials)
+    assert sum("D3.1" in p["requested_metric_ids"] for p in initials) == 3
+    state = await repo.get_run(report["evaluation_id"])
+    team = state["team"]
+    timing = team["initial_evaluations"]["evaluator:collaboration"]["D2.1"]
+    assert timing["status"] == "NOT_EVALUABLE" and timing["score"] is None
+    assert timing["review_rule_ids"] == ["timing_policy_pending"]
+    unresolved = team["initial_evaluations"]["evaluator:effectiveness"]["D3.1"]
+    assert unresolved["status"] == "NOT_EVALUABLE" and unresolved["score"] is None
+    assert unresolved["review_rule_ids"] == ["source_incomplete"]
+    assert not unresolved["claims"]
+    assert any(e["action"] == "initial_absence_unresolved" for e in team["events"])

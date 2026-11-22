@@ -18,6 +18,7 @@ import ProfilePage from './pages/ProfilePage.vue'
 import EvaluationWorkspace from './components/workspace/EvaluationWorkspace.vue'
 import OfflineReportsPage from './pages/OfflineReportsPage.vue'
 import ServiceReportsPage from './pages/ServiceReportsPage.vue'
+import FloatingDigitalCompanion from './components/feedback/FloatingDigitalCompanion.vue'
 import OfflineReviewPage from './pages/OfflineReviewPage.vue'
 import { useConsole } from './composables/useConsole'
 import { agentName, dimensions, label, metrics, time } from './utils/catalog'
@@ -93,6 +94,7 @@ const {
   setMode,
   loadSession,
   runAll,
+  resumeUploaded,
   checkService,
   refreshRecent,
   consultations,
@@ -785,6 +787,12 @@ onUnmounted(() => {
             <button class="text-button" @click="navigate('reports')">先查看最近运行记录</button>
             <p v-if="report" class="small">以下保留的是上一次返回的报告，不是本次请求的新结果。</p>
           </div>
+          <div class="notice">
+            <button class="text-button" type="button" :disabled="running || loading" @click="resumeUploaded">
+              继续中断任务
+            </button>
+            <small>继续此浏览器最近一次上传评价，恢复后会继续调用模型。</small>
+          </div>
           <section class="process-panel service-process-panel" aria-label="评估任务进度">
             <ol class="process-steps">
               <li :class="['process-step', { complete: !!session, active: !session }]">
@@ -991,8 +999,8 @@ onUnmounted(() => {
           v-else-if="page === 'reports' && mode === 'preview'"
           @notify="notify"
         />
+        <template v-else-if="page === 'reports' && mode === 'service'">
         <ServiceReportsPage
-          v-else-if="page === 'reports' && mode === 'service'"
           :latest-batch="latestBatch"
           :report="report"
           :recent="recent"
@@ -1004,6 +1012,7 @@ onUnmounted(() => {
           @navigate="navigate"
           @refresh="refreshRecent"
         />
+        </template>
 
         <OfflineReviewPage
           v-else-if="page === 'review' && mode === 'preview'"
@@ -1219,6 +1228,7 @@ onUnmounted(() => {
         </footer>
       </main>
     </div>
+    <FloatingDigitalCompanion :report="report" :preview="mode === 'preview'" />
     <div v-if="toast" class="toast" role="status" aria-live="polite">
       <Icon name="info" :size="18" />{{ toast
       }}<button class="icon-button" aria-label="关闭提示" @click="toast = ''">

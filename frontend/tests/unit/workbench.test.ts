@@ -47,6 +47,8 @@ beforeEach(() => {
         )
       if (path === '/api/v1/guest/jobs' && options?.method === 'POST')
         return new Response(JSON.stringify({ job_id: 'test-job', token: 'test-capability' }))
+      if (path === '/api/v1/guest/jobs/test-job/resume' && options?.method === 'POST')
+        return new Response(JSON.stringify({ job_id: 'test-job' }), { status: 202 })
       if (path === '/api/v1/guest/jobs/test-job')
         return new Response(JSON.stringify({ job_id: 'test-job', status: 'completed', stage: 'done',
           model_calls: 1, elapsed_seconds: 1, error: null, report: previewReport(previewSession()) }))
@@ -421,6 +423,20 @@ describe('workbench actual component interaction', () => {
     expect(app.text()).toContain('本次请求未完成')
     expect(app.findAll('.finding-row')).toHaveLength(0)
     expect(requests.filter((r) => r === 'POST /api/v1/evaluations')).toHaveLength(3)
+  })
+  it('resumes the saved upload from the workspace without creating another job', async () => {
+    localStorage.setItem('xin-heng-upload-jobs-v1', JSON.stringify([
+      { job_id: 'test-job', token: 'test-capability', fingerprint: 'saved-input' },
+    ]))
+    const app = await start()
+    const button = app.findAll('button').find((item) => item.text() === '继续中断任务')
+    expect(button).toBeDefined()
+    await button!.trigger('click')
+    await flushPromises()
+    expect(requests).toContain('POST /api/v1/guest/jobs/test-job/resume')
+    expect(requests).toContain('GET /api/v1/guest/jobs/test-job')
+    expect(requests).not.toContain('POST /api/v1/guest/jobs')
+    expect(app.text()).toContain('成功 1 条')
   })
   it('guards double clicks while mutation is running', async () => {
     holdEvaluation = true

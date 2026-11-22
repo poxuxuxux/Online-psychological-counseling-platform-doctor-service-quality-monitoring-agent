@@ -61,8 +61,20 @@ class PostInitialProtocol(LeaderProtocol):
                     "speaker": message["role"], "original_text": message["content"],
                     "source_agent": "context_manager", "related_indicators": [], "created_at": now()}
         for agent in PERSPECTIVES:
+            current = team["tasks"][agent]
+            if team.get("grouped_initial"):
+                # A configuration blocker is already a definitive reason to leave the score empty.
+                for mid in current["metric_ids"]:
+                    blockers = data["skills"]["metrics"][mid].get("scoring_blockers", [])
+                    if blockers and mid not in current["findings"]:
+                        self.tools.submit(data, agent, {"findings": [{
+                            "metric_id": mid, "status": "NOT_EVALUABLE", "score": None,
+                            "reason": "该指标的计分规则当前禁用数值评分，保留待复核。",
+                            "review_rule_ids": blockers,
+                        }]})
+                        event(team, agent, "initial_scoring_blocked", {"metric_id": mid, "rules": blockers})
             self._send_once(data, "task:" + agent, LEADER, agent, "TASK_ASSIGNMENT",
-                            {"metric_ids": team["tasks"][agent]["metric_ids"],
+                            {"metric_ids": current["metric_ids"],
                              "scope": "assigned_metrics_initial_only", "weighting": "not_yet_performed"})
         team["all_metrics_assigned"] = True
 

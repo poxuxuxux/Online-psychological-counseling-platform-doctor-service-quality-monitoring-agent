@@ -54,3 +54,34 @@ async def test_revision_step_budget_is_per_version(make_service, session):
     report = await service.evaluate(session)
     assert report["status"] == "completed"
     assert report["collaboration"]["round_count"] == 3
+
+
+@pytest.mark.parametrize("stage", ["leader_preliminary", "leader_revision", "leader_final"])
+async def test_leader_repeated_absence_with_incomplete_observation_keeps_empty_score(make_service, session, stage):
+    model = PostInitialModel(selected=["D1.1"])
+    model.mode = "dissent"
+    original = model.json
+    attempts = 0
+
+    async def absence(system, payload, schema):
+        nonlocal attempts
+        result = await original(system, payload, schema)
+        if payload["purpose"] == stage:
+            attempts += 1
+            for item in result["items"]:
+                item["finding"]["claims"][0]["polarity"] = "absent"
+        return result
+
+    model.json = absence
+    service, repo = await make_service(model, team_protocol=PROTOCOL_V2)
+    report = await service.evaluate(session.model_copy(update={"observation_complete": False}))
+    state = await repo.get_run(report["evaluation_id"])
+    assert report["team"]["stop_reason"] == "completed"
+    events = [e for e in state["team"]["events"] if e["action"] == "leader_absence_unresolved"]
+    assert events and all(e["detail"]["purpose"] == stage for e in events)
+    assert attempts >= 3
+    empty = [r["items"]["D1.1"] for r in state["team"]["reports"]
+             if r["items"]["D1.1"]["finding"]["status"] == "NOT_EVALUABLE"]
+    assert empty and all(r["finding"]["score"] is None and not r["finding"]["claims"] for r in empty)
+    if stage == "leader_final":
+        assert state["team"]["final_findings"]["D1.1"]["score"] is None

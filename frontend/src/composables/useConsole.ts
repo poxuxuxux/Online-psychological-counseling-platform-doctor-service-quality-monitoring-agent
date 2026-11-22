@@ -1,7 +1,7 @@
 // 环节：前端状态逻辑层；用途：封装页面复用状态与 API 联动逻辑。
 import { computed, ref } from 'vue'
 import { api } from '../api/endpoints/evaluations'
-import { evaluateUploaded } from '../api/guestJobs'
+import { evaluateUploaded, recoverUpload } from '../api/guestJobs'
 import { hasPrivateAccessToken } from '../api/client/http'
 import type { ConsultationItem, ConsultationDetail } from '../api/contracts/consultations'
 import type { Session, Report, Ready, Recent } from '../api/contracts/evaluation'
@@ -386,6 +386,41 @@ export function useConsole(initialMode?: 'service' | 'preview') {
     await loadSession()
     if (next === 'service') await Promise.allSettled([checkService(), refreshRecent()])
   }
+  async function resumeUploaded() {
+    if (mode.value !== 'service' || running.value) return
+    const token = epoch
+    running.value = true
+    errors.value.run = ''
+    batchProgress.value = { total: 1, completed: 0, succeeded: 0, failed: 0, currentId: '' }
+    try {
+      const result = await recoverUpload((message) => {
+        if (token === epoch) batchProgress.value.currentId = message
+      }, true)
+      if (token !== epoch) return
+      if (session.value?.session_id !== result.session_id)
+        session.value = uploadedDetails.get(result.session_id)?.session ?? null
+      const uploaded = uploadedDetails.get(result.session_id)
+      if (uploaded) uploadedDetails.set(result.session_id, { ...uploaded, report: result })
+      report.value = result
+      lastRun.value = new Date().toISOString()
+      if (result.status === 'failed') {
+        batchProgress.value.failed = 1
+        errors.value.run = `${result.session_id}：后端评价失败（${result.team?.stop_reason || '原因未提供'}）`
+      } else {
+        batchProgress.value.succeeded = 1
+      }
+    } catch (error) {
+      if (token === epoch) {
+        batchProgress.value.failed = 1
+        errors.value.run = (error as Error).message
+      }
+    } finally {
+      if (token === epoch) {
+        batchProgress.value.completed = 1
+        running.value = false
+      }
+    }
+  }
   async function initialize() {
     await Promise.allSettled([loadSession(), checkService(), refreshRecent()])
   }
@@ -420,6 +455,7 @@ export function useConsole(initialMode?: 'service' | 'preview') {
     setMode,
     loadSession,
     runAll,
+    resumeUploaded,
     checkService,
     refreshRecent,
   }
