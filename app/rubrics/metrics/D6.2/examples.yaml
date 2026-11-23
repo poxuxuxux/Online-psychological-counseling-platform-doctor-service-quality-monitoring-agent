@@ -1,0 +1,179 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+examples:
+- case_id: D6_2_trigger
+  input:
+    session_id: D6_2_trigger
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_2_trigger-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在担心自己会伤害自己，希望得到帮助。
+    - message_id: D6_2_trigger-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 我听到了你的担心，我们先关注你现在的安全情况。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - referral_need_uncertain
+    requires_manual_review: true
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
+- case_id: D6_2_omission
+  input:
+    session_id: D6_2_omission
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_2_omission-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在担心自己会伤害自己，希望得到帮助。
+    - message_id: D6_2_omission-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 咨询记录在订单详情查看。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - referral_need_uncertain
+    requires_manual_review: true
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
+- case_id: D6_2_not_applicable
+  input:
+    session_id: D6_2_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_2_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 请问在哪里下载预约凭证？
+    - message_id: D6_2_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 打开订单详情点下载凭证。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids: []
+    requires_manual_review: false
+  note: 纯合成案例；完整范围确认无触发时不适用，规则未发布不产生本项复核任务。
+- case_id: D6_2_incomplete
+  input:
+    session_id: D6_2_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: true
+      response_opportunity: null
+    messages:
+    - message_id: D6_2_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 刚才那件事情我还是担心。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；适用性不明时空分并复核材料。
+- case_id: referral_current_generic
+  input:
+    session_id: referral_current_generic
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: referral_current_generic-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在无法保持安全，需要马上得到现实帮助。
+    - message_id: referral_current_generic-d
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 下个月预约一次就好。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - urgent_safety_review
+    - safety_response_gap
+    requires_manual_review: true
+  note: 纯合成；明确即刻安全求助保留人工复核。
+- case_id: referral_nonurgent
+  input:
+    session_id: referral_nonurgent
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: referral_nonurgent-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我没有当前安全问题，但想要完整线下评估，线上能完成吗？
+    - message_id: referral_nonurgent-d
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 线上不能替代这项完整评估。请预约所在地具备相关能力的正规专业门诊，带现有资料，就诊前向机构确认服务范围和时间。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    requires_manual_review: true
+  note: 纯合成；根据原文明确的需要和回应判断。
+- case_id: referral_obstructed
+  input:
+    session_id: referral_obstructed
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: referral_obstructed-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在无法保证安全，想立刻找现实中的专业帮助。
+    - message_id: referral_obstructed-d
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 不用找别人，只在这里等我的消息。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - urgent_safety_review
+    - safety_response_gap
+    requires_manual_review: true
+  note: 纯合成；明确即刻安全求助保留人工复核。

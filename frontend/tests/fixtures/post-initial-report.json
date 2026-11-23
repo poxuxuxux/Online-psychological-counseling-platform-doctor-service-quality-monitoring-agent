@@ -1,0 +1,1394 @@
+{
+  "evaluation_id": "eval-9f2b1fd4c52248bfa6ea21f46f683d72",
+  "parent_evaluation_id": null,
+  "session_id": "s1",
+  "created_at": "2026-10-28T13:54:27.810085+00:00",
+  "status": "completed",
+  "schema_version": "3.0",
+  "verification_mode": "none",
+  "session_type": "INITIAL",
+  "rubric_version": "skills-70e6216fcba736b4",
+  "agent_results": [
+    {
+      "agent_id": "team_lead",
+      "status": "completed",
+      "findings": [
+        {
+          "finding_id": "finding-5f539a604efb4bedb50537c7ed1c3643",
+          "metric_id": "D1.1",
+          "metric_version": "0.2.0-draft",
+          "attempt": 0,
+          "revision_count": 0,
+          "supersedes_finding_id": null,
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "consensus"
+        },
+        {
+          "finding_id": "finding-928eb5c52e5449aa9a320285ca1d6150",
+          "metric_id": "D3.4",
+          "metric_version": "0.2.0-draft",
+          "attempt": 0,
+          "revision_count": 0,
+          "supersedes_finding_id": null,
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "consensus"
+        },
+        {
+          "finding_id": "finding-a579518343a945b58e8b25bc35ec600b",
+          "metric_id": "D5.4",
+          "metric_version": "0.2.0-draft",
+          "attempt": 0,
+          "revision_count": 0,
+          "supersedes_finding_id": null,
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "consensus"
+        },
+        {
+          "finding_id": "finding-bbb03ea9990e4f9a9ccfce2d3ce49aea",
+          "metric_id": "D4.1",
+          "metric_version": "0.3.0-draft",
+          "attempt": 0,
+          "revision_count": 0,
+          "supersedes_finding_id": null,
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "consensus"
+        }
+      ],
+      "error": null
+    }
+  ],
+  "verification_results": [],
+  "quality_profile": {
+    "policy_version": "eligible-metrics-v2",
+    "dimensions": [
+      {
+        "dimension_id": "D1",
+        "name": "D1",
+        "score": 4.0,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D2",
+        "name": "D2",
+        "score": null,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D3",
+        "name": "D3",
+        "score": 4.0,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D4",
+        "name": "D4",
+        "score": 4.0,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D5",
+        "name": "D5",
+        "score": 4.0,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D6",
+        "name": "D6",
+        "score": null,
+        "coverage": 1.0
+      }
+    ],
+    "overall_coverage": 1.0,
+    "overall_score": 4.0,
+    "coverage_gate_passed": true,
+    "aggregation": "skill_weighted_mean",
+    "scale": [
+      0,
+      5
+    ],
+    "evaluated_count": 4,
+    "required_count": 4,
+    "score_exclusions": [],
+    "weights": {
+      "D1.1": 0.7,
+      "D3.4": 0.13333333333333333,
+      "D5.4": 0.13333333333333333,
+      "D4.1": 0.03333333333333333
+    },
+    "selected_metric_ids": [
+      "D1.1",
+      "D3.4",
+      "D5.4",
+      "D4.1"
+    ],
+    "assigned_weights": {
+      "D1.1": 0.7000000000000001,
+      "D3.4": 0.13333333333333333,
+      "D5.4": 0.13333333333333333,
+      "D4.1": 0.03333333333333333
+    },
+    "weight_policy": "three-stage-normalize-mean-v1",
+    "protocol": "leader-review-v2",
+    "weight_deviation": null,
+    "scoring_signature": "fbd884691cb061946559"
+  },
+  "risk": {
+    "level": "low",
+    "scope": "doctor_service_quality",
+    "policy_version": "service-risk-v1",
+    "reasons": [],
+    "alerts": [],
+    "requires_manual_review": false
+  },
+  "summary": "本次为初诊，已提交 4/4 项评价记录，其中 4 项由 Agent 提交并符合计分输入约束。医生服务质量综合评分为 4.00/5。Leader选择4项，已开展1轮反馈。",
+  "summary_status": "completed",
+  "summary_method": "grounded_template",
+  "longitudinal": {
+    "historical_sessions": [],
+    "history_limit": 20,
+    "comparable": false,
+    "previous_evaluation_id": null,
+    "score_delta": null,
+    "trend": "not_comparable",
+    "unresolved_service_issues": []
+  },
+  "limitations": [],
+  "review_required": false,
+  "review_reasons": [],
+  "score_notices": [],
+  "input_warnings": [],
+  "collaboration_complete": true,
+  "arbitration_status": "not_needed",
+  "arbitration_decisions": [],
+  "team": {
+    "task_count": 4,
+    "message_count": 15,
+    "reviewer_count": 0,
+    "model_call_count": 38,
+    "usage": {
+      "requests": 0,
+      "input_characters": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "usage_reported_requests": 0,
+      "json_errors": []
+    },
+    "stop_reason": "completed",
+    "audit_url": "/api/v1/runs/eval-9f2b1fd4c52248bfa6ea21f46f683d72/audit"
+  },
+  "pipeline_stages": [
+    "preprocess",
+    "session_context",
+    "initial_context",
+    "team_lead",
+    "team_initialization",
+    "team_runtime",
+    "completion_check",
+    "scoring_engine",
+    "risk_classifier",
+    "summary_generator",
+    "longitudinal_analyzer",
+    "report_builder",
+    "evaluation_storage"
+  ],
+  "execution_issues": [],
+  "collaboration": {
+    "protocol": "leader-review-v2",
+    "prompt_version": "post-initial-prompts-2.0",
+    "selected_metric_ids": [
+      "D1.1",
+      "D3.4",
+      "D5.4",
+      "D4.1"
+    ],
+    "excluded": [
+      {
+        "metric_id": "D1.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D2.1",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D2.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D3.1",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D3.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D3.3",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D3.5",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D4.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D4.3",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D5.1",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D5.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D5.3",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D6.1",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      },
+      {
+        "metric_id": "D6.2",
+        "reason": "Leader决定不保留; Leader决定不保留; Leader决定不保留"
+      }
+    ],
+    "weights": {
+      "D1.1": 0.7000000000000001,
+      "D3.4": 0.13333333333333333,
+      "D5.4": 0.13333333333333333,
+      "D4.1": 0.03333333333333333
+    },
+    "candidate_weights": {
+      "D1.1": 0.7000000000000001,
+      "D3.4": 0.13333333333333333,
+      "D5.4": 0.13333333333333333,
+      "D4.1": 0.03333333333333333
+    },
+    "weight_deviation": null,
+    "weight_policy": "three-stage-normalize-mean-v1",
+    "weighting_stages": [
+      {
+        "context_summary": "本次情境",
+        "task_analysis": "根据本次任务选择",
+        "relevance_analysis": "患者核心需求",
+        "consistency_check": "不依赖同伴的适用性白名单",
+        "selected": [
+          {
+            "metric_id": "D1.1",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 7.0
+          },
+          {
+            "metric_id": "D3.4",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 2.0
+          },
+          {
+            "metric_id": "D5.4",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 1.0
+          }
+        ],
+        "excluded": [
+          {
+            "metric_id": "D1.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.5",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.2",
+            "reason": "Leader决定不保留"
+          }
+        ],
+        "stage": "scenario",
+        "weights": {
+          "D1.1": 0.7,
+          "D3.4": 0.19999999999999998,
+          "D5.4": 0.09999999999999999
+        },
+        "candidate_weights": {
+          "D1.1": 7.0,
+          "D3.4": 2.0,
+          "D5.4": 1.0
+        }
+      },
+      {
+        "context_summary": "本次情境",
+        "task_analysis": "根据本次任务选择",
+        "relevance_analysis": "患者核心需求",
+        "consistency_check": "不依赖同伴的适用性白名单",
+        "selected": [
+          {
+            "metric_id": "D1.1",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 6.0
+          },
+          {
+            "metric_id": "D3.4",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 2.0
+          },
+          {
+            "metric_id": "D5.4",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 1.0
+          },
+          {
+            "metric_id": "D4.1",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 1.0
+          }
+        ],
+        "excluded": [
+          {
+            "metric_id": "D1.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.5",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.2",
+            "reason": "Leader决定不保留"
+          }
+        ],
+        "stage": "distribution",
+        "weights": {
+          "D1.1": 0.6000000000000001,
+          "D3.4": 0.2,
+          "D5.4": 0.1,
+          "D4.1": 0.1
+        },
+        "candidate_weights": {
+          "D1.1": 6.0,
+          "D3.4": 2.0,
+          "D5.4": 1.0,
+          "D4.1": 1.0
+        }
+      },
+      {
+        "context_summary": "本次情境",
+        "task_analysis": "根据本次任务选择",
+        "relevance_analysis": "患者核心需求",
+        "consistency_check": "不依赖同伴的适用性白名单",
+        "selected": [
+          {
+            "metric_id": "D1.1",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 8.0
+          },
+          {
+            "metric_id": "D5.4",
+            "reason": "Leader核对原文后保留",
+            "candidate_weight": 2.0
+          }
+        ],
+        "excluded": [
+          {
+            "metric_id": "D1.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D2.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.4",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D3.5",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D4.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.2",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D5.3",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.1",
+            "reason": "Leader决定不保留"
+          },
+          {
+            "metric_id": "D6.2",
+            "reason": "Leader决定不保留"
+          }
+        ],
+        "stage": "relevance",
+        "weights": {
+          "D1.1": 0.8,
+          "D5.4": 0.2
+        },
+        "candidate_weights": {
+          "D1.1": 8.0,
+          "D5.4": 2.0
+        }
+      }
+    ],
+    "initial_metric_ids": [
+      "D1.1",
+      "D1.2",
+      "D2.1",
+      "D2.2",
+      "D3.1",
+      "D3.2",
+      "D3.3",
+      "D3.4",
+      "D3.5",
+      "D4.1",
+      "D4.2",
+      "D4.3",
+      "D5.1",
+      "D5.2",
+      "D5.3",
+      "D5.4",
+      "D6.1",
+      "D6.2"
+    ],
+    "context_summary": "本次情境",
+    "round_count": 1,
+    "score_gaps": {
+      "D1.1": {
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "gap": 0,
+        "large_gap": false,
+        "non_numeric_review": false
+      },
+      "D3.4": {
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "gap": 0,
+        "large_gap": false,
+        "non_numeric_review": false
+      },
+      "D5.4": {
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "gap": 0,
+        "large_gap": false,
+        "non_numeric_review": false
+      },
+      "D4.1": {
+        "scores": [
+          4,
+          4,
+          4
+        ],
+        "gap": 0,
+        "large_gap": false,
+        "non_numeric_review": false
+      }
+    },
+    "initial_evaluations": [
+      {
+        "agent_id": "evaluator:effectiveness",
+        "perspective": "关键问题解决与服务实效：核对患者核心诉求、有效回应和必要专业边界。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D1.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D2.2",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D3.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.5",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.1",
+            "status": "NOT_APPLICABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D4.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      },
+      {
+        "agent_id": "evaluator:empathy",
+        "perspective": "情绪处境与沟通细节：核对情绪理解、语境贴合、尊重及非评判性。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D1.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D2.2",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D3.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.5",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.1",
+            "status": "NOT_APPLICABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D4.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      },
+      {
+        "agent_id": "evaluator:collaboration",
+        "perspective": "响应协作与建议落地：核对可靠计时、共同决策、个体化和可执行性。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D1.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D2.2",
+            "status": "NOT_EVALUABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D3.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D3.5",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.1",
+            "status": "NOT_APPLICABLE",
+            "score": null,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": []
+          },
+          {
+            "metric_id": "D4.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D4.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.3",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D5.4",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D6.2",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "version": 0,
+        "round": 0,
+        "final": false,
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          },
+          {
+            "metric_id": "D3.4",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          },
+          {
+            "metric_id": "D5.4",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          },
+          {
+            "metric_id": "D4.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          }
+        ]
+      }
+    ],
+    "feedback": [
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-5d915a358be7493daec5027b184188d8",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D3.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-071a326d28334025b24581034e2a539d",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D5.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-6699f9bc78c7407aa295f48b9b76de37",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D4.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-36025c9f84ec404bb553838452fd4e8e",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-75fc65c3ce3a4f17bc28d132daf2e43e",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D3.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-b7ff1383ba824c5d85753873e588ad47",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D5.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-b4e570d72667481c84091c27df93f915",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D4.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-cbea30af74324727bdc3efa78234d57f",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-f515e0a838ed406c8e90781ca35089d4",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D3.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-a8abc29a639f4faaa1970ae76c1112db",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D5.4",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-dd023107dbda48d3b78a11ae6a80f682",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D4.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-1962f3fd96994218aa90492e8442a441",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      }
+    ]
+  }
+}

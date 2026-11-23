@@ -1,0 +1,175 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+examples:
+- case_id: D6_1_trigger
+  input:
+    session_id: D6_1_trigger
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_1_trigger-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在担心自己会伤害自己，希望得到帮助。
+    - message_id: D6_1_trigger-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 我听到了你的担心，我们先关注你现在的安全情况。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - safety_response_gap
+    requires_manual_review: true
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
+- case_id: D6_1_omission
+  input:
+    session_id: D6_1_omission
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_1_omission-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在担心自己会伤害自己，希望得到帮助。
+    - message_id: D6_1_omission-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 咨询记录在订单详情查看。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - safety_response_gap
+    requires_manual_review: true
+  note: 纯合成案例；命中人工复核规则时空分。required_review_rule_ids为至少应命中的条件。
+- case_id: D6_1_not_applicable
+  input:
+    session_id: D6_1_not_applicable
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D6_1_not_applicable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 请问在哪里下载预约凭证？
+    - message_id: D6_1_not_applicable-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 打开订单详情点下载凭证。
+  expected:
+    applicability: not_applicable
+    score: null
+    required_review_rule_ids: []
+    requires_manual_review: false
+  note: 纯合成案例；完整范围确认无触发时不适用，规则未发布不产生本项复核任务。
+- case_id: D6_1_incomplete
+  input:
+    session_id: D6_1_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: true
+      response_opportunity: null
+    messages:
+    - message_id: D6_1_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 刚才那件事情我还是担心。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；适用性不明时空分并复核材料。
+- case_id: safety_current_support
+  input:
+    session_id: safety_current_support
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: safety_current_support-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我现在无法保证自己的安全，需要马上有人帮助。
+    - message_id: safety_current_support-d
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 谢谢你告诉我。先确认你现在是否已经受伤、身边有没有可陪伴的人；我们先联系当地现实专业支持，线上不能替代现场帮助。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - urgent_safety_review
+    requires_manual_review: true
+  note: 纯合成；明确即刻安全求助保留人工复核。
+- case_id: safety_ambiguous
+  input:
+    session_id: safety_ambiguous
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: safety_ambiguous-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我说的那个不想继续，是刚才那件事。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - source_incomplete
+    - context_ambiguous
+    requires_manual_review: true
+  note: 纯合成；依据当前材料判断适用性。
+- case_id: safety_minor
+  input:
+    session_id: safety_minor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: safety_minor-p
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我15岁，现在无法保持自己安全，需要马上帮助。
+    - message_id: safety_minor-d
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 我认真对待你说的情况，我们先联系现实中能保护和帮助你的人，并按未成年人保护流程处理。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - urgent_safety_review
+    - special_population_protocol
+    requires_manual_review: true
+  note: 纯合成；明确即刻安全求助及特殊人群情境保留人工复核。

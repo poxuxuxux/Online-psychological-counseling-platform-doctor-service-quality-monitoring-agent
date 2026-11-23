@@ -1,0 +1,790 @@
+{
+  "evaluation_id": "eval-6b7ef57be92c444b9e8c2e34091e6c72",
+  "parent_evaluation_id": null,
+  "session_id": "s1",
+  "created_at": "2026-10-27T12:09:06.197128+00:00",
+  "status": "completed",
+  "schema_version": "3.0",
+  "verification_mode": "none",
+  "session_type": "INITIAL",
+  "rubric_version": "skills-734cca25c108e223",
+  "agent_results": [
+    {
+      "agent_id": "team_lead",
+      "status": "completed",
+      "findings": [
+        {
+          "finding_id": "finding-d52446f87a684885ae5fbe8070e91a42",
+          "metric_id": "D1.1",
+          "metric_version": "1.0.0",
+          "attempt": 1,
+          "revision_count": 3,
+          "supersedes_finding_id": "finding-2c73f159eeca41f1ba0aed51cd0e1ab5",
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "evidence_adjudicated"
+        },
+        {
+          "finding_id": "finding-17d177dd387e4e6ea95edabc5bf82c63",
+          "metric_id": "D2.1",
+          "metric_version": "1.0.0",
+          "attempt": 1,
+          "revision_count": 3,
+          "supersedes_finding_id": "finding-e0ebfc80ba7f4b88a361069e432402cf",
+          "applicability": "applicable",
+          "score": 4,
+          "proposed_score": 4,
+          "rationale": "原文中医生回应了患者的体验，按所给锚点评价。",
+          "evidence": [
+            {
+              "message_ids": [
+                "m1"
+              ],
+              "quote": "听起来你很难受，我们一起看看。",
+              "explanation": "原文中医生回应了患者的体验，按所给锚点评价。"
+            }
+          ],
+          "limitations": [],
+          "status": "EVALUATED",
+          "outcome": "scored",
+          "failure_code": null,
+          "decision_method": "evidence_adjudicated"
+        }
+      ],
+      "error": null
+    }
+  ],
+  "verification_results": [],
+  "quality_profile": {
+    "policy_version": "eligible-metrics-v2",
+    "dimensions": [
+      {
+        "dimension_id": "D1",
+        "name": "D1",
+        "score": 4.0,
+        "coverage": 1.0
+      },
+      {
+        "dimension_id": "D2",
+        "name": "D2",
+        "score": 4.0,
+        "coverage": 1.0
+      }
+    ],
+    "overall_coverage": 1.0,
+    "overall_score": 4.0,
+    "coverage_gate_passed": true,
+    "aggregation": "skill_weighted_mean",
+    "scale": [
+      0,
+      5
+    ],
+    "evaluated_count": 2,
+    "required_count": 2,
+    "score_exclusions": [],
+    "weights": {
+      "D1.1": 0.5999999999999998,
+      "D2.1": 0.4000000000000002
+    },
+    "selected_metric_ids": [
+      "D1.1",
+      "D2.1"
+    ],
+    "assigned_weights": {
+      "D1.1": 0.6,
+      "D2.1": 0.40000000000000013
+    },
+    "weight_policy": "bounded-equal-simplex-v1",
+    "protocol": "leader-review-v1",
+    "weight_deviation": 0.2,
+    "scoring_signature": "53e4ba0d57ce9b2770ce"
+  },
+  "risk": {
+    "level": "low",
+    "scope": "doctor_service_quality",
+    "policy_version": "service-risk-v1",
+    "reasons": [],
+    "alerts": [],
+    "requires_manual_review": false
+  },
+  "summary": "本次为初诊，已提交 2/2 项评价记录，其中 2 项由 Agent 提交并符合计分输入约束。医生服务质量综合评分为 4.00/5。Leader选择2项，已开展3轮反馈。有据裁决（保留异议）：D1.1、D2.1；这些分数不代表全体一致。",
+  "summary_status": "completed",
+  "summary_method": "grounded_template",
+  "longitudinal": {
+    "historical_sessions": [],
+    "history_limit": 20,
+    "comparable": false,
+    "previous_evaluation_id": null,
+    "score_delta": null,
+    "trend": "not_comparable",
+    "unresolved_service_issues": []
+  },
+  "limitations": [],
+  "review_required": false,
+  "review_reasons": [],
+  "score_notices": [],
+  "input_warnings": [],
+  "collaboration_complete": true,
+  "arbitration_status": "not_needed",
+  "arbitration_decisions": [],
+  "team": {
+    "task_count": 4,
+    "message_count": 24,
+    "reviewer_count": 0,
+    "model_call_count": 17,
+    "usage": {
+      "requests": 0,
+      "input_characters": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "usage_reported_requests": 0,
+      "json_errors": []
+    },
+    "stop_reason": "completed",
+    "audit_url": "/api/v1/runs/eval-6b7ef57be92c444b9e8c2e34091e6c72/audit"
+  },
+  "pipeline_stages": [
+    "preprocess",
+    "session_context",
+    "initial_context",
+    "team_lead",
+    "team_initialization",
+    "team_runtime",
+    "completion_check",
+    "scoring_engine",
+    "risk_classifier",
+    "summary_generator",
+    "longitudinal_analyzer",
+    "report_builder",
+    "evaluation_storage"
+  ],
+  "collaboration": {
+    "protocol": "leader-review-v1",
+    "prompt_version": "leader-review-prompts-1.0",
+    "selected_metric_ids": [
+      "D1.1",
+      "D2.1"
+    ],
+    "excluded": [],
+    "weights": {
+      "D1.1": 0.6,
+      "D2.1": 0.40000000000000013
+    },
+    "candidate_weights": {
+      "D1.1": 99.0,
+      "D2.1": 1.0
+    },
+    "weight_deviation": 0.2,
+    "context_summary": "当前会话",
+    "round_count": 3,
+    "score_gaps": {
+      "D1.1": {
+        "scores": [
+          1,
+          4,
+          4
+        ],
+        "gap": 3,
+        "large_gap": true,
+        "non_numeric_review": false
+      },
+      "D2.1": {
+        "scores": [
+          1,
+          4,
+          4
+        ],
+        "gap": 3,
+        "large_gap": true,
+        "non_numeric_review": false
+      }
+    },
+    "initial_evaluations": [
+      {
+        "agent_id": "evaluator:effectiveness",
+        "perspective": "关键问题解决与服务实效：核对患者核心诉求、有效回应和必要专业边界。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 1,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "EVALUATED",
+            "score": 1,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      },
+      {
+        "agent_id": "evaluator:empathy",
+        "perspective": "情绪处境与沟通细节：核对情绪理解、语境贴合、尊重及非评判性。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      },
+      {
+        "agent_id": "evaluator:collaboration",
+        "perspective": "响应协作与建议落地：核对可靠计时、共同决策、个体化和可执行性。",
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "status": "EVALUATED",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "evidence_ids": [
+              "e-m1"
+            ]
+          }
+        ]
+      }
+    ],
+    "reports": [
+      {
+        "version": 0,
+        "round": 0,
+        "final": false,
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          },
+          {
+            "metric_id": "D2.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": []
+          }
+        ]
+      },
+      {
+        "version": 1,
+        "round": 1,
+        "final": false,
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": [
+              {
+                "feedback_id": "feedback-a84d4e3c096c4b858775aea51ac5e270",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-597faf78f70746188f814424e3704aaa",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-d4fc56002c9d4d488135f4a485901181",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": [
+              {
+                "feedback_id": "feedback-e8274a9f0514417fa53af1d31f16a75a",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-ecaa7c29d4e9487181369fb1966ab371",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-0bebd9c6bab44b94987fcebf4554d6ac",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "version": 2,
+        "round": 2,
+        "final": false,
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": [
+              {
+                "feedback_id": "feedback-36dad19c443a43bc921e2d9777802252",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-2405594b456f42318d64e568d3bd0854",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-eafbf19e3b97448e8668a04edbbe2ce4",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "provisional",
+            "responses": [
+              {
+                "feedback_id": "feedback-9a5694f89d374c1bad29068140ef4106",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-395440c5abdd4bfaa78a8a11b3858112",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-a5c193c636934b65a40be6dcc6a2e4f3",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "version": 3,
+        "round": 3,
+        "final": true,
+        "findings": [
+          {
+            "metric_id": "D1.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "evidence_adjudicated",
+            "responses": [
+              {
+                "feedback_id": "feedback-1a537dd924b942e6acec655d8824f581",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-05b88f1645824c0dbfdc5700bc8fc087",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-9ed28166f53c4954afc941a714937a81",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          },
+          {
+            "metric_id": "D2.1",
+            "score": 4,
+            "reason": "原文中医生回应了患者的体验，按所给锚点评价。",
+            "question": "请逐条定位患者诉求与医生回应，核对本项锚点。",
+            "decision_method": "evidence_adjudicated",
+            "responses": [
+              {
+                "feedback_id": "feedback-379564f1afe541a086a74098f1abc423",
+                "disposition": "rejected",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-f6c570a4cbd34c7fbc96e78772efebc1",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              },
+              {
+                "feedback_id": "feedback-2abd00bfb8c74f328a07d105d392b4de",
+                "disposition": "accepted",
+                "reason": "核对当前原文并按锚点说明采纳或维持判断。",
+                "evidence_ids": [
+                  "e-m1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "feedback": [
+      {
+        "metric_id": "D1.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-a84d4e3c096c4b858775aea51ac5e270",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-e8274a9f0514417fa53af1d31f16a75a",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-597faf78f70746188f814424e3704aaa",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-ecaa7c29d4e9487181369fb1966ab371",
+        "agent_id": "evaluator:empathy",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-d4fc56002c9d4d488135f4a485901181",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-0bebd9c6bab44b94987fcebf4554d6ac",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 0,
+        "round": 1
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-36dad19c443a43bc921e2d9777802252",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-9a5694f89d374c1bad29068140ef4106",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-2405594b456f42318d64e568d3bd0854",
+        "agent_id": "evaluator:empathy",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-395440c5abdd4bfaa78a8a11b3858112",
+        "agent_id": "evaluator:empathy",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-eafbf19e3b97448e8668a04edbbe2ce4",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-a5c193c636934b65a40be6dcc6a2e4f3",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 1,
+        "round": 2
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-1a537dd924b942e6acec655d8824f581",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 2,
+        "round": 3
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "disagree",
+        "reason": "请核对原文与锚点。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "anchor",
+        "revised_finding": null,
+        "feedback_id": "feedback-379564f1afe541a086a74098f1abc423",
+        "agent_id": "evaluator:effectiveness",
+        "report_version": 2,
+        "round": 3
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-05b88f1645824c0dbfdc5700bc8fc087",
+        "agent_id": "evaluator:empathy",
+        "report_version": 2,
+        "round": 3
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-f6c570a4cbd34c7fbc96e78772efebc1",
+        "agent_id": "evaluator:empathy",
+        "report_version": 2,
+        "round": 3
+      },
+      {
+        "metric_id": "D1.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-9ed28166f53c4954afc941a714937a81",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 2,
+        "round": 3
+      },
+      {
+        "metric_id": "D2.1",
+        "decision": "agree",
+        "reason": "核对所引原文后接受当前报告及分数。",
+        "evidence_ids": [
+          "e-m1"
+        ],
+        "issue_type": "none",
+        "revised_finding": null,
+        "feedback_id": "feedback-2abd00bfb8c74f328a07d105d392b4de",
+        "agent_id": "evaluator:collaboration",
+        "report_version": 2,
+        "round": 3
+      }
+    ]
+  }
+}

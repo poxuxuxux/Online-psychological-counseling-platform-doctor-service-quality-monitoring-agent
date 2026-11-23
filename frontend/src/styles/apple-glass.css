@@ -1,0 +1,185 @@
+/* 全站轻玻璃主题：沿用现有玉绿色与浅色语义，只统一材质、圆角和层次。 */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', sans-serif;
+  --glass: rgba(255, 255, 255, 0.58);
+  --glass-strong: rgba(255, 255, 255, 0.78);
+  --glass-line: rgba(255, 255, 255, 0.84);
+  --glass-blur: blur(18px) saturate(145%);
+  --glass-shadow: 0 1px 5px rgba(24, 72, 51, 0.06);
+  --radius-xl: 8px;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-pill: 6px;
+}
+
+#app {
+  font-family: inherit;
+  font-kerning: normal;
+}
+
+/* Keep every rectangular control and panel within the requested 8px radius. */
+#app *:not(svg):not(path):not(circle):not(ellipse):not(line):not(polyline):not(polygon):not(g) {
+  border-radius: 6px !important;
+}
+
+#app .operator-avatar,
+#app .top-avatar,
+#app .speaker-mark,
+#app .doctor-avatar,
+#app .profile-avatar,
+#app .review-avatar,
+#app .kpi-icon,
+#app .radar-chip-icon,
+#app .stat-icon,
+#app .score-icon,
+#app .risk-icon,
+#app .rubric-dimension-icon,
+#app [class*='avatar'] img,
+#app .connection-dot,
+#app .status-dot,
+#app .risk-badge i,
+#app .status-badge i,
+#app .service-connection-state i,
+#app .service-workspace-badge i,
+#app .radar-legend i {
+  border-radius: 50% !important;
+}
+
+#app .sidebar,
+#app .topbar {
+  border: 1px solid rgba(255, 255, 255, 0.82) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 1px 5px rgba(24, 72, 51, 0.045), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+#app .surface,
+#app .panel,
+#app .review-panel,
+#app .rubric-section,
+#app .connection-panel,
+#app .capability-panel,
+#app .profile-panel,
+#app .report-panel,
+#app .service-process-panel,
+#app .service-workspace-layout > section {
+  border: 1px solid rgba(255, 255, 255, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.58) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 1px 5px rgba(24, 72, 51, 0.045), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
+#app .risk-card,
+#app .stat-card,
+#app .metric-group,
+#app .metric-detail,
+#app .rubric-item,
+#app .review-score-row,
+#app .connection-facts > div,
+#app .capability-row,
+#app .review-item,
+#app .session-item,
+#app .consultation-row,
+#app .trend-card,
+#app .dimension-card {
+  box-shadow: none !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+}
+
+#app .brand-symbol {
+  background: var(--jade) !important;
+  box-shadow: none !important;
+}
+
+#app .sidebar-botanical {
+  opacity: 0.12;
+}
+
+#app .button,
+#app .icon-button,
+#app .top-date,
+#app .mode-switch-button,
+#app .result-review-button,
+#app .filter-button,
+#app .review-action,
+#app .reports-action {
+  box-shadow: none !important;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+#app .button.primary,
+#app .review-action.primary,
+#app .reports-action.primary {
+  box-shadow: none !important;
+}
+
+#app input:not([type='checkbox']):not([type='radio']),
+#app select,
+#app textarea {
+  border-color: rgba(98, 132, 109, 0.22);
+  background-color: rgba(255, 255, 255, 0.64);
+}
+
+#app input[type='radio'] {
+  border-radius: 50% !important;
+}
+
+#app input[type='checkbox'] {
+  border-radius: 3px !important;
+}
+
+#app :is(.page-heading h1, .review-heading h1, .service-workspace-title h1, h1, h2, h3, h4) {
+  font-family: inherit;
+  letter-spacing: -0.018em;
+}
+
+#app :is(.score-value, .score-number, .metric-score, .stat-card strong, .risk-card strong, td time, .table-scroll td) {
+  font-variant-numeric: tabular-nums;
+}
+
+#app :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid rgba(47, 138, 99, 0.62);
+  outline-offset: 2px;
+}
+
+#app ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  background: rgba(67, 123, 91, 0.28);
+  background-clip: padding-box;
+}
+
+#app ::-webkit-scrollbar-thumb:hover {
+  background: rgba(67, 123, 91, 0.42);
+  background-clip: padding-box;
+}
+
+body > .review-score-overlay {
+  border-radius: 0 !important;
+  background: rgba(18, 39, 29, 0.34) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+body > .review-score-overlay *:not(svg):not(path):not(circle):not(ellipse):not(line):not(polyline):not(polygon):not(g) {
+  border-radius: 6px !important;
+}
+
+body > .review-score-overlay .review-score-dialog {
+  border: 1px solid rgba(255, 255, 255, 0.82) !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 12px 36px rgba(24, 72, 51, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.76) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app *,
+  body > .review-score-overlay * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

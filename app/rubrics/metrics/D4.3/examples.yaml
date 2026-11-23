@@ -1,0 +1,98 @@
+# 环节：指标规则配置层；用途：提供机器可读的指标评分规范或评价示例。
+examples:
+- case_id: D4_3_adequate
+  input:
+    session_id: D4_3_adequate
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D4_3_adequate-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想先说自己的考虑，可能和你的建议不同。
+    - message_id: D4_3_adequate-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 可以，你的考虑很重要。我们听完再一起讨论，有不同意见也可以直接说。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D4_3_poor
+  input:
+    session_id: D4_3_poor
+    context:
+      boundary_confirmed: true
+      material_complete: true
+      consultation_closed: true
+      response_opportunity: true
+    messages:
+    - message_id: D4_3_poor-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想先说自己的考虑，可能和你的建议不同。
+    - message_id: D4_3_poor-m2
+      role: doctor
+      message_kind: dialogue
+      content_status: available
+      content: 你这种人就是麻烦，别再说了。
+  expected:
+    applicability: applicable
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D4_3_unavailable
+  input:
+    session_id: D4_3_unavailable
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: true
+      response_opportunity: null
+    messages:
+    - message_id: D4_3_unavailable-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想先说自己的考虑，可能和你的建议不同。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。
+- case_id: D4_3_incomplete
+  input:
+    session_id: D4_3_incomplete
+    context:
+      boundary_confirmed: true
+      material_complete: false
+      consultation_closed: false
+      response_opportunity: null
+    messages:
+    - message_id: D4_3_incomplete-m1
+      role: patient
+      message_kind: dialogue
+      content_status: available
+      content: 我想先说自己的考虑，可能和你的建议不同。
+  expected:
+    applicability: insufficient_context
+    score: null
+    required_review_rule_ids:
+    - rubric_unpublished
+    - source_incomplete
+    requires_manual_review: true
+  note: 纯合成案例；draft空分是接口硬约束。required_review_rule_ids为至少应命中的条件，允许有原文依据的其他已声明规则。

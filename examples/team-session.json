@@ -1,0 +1,17 @@
+{
+  "session_id": "example-initial-001",
+  "patient_id": "anonymous-patient-001",
+  "doctor_id": "doctor-001",
+  "session_time": "2026-10-19T10:00:00+08:00",
+  "history_complete": false,
+  "observation_complete": true,
+  "source_id": "authorized-platform-import",
+  "service_context": {
+    "consultation_started_at": "2026-10-19T10:00:00+08:00",
+    "start_basis": "order_timestamp"
+  },
+  "messages": [
+    {"message_id": "m1", "sequence": 0, "role": "patient", "content": "最近工作压力大，晚上总睡不好。", "timestamp": "2026-10-19T10:00:00+08:00"},
+    {"message_id": "m2", "sequence": 1, "role": "doctor", "content": "听起来这段时间很辛苦。睡眠问题持续多久了，白天有哪些影响？", "timestamp": "2026-10-19T10:02:00+08:00"}
+  ]
+}
