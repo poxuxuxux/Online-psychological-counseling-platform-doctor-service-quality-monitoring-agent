@@ -36,9 +36,9 @@ def _point(values):
     }
 
 
-def _window(records, days, tz, start_date=None, end_date=None):
-    end = end_date or datetime.now(tz).date()
-    start = start_date or end - timedelta(days=days - 1)
+def _window(records, days, tz):
+    end = datetime.now(tz).date()
+    start = end - timedelta(days=days - 1)
     kept = []
     for item in records:
         stamp = item["report"].get("created_at")
@@ -217,10 +217,9 @@ def _profile(doctor_id, items, catalog, start, end):
     }
 
 
-def doctor_profiles(payload, catalog, days, source, start_date=None, end_date=None):
+def doctor_profiles(payload, catalog, days, source):
     tz = ZoneInfo("Asia/Shanghai")
-    dated, start, end = _window(payload["records"], days, tz, start_date, end_date)
-    days = (end - start).days + 1
+    dated, start, end = _window(payload["records"], days, tz)
     groups = {}
     for item in dated:
         groups.setdefault(item["doctor_id"], []).append(item)
@@ -264,10 +263,9 @@ def doctor_profiles(payload, catalog, days, source, start_date=None, end_date=No
     }
 
 
-def doctor_profile(payload, catalog, days, source, doctor_id, start_date=None, end_date=None):
+def doctor_profile(payload, catalog, days, source, doctor_id):
     tz = ZoneInfo("Asia/Shanghai")
-    dated, start, end = _window(payload["records"], days, tz, start_date, end_date)
-    days = (end - start).days + 1
+    dated, start, end = _window(payload["records"], days, tz)
     items = [i for i in dated if i["doctor_id"] == doctor_id]
     if not items:
         return None

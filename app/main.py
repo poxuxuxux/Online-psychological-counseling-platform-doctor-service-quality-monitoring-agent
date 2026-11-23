@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.guest_jobs import GuestJobs
 from app.api.guest_jobs import router as guest_router
+from app.api.media import router as media_router
 from app.api.routes import router
 from app.bootstrap import build_container
 from app.config import Settings
@@ -19,6 +20,8 @@ def create_app(settings=None, repository=None, model=None, catalog=None):
     async def lifespan(app):
         app.state.container = await build_container(settings, repository, model, catalog)
         app.state.guest_jobs = GuestJobs(app.state.container)
+        app.state.asr_requests = []
+        app.state.asr_active = 0
         try:
             yield
         finally:
@@ -35,6 +38,7 @@ def create_app(settings=None, repository=None, model=None, catalog=None):
         )
     app.include_router(router)
     app.include_router(guest_router)
+    app.include_router(media_router)
     web = Path(__file__).parent / "web"
     if (web / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=web / "assets"), name="assets")

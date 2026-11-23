@@ -42,6 +42,11 @@ export async function request<T>(
       cache: 'no-store',
     })
     if (!response.ok) {
+      if (path.startsWith('/api/v1/media/transcribe')) {
+        const detail = await response.json().catch(() => null)
+        throw new ApiError(typeof detail?.error === 'string' ? detail.error
+          : '音视频转写请求失败，请检查格式、文件大小或稍后重试。', response.status)
+      }
       // Do not surface validation bodies containing submitted consultation content.
       const messages: Record<number, string> = {
         400: '服务拒绝了当前请求，请检查会话内容和请求参数。',
@@ -69,6 +74,8 @@ export async function request<T>(
   } catch (error) {
     if (error instanceof ApiError) throw error
     if (controller.signal.aborted) {
+      if (path.startsWith('/api/v1/media/transcribe'))
+        throw new ApiError('音视频转写等待超时，请稍后检查网络；重新转写可能再次产生费用。')
       if (path === '/api/v1/guest/evaluations')
         throw new ApiError('上传评价请求已超时。后端可能仍在执行；访客结果不保存到最近记录，无法通过历史列表找回。请勿立即重复提交，请先核查后端状态。')
       throw new ApiError('请求已超时。评估可能仍在服务端执行，请先查看最近记录，再决定是否重试。')

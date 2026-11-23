@@ -10,9 +10,7 @@ import json
 import logging
 import sqlite3
 import time
-from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from app.domain.models import now
 
@@ -380,18 +378,13 @@ class Repository:
             for r in rows
         ]
 
-    async def consultations(self, limit, offset, query, public=True, private_only=False,
-                            start_date=None, end_date=None):
+    async def consultations(self, limit, offset, query, public=True, private_only=False):
         # 私有工作台只列真实导入记录；公开查询仍只能看合成演示记录。
         if private_only and public:
             raise ValueError("Private consultation listing requires authorization")
         source_filter = "COALESCE(s.source_id,'')!='synthetic-demo'" if private_only else "(?=0 OR s.source_id='synthetic-demo')"
         where = f"{source_filter} AND s.session_id LIKE ?"
         params = ("%" + query + "%",) if private_only else (int(public), "%" + query + "%")
-        # Parse timestamp offsets before applying Shanghai calendar dates. Filtering precedes
-        # pagination so both total and pages describe the requested consultation window.
-        date_filter = start_date is not None and end_date is not None
-        pagination = "" if date_filter else " LIMIT ? OFFSET ?"
         count, rows = await self._transaction(
             [
                 (f"SELECT COUNT(*) FROM team_sessions s WHERE {where}", params),
@@ -399,21 +392,14 @@ class Repository:
                     f"""SELECT s.payload,s.updated_at,(SELECT r.status FROM team_runs r
               WHERE r.session_id=s.session_id AND r.report IS NOT NULL
               ORDER BY r.created_at DESC LIMIT 1) FROM team_sessions s WHERE {where}
-              ORDER BY s.updated_at DESC,s.session_id""" + pagination,
-                    params if date_filter else (*params, limit, offset),
+              ORDER BY s.updated_at DESC,s.session_id LIMIT ? OFFSET ?""",
+                    (*params, limit, offset),
                 ),
             ]
         )
         items = []
         for payload, updated, status in rows:
             record = json.loads(payload)
-            if date_filter:
-                stamp = record.get("session_time")
-                if not stamp:
-                    continue
-                day = datetime.fromisoformat(stamp).astimezone(ZoneInfo("Asia/Shanghai")).date()
-                if not start_date <= day <= end_date:
-                    continue
             items.append(
                 {
                     "session_id": record["session_id"],
@@ -423,9 +409,7 @@ class Repository:
                     "evaluation_status": status,
                 }
             )
-        return {"database_configured": True,
-                "total": len(items) if date_filter else count[0][0],
-                "items": items[offset:offset + limit] if date_filter else items}
+        return {"database_configured": True, "total": count[0][0], "items": items}
 
     async def detail(self, session_id):
         session = await self.session(session_id)

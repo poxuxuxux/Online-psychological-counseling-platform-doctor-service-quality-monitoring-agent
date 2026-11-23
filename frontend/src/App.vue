@@ -5,6 +5,7 @@ import Icon from './components/base/Icon.vue'
 import StatusBadge from './components/base/StatusBadge.vue'
 import ConversationPanel from './components/conversation/ConversationPanel.vue'
 import ConsultationList from './components/conversation/ConsultationList.vue'
+import MediaTranscriptImport from './components/workspace/MediaTranscriptImport.vue'
 import {
   comparePriority,
   priorityLevels,
@@ -755,6 +756,7 @@ onUnmounted(() => {
             </div>
           </header>
           <p v-if="importMessage" class="upload-message service-upload-message" role="status">{{ importMessage }}</p>
+          <MediaTranscriptImport :disabled="running || importing" @imported="addUploadedSessions([$event])" />
           <div class="service-workspace-layout">
             <aside class="service-workspace-list">
               <ConsultationList

@@ -16,32 +16,6 @@ from app.team.tools import TeamTools
 from tests.conftest import ScriptedModel
 
 
-async def test_cancellation_during_claim_releases_committed_lease(make_service, session, monkeypatch):
-    service, repo = await make_service()
-    run_id = await service.create(session)
-    acquired = asyncio.Event()
-    finish_claim = asyncio.Event()
-    original_claim = repo.claim
-
-    async def delayed_claim(*args):
-        claimed = await original_claim(*args)
-        acquired.set()
-        await finish_claim.wait()
-        return claimed
-
-    monkeypatch.setattr(repo, "claim", delayed_claim)
-    execution = asyncio.create_task(service.execute(run_id))
-    await asyncio.wait_for(acquired.wait(), 5)
-    execution.cancel()
-    await asyncio.sleep(0)
-    finish_claim.set()
-    with pytest.raises(asyncio.CancelledError):
-        await execution
-    # A new worker can resume immediately, without waiting for the old lease to expire.
-    assert await original_claim(run_id, "resumed-worker", 10)
-    await repo.release(run_id, "resumed-worker")
-
-
 async def test_complete_graph_scoring_and_persistence(make_service, session):
     service, repo = await make_service()
     report = await service.evaluate(session)

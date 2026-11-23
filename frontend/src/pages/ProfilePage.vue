@@ -257,11 +257,11 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
           <header class="section-heading chart-heading">
             <div>
               <h3 id="profile-trend-title">总分趋势</h3>
-              <p>近 {{ profile.days }} 天 · 满分 100 分{{ mode === 'preview' ? ' · 离线合成数据' : '' }}</p>
+              <p>近 {{ profile.days }} 天 · 满分 100 分</p>
             </div>
             <span class="chart-period"><Icon name="calendar" :size="15" />{{ profile.period_start }} — {{ profile.period_end }}</span>
           </header>
-          <TrendChart v-if="hasTrend" :key="selected" :trend="profile.trend" detailed />
+          <TrendChart v-if="hasTrend" :trend="profile.trend" />
           <div v-else class="panel-state chart-empty">
             近 {{ profile.days }} 天没有可信评分；初评分和待复核报告不进入趋势线。
           </div>
@@ -344,10 +344,10 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   gap: 18px;
-  align-items: stretch;
+  align-items: start;
 }
 .doctor-panel {
-  position: relative;
+  position: sticky;
   top: 12px;
   padding: 18px;
   border: 1px solid var(--line);
@@ -540,10 +540,10 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
   box-shadow: 0 16px 38px -34px rgba(26, 75, 49, 0.45);
 }
 .doctor-panel {
-  top: 0;
+  top: 14px;
   display: flex;
   flex-direction: column;
-  max-height: none;
+  max-height: calc(100dvh - 112px);
   min-height: 360px;
   padding: 18px;
 }
@@ -556,7 +556,6 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 }
 .doctor-panel-head {
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -587,7 +586,7 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 }
 .doctor-panel-toggle svg { transform: rotate(180deg); }
 .doctor-panel-toggle-collapsed svg { transform: none; }
-.doctor-panel-head h2 { margin: 0; font-size: 20px; white-space: nowrap; }
+.doctor-panel-head h2 { margin: 0; font-size: 20px; }
 .doctor-panel-meta {
   margin: 5px 0 0;
   color: var(--muted);
@@ -642,7 +641,6 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 }
 .doctor-list {
   flex: 1 1 auto;
-  align-content: start;
   min-height: 0;
   max-height: none;
   margin: 0 -4px -4px;
@@ -696,13 +694,10 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 }
 .doctor-row-end {
   display: grid;
-  grid-column: 2 / -1;
-  grid-template-columns: auto 1fr;
   justify-items: end;
   align-content: center;
   gap: 5px;
 }
-.doctor-row-end small { justify-self: end; }
 .doctor-row-end .status-badge { font-size: 13px; }
 .doctor-empty { padding: 18px 8px; color: var(--muted); font-size: 14px; text-align: center; }
 .panel-state { padding: 32px 16px; font-size: 15px; line-height: 1.7; }
@@ -823,8 +818,7 @@ const doctorTone = (doctor: MonitoringList['doctors'][number]) =>
 .sessions-heading { align-items: center; margin-bottom: 12px; }
 .sessions-heading h3 { margin: 0; }
 .records-count { flex: none; padding: 5px 10px; border-radius: 99px; background: #eff7f1; color: #4f7860; font-size: 13.5px; }
-.table-scroll { overflow: auto; max-height: 360px; border: 1px solid #e9efea; border-radius: 11px; }
-.sessions-card th { position: sticky; top: 0; z-index: 1; }
+.table-scroll { overflow-x: auto; border: 1px solid #e9efea; border-radius: 11px; }
 .sessions-card table { min-width: 640px; width: 100%; border-collapse: collapse; font-size: 14px; }
 .sessions-card th,
 .sessions-card td { padding: 11px 13px; text-align: left; border-bottom: 1px solid #edf2ee; white-space: nowrap; }
