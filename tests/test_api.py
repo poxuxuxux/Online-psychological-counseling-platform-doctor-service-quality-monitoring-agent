@@ -12,6 +12,39 @@ from app.main import create_app
 from tests.conftest import ScriptedModel
 
 
+def test_date_ranges_validate_all_aggregation_endpoints(tmp_path, catalog):
+    settings = replace(Settings(team_protocol="legacy"), seed_demo=False,
+                       database_url="sqlite:///" + str(tmp_path / "dates.sqlite3"))
+    with TestClient(create_app(settings=settings, model=ScriptedModel(), catalog=catalog)) as client:
+        for endpoint in ("consultations", "evaluations/overview", "monitoring/doctors",
+                         "monitoring/doctors/d1"):
+            for query in ("start_date=2026-01-01", "end_date=2026-01-01",
+                          "start_date=2026-01-02&end_date=2026-01-01",
+                          "start_date=2025-01-01&end_date=2026-01-01",
+                          "start_date=invalid&end_date=2026-01-01"):
+                assert client.get(f"/api/v1/{endpoint}?{query}").status_code == 422
+
+
+def test_consultation_dates_use_shanghai_days_before_pagination(tmp_path, catalog, session):
+    settings = replace(Settings(team_protocol="legacy"), seed_demo=False,
+                       database_url="sqlite:///" + str(tmp_path / "date-page.sqlite3"),
+                       api_token="test-token-at-least-24-characters")
+    headers = {"Authorization": "Bearer " + settings.api_token}
+    with TestClient(create_app(settings=settings, model=ScriptedModel(), catalog=catalog)) as client:
+        for index in range(2):
+            payload = session.model_dump(mode="json")
+            payload.update(session_id=f"date-{index}",
+                           session_time=f"2026-01-01T{15 + index}:30:00+00:00")
+            assert client.post("/api/v1/sessions", json=payload, headers=headers).status_code == 201
+        path = "/api/v1/consultations?scope=private&start_date=2026-01-02&end_date=2026-01-02"
+        result = client.get(path + "&limit=1", headers=headers).json()
+        assert result["total"] == 1
+        assert [item["session_id"] for item in result["items"]] == ["date-1"]
+        next_page = client.get(path + "&limit=1&offset=1", headers=headers).json()
+        assert next_page["total"] == 1
+        assert next_page["items"] == []
+
+
 def test_retry_requires_access_preserves_original_and_returns_new_run(tmp_path, catalog, session):
     class Unavailable(ScriptedModel):
         async def json(self, *args):
