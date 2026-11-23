@@ -134,7 +134,18 @@ class EvaluationService:
 
     async def execute(self, run_id):
         owner = uid("worker")
-        if not await self.repository.claim(run_id, owner, self.settings.total_timeout + 120):
+        # SQLite transactions run in a thread and can commit after their awaiter is cancelled.
+        # Finish acquisition before releasing on shutdown so a restart never inherits our lease.
+        acquisition = asyncio.create_task(
+            self.repository.claim(run_id, owner, self.settings.total_timeout + 120)
+        )
+        try:
+            claimed = await asyncio.shield(acquisition)
+        except asyncio.CancelledError:
+            await acquisition
+            await self.repository.release(run_id, owner)
+            raise
+        if not claimed:
             raise RunBusy("run_busy_or_missing")
         start = time.monotonic()
         usage_token = None
