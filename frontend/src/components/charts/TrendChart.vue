@@ -8,6 +8,7 @@ const props = withDefaults(
     scale?: 'percent' | 'five'
     monthly?: boolean
     initialFocus?: number
+    detailed?: boolean
   }>(),
   { scale: 'percent', monthly: false, initialFocus: undefined },
 )
@@ -91,12 +92,48 @@ const focusPoint = computed(() => {
   }
 })
 const fillId = `trend-fill-${Math.random().toString(36).slice(2, 8)}`
+const scoredPoints = computed(() => props.trend.filter((p) => p.average !== null))
+const summary = computed(() => {
+  const points = scoredPoints.value
+  const count = points.reduce((sum, p) => sum + p.sample_count, 0)
+  const first = points[0]?.average ?? 0
+  const last = points.at(-1)?.average ?? 0
+  return {
+    average: count ? points.reduce((sum, p) => sum + p.average! * p.sample_count, 0) / count : 0,
+    change: last - first,
+    peak: points.length ? Math.max(...points.map((p) => p.average!)) : 0,
+    count,
+  }
+})
+const rolling = computed(() => props.trend.map((point, i) => {
+  if (point.average === null) return null
+  const window = props.trend.slice(Math.max(0, i - 6), i + 1).filter((p) => p.average !== null)
+  const count = window.reduce((sum, p) => sum + p.sample_count, 0)
+  return count ? window.reduce((sum, p) => sum + p.average! * p.sample_count, 0) / count : null
+}))
+const rollingPath = computed(() => {
+  let previous = false
+  return rolling.value.map((value, i) => {
+    if (value === null) { previous = false; return '' }
+    const command = previous ? 'L' : 'M'
+    previous = true
+    return `${command}${x(i)} ${y(value)}`
+  }).join(' ')
+})
+const maxSamples = computed(() => Math.max(1, ...props.trend.map((p) => p.sample_count)))
+const detailedTicks = computed(() => [...new Set(Array.from({ length: Math.min(6, props.trend.length) }, (_, i) => Math.round(i * (props.trend.length - 1) / Math.max(1, Math.min(6, props.trend.length) - 1))))])
 </script>
 <template>
-  <div class="trend-area">
+  <div :class="['trend-area', { 'trend-detailed': detailed }]">
+    <dl v-if="detailed && scoredPoints.length" class="trend-summary">
+      <div><dt>周期均分</dt><dd>{{ summary.average.toFixed(1) }}<small> 分</small></dd></div>
+      <div><dt>首末变化</dt><dd>{{ summary.change > 0 ? '+' : '' }}{{ summary.change.toFixed(1) }}<small> 分</small></dd></div>
+      <div><dt>最高日均</dt><dd>{{ summary.peak.toFixed(1) }}<small> 分</small></dd></div>
+      <div><dt>有效评价</dt><dd>{{ summary.count }}<small> 份</small></dd></div>
+    </dl>
     <svg
       class="trend-chart"
-      viewBox="0 0 720 280"
+      :viewBox="detailed ? '0 0 720 350' : '0 0 720 280'"
       role="img"
       aria-label="每日平均总分折线图，满分100分，85分优质线与60分风险边界线，空白日期没有有效评分"
     >
@@ -127,6 +164,7 @@ const fillId = `trend-fill-${Math.random().toString(36).slice(2, 8)}`
       </template>
       <path v-for="(area, i) in areas" :key="`area-${i}`" :d="area" :fill="`url(#${fillId})`" />
       <path v-for="(line, i) in lines" :key="i" :d="line" class="trend-line" />
+      <path v-if="detailed" :d="rollingPath" class="rolling-line" />
       <template v-if="focusPoint">
         <line
           :x1="focusPoint.px"
@@ -170,21 +208,43 @@ const fillId = `trend-fill-${Math.random().toString(36).slice(2, 8)}`
           <title>{{ p.date }}：{{ p.average.toFixed(1) }} 分，{{ p.sample_count }} 轮</title>
         </circle>
       </template>
-      <text v-for="i in ticks" :key="i" :x="x(i)" y="260" text-anchor="middle" class="chart-label">
+      <text v-for="i in (detailed ? detailedTicks : ticks)" :key="i" :x="x(i)" y="260" text-anchor="middle" class="chart-label">
         {{ tickLabel(i) }}
       </text>
+      <g v-if="detailed" class="sample-bars" aria-label="每日有效评价数量">
+        <text x="48" y="284" class="chart-tick">每日样本量（份）</text>
+        <text x="688" y="284" text-anchor="end" class="chart-tick">最高 {{ maxSamples }} 份 / 天</text>
+        <rect v-for="(p, i) in trend" :key="p.date" :x="x(i) - Math.min(10, 250 / Math.max(1, trend.length))" :y="330 - p.sample_count / maxSamples * 32" :width="Math.min(20, 500 / Math.max(1, trend.length))" :height="p.sample_count / maxSamples * 32" rx="1">
+          <title>{{ p.date }}：{{ p.sample_count }} 份有效评价</title>
+        </rect>
+      </g>
     </svg>
     <div class="chart-legend">
       <span><i class="legend-line" />平均总分</span
-      ><span><i class="legend-line quality" />85 分优质线</span
+      ><span v-if="detailed"><i class="legend-line rolling" />近 7 天均线</span><span><i class="legend-line quality" />85 分优质线</span
       ><span><i class="legend-line risk" />60 分风险边界</span>
     </div>
     <p class="chart-caption" aria-live="polite">
       {{
         selected
           ? `${selected.date} · ${selected.average?.toFixed(1)} 分 · ${selected.sample_count} 轮`
-          : '按评估保存日期统计；无有效评分的日期留空。'
+          : detailed ? '按日汇总有效评价；近 7 天均线按样本量加权，缺失日期留空。首末变化为最后与首个有效日均分之差。' : '按评估保存日期统计；无有效评分的日期留空。'
       }}
     </p>
   </div>
 </template>
+
+<style scoped>
+.trend-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 14px; padding: 12px 0; border-bottom: 1px solid #e1ebe4; }
+.trend-summary dt { color: #52685a; font-size: 13px; }
+.trend-summary dd { margin: 6px 0 0; color: #244c37; font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.trend-summary small { font-size: 12px; font-weight: 400; }
+.rolling-line { fill: none; stroke: #8b6539; stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+.legend-line.rolling { border-color: #8b6539; border-top-style: dashed; background: transparent; }
+.sample-bars rect { fill: #91bba3; }
+.trend-detailed .chart-caption { color: #52685a; line-height: 1.7; }
+.trend-detailed .chart-point:focus-visible { outline: 2px solid #245e40; outline-offset: 3px; }
+@media (max-width: 560px) {
+  .trend-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>

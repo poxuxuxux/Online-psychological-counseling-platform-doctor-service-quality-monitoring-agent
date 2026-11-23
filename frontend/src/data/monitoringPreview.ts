@@ -31,9 +31,27 @@ function buildProfile(
   dimensionScores: number[],
   alerts: DoctorProfile['alerts'],
 ): DoctorProfile {
+  // Deterministic synthetic daily observations; preserve the scenario's explicit events.
+  const anchors = [...sessions].filter((s) => s.score !== null).sort((a, b) => b.offset - a.offset)
+  const existingDays = new Set(sessions.map((s) => s.offset))
+  const daily: SessionSeed[] = []
+  for (let offset = DAYS - 1; offset >= 0; offset--) {
+    if (existingDays.has(offset)) continue
+    const before = anchors.filter((s) => s.offset >= offset).at(-1) ?? anchors[0]!
+    const after = anchors.find((s) => s.offset <= offset) ?? anchors.at(-1)!
+    const progress = before.offset === after.offset ? 0 : (before.offset - offset) / (before.offset - after.offset)
+    const baseline = before.score! + (after.score! - before.score!) * progress
+    const value = Math.max(1, Math.min(5, baseline + Math.sin(offset * 0.72) * 0.12 + Math.cos(offset * 0.23) * 0.08))
+    for (let n = 0; n < 1 + offset % 3; n++) {
+      const score = Math.round(Math.max(1, Math.min(5, value + (n - 1) * 0.04)) * 100) / 100
+      daily.push({ id: `demo-${doctorId}-${offset}-${n}`, offset, score,
+        risk: doctorId === 'dr-1087' ? (score < 3 ? 'high' : 'medium') : 'low', review: false })
+    }
+  }
+  sessions = [...sessions, ...daily]
   const scored = sessions.filter((s) => s.score !== null)
   const byOffset = [...sessions].sort((a, b) => a.offset - b.offset)
-  const latestScored = [...scored].sort((a, b) => a.offset - b.offset).pop()
+  const latestScored = [...scored].sort((a, b) => a.offset - b.offset)[0]
   const scores = scored.map((s) => s.score as number)
   const average = scores.length
     ? scale(scores.reduce((sum, value) => sum + value, 0) / scores.length)
@@ -59,7 +77,7 @@ function buildProfile(
     average_total: average,
     latest_score: latestScored && latestScored.score !== null ? scale(latestScored.score) : null,
     latest_date: latestScored ? iso(latestScored.offset) : null,
-    latest_risk: byOffset[byOffset.length - 1]?.risk ?? null,
+    latest_risk: byOffset[0]?.risk ?? null,
     dimensions: DIMENSIONS.map((dimension_id, i) => ({
       dimension_id,
       name: dimension_id,
@@ -69,7 +87,6 @@ function buildProfile(
     trend: trendFrom(sessions),
     sessions: byOffset
       .slice()
-      .reverse()
       .map(({ id, offset, score, risk, review }) => ({
         session_id: id,
         date: iso(offset),
@@ -188,11 +205,16 @@ function profileForRange(profile: DoctorProfile, start: string, end: string): Do
     }))
     .filter((alert) => alert.related_sessions.length > 0 || (!!alert.last_seen && alert.last_seen >= start && alert.last_seen <= end))
   const days = Math.floor((Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1
-  const byDate = new Map(scored.map((session) => [session.date, session.overall_score! * 20]))
+  const byDate = new Map<string, number[]>()
+  for (const session of scored) {
+    const values = byDate.get(session.date) ?? []
+    values.push(session.overall_score! * 20)
+    byDate.set(session.date, values)
+  }
   const trend = Array.from({ length: days }, (_, offset) => {
     const date = new Date(Date.parse(`${start}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10)
-    const value = byDate.get(date)
-    return { date, average: value ?? null, sample_count: value === undefined ? 0 : 1 }
+    const values = byDate.get(date) ?? []
+    return { date, average: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null, sample_count: values.length }
   })
   return {
     ...profile,
